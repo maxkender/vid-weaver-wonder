@@ -6,11 +6,12 @@ export type AssembleScene = {
   audio?: string | undefined;
   /** PNG transparent (texte incrusté) superposé sur toute la durée du plan. */
   overlay?: Blob | null | undefined;
-  /** Sous-titres karaoké : un PNG par mot, affiché entre start et end. */
-  karaoke?: { blob: Blob; start: number; end: number }[] | undefined;
+  /** Sous-titres karaoké : séquence d'images à cadence fixe. */
+  karaokeSeq?: { fps: number; frames: Blob[] } | null | undefined;
   /** Durée cible du plan (= durée de la voix off), en secondes. */
   duration?: number | undefined;
 };
+
 
 
 const CORE_URL = "https://unpkg.com/@ffmpeg/core@0.12.10/dist/umd";
@@ -89,39 +90,28 @@ export async function assembleVideo(
       args.push("-f", "lavfi", "-i", "anullsrc=channel_layout=stereo:sample_rate=44100");
     }
 
-    const karaoke = scene.karaoke ?? [];
+    const seq = scene.karaokeSeq ?? null;
     const overlayFiles: string[] = [];
-    let karaokeList: string | undefined;
 
-    if (karaoke.length) {
-      // Les PNG sont lus comme une seule piste vidéo séquentielle. Ajouter chaque mot
-      // comme une entrée/filter FFmpeg séparée faisait exploser la mémoire de wasm.
-      for (let k = 0; k < karaoke.length; k++) {
-        const name = `kw${i}_${k}.png`;
-        await ffmpeg.writeFile(name, new Uint8Array(await karaoke[k]!.blob.arrayBuffer()));
+    if (seq && seq.frames.length) {
+      // Une séquence d'images à cadence fixe : FFmpeg la lit comme une vidéo,
+      // c'est bien plus robuste (et léger) qu'un overlay par mot.
+      for (let k = 0; k < seq.frames.length; k++) {
+        const name = `kw${i}_${String(k).padStart(4, "0")}.png`;
+        await ffmpeg.writeFile(name, new Uint8Array(await seq.frames[k]!.arrayBuffer()));
         overlayFiles.push(name);
       }
-      karaokeList = `karaoke${i}.ffconcat`;
-      const entries = karaoke.map((frame, k) => {
-        const span = Math.max(0.04, frame.end - frame.start);
-        return `file '${overlayFiles[k]}'\nduration ${span.toFixed(4)}`;
-      });
-      // Le concat demuxer exige de répéter la dernière image pour conserver sa durée.
-      entries.push(`file '${overlayFiles[overlayFiles.length - 1]}'`);
-      await ffmpeg.writeFile(
-        karaokeList,
-        new TextEncoder().encode(`ffconcat version 1.0\n${entries.join("\n")}\n`),
-      );
-      args.push("-f", "concat", "-safe", "0", "-i", karaokeList);
+      args.push("-framerate", String(seq.fps), "-i", `kw${i}_%04d.png`);
       args.push(
         "-filter_complex",
-        `[0:v]${vf}[base];[2:v]fps=24,scale=${width}:${height},format=rgba[txt];[base][txt]overlay=0:0:shortest=1[v]`,
+        `[0:v]${vf}[base];[2:v]fps=24,scale=${width}:${height},format=rgba[txt];[base][txt]overlay=0:0:shortest=0[v]`,
         "-map",
         "[v]",
         "-map",
         "1:a:0",
       );
     } else if (scene.overlay) {
+
       const name = `ov${i}.png`;
       await ffmpeg.writeFile(name, new Uint8Array(await scene.overlay.arrayBuffer()));
       args.push("-i", name);
@@ -162,7 +152,7 @@ export async function assembleVideo(
     await ffmpeg.deleteFile(vName);
     if (scene.audio) await ffmpeg.deleteFile(`voice${i}.mp3`);
     for (const f of overlayFiles) await ffmpeg.deleteFile(f);
-    if (karaokeList) await ffmpeg.deleteFile(karaokeList);
+    
 
     parts.push(out);
   }

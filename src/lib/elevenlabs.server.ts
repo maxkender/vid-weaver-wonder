@@ -17,23 +17,25 @@ export async function generateElevenSpeechDataUrl(
   if (!apiKey) throw new Error("ElevenLabs n'est pas connecté à ce projet.");
 
   const res = await fetch(
-    `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}?output_format=mp3_44100_128`,
+    `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}?output_format=mp3_44100_192`,
     {
       method: "POST",
       headers: { "xi-api-key": apiKey, "Content-Type": "application/json" },
       body: JSON.stringify({
         text,
         model_id: "eleven_multilingual_v2",
+        // Réglages narration : voix stable, très fidèle, peu de "style" (plus naturel).
         voice_settings: {
-          stability: 0.45,
-          similarity_boost: 0.8,
-          style: 0.35,
+          stability: 0.6,
+          similarity_boost: 0.9,
+          style: 0.12,
           use_speaker_boost: true,
-          speed: 1.0,
+          speed: 0.98,
         },
       }),
     },
   );
+
 
   if (!res.ok) {
     const body = await res.text().catch(() => "");
