@@ -185,25 +185,22 @@ function Studio() {
       })) as { dataUrl: string };
 
       patch(scene.index, { image: dataUrl, imageLoading: false });
+      return dataUrl;
     } catch (e) {
       patch(scene.index, { imageLoading: false });
       toast.error(e instanceof Error ? e.message : "Échec de l'image");
+      return undefined;
     }
   };
 
-  const onVideo = async (scene: Scene) => {
-    if (busyRef.current) {
-      toast.info("Une vidéo est déjà en cours de génération.");
-      return;
-    }
-    busyRef.current = true;
+  const onVideo = async (scene: Scene, imageOverride?: string) => {
     patch(scene.index, { videoLoading: true, progress: 0, videoUrl: undefined });
     try {
-      const state = states[scene.index];
+      const image = imageOverride ?? states[scene.index]?.image;
       const { id } = (await runVideo({
         data: {
           videoPrompt: scene.videoPrompt,
-          ...(state?.image ? { imageDataUrl: state.image } : {}),
+          ...(image ? { imageDataUrl: image } : {}),
           seconds: "8" as const,
           orientation,
           visual,
@@ -236,10 +233,28 @@ function Studio() {
     } catch (e) {
       patch(scene.index, { videoLoading: false });
       toast.error(e instanceof Error ? e.message : "Échec de la vidéo");
-    } finally {
-      busyRef.current = false;
     }
   };
+
+  const [generatingAll, setGeneratingAll] = useState(false);
+
+  const onGenerateAll = async () => {
+    if (!script) return;
+    setGeneratingAll(true);
+    try {
+      await Promise.all(
+        script.scenes.map(async (scene) => {
+          const existing = states[scene.index]?.image;
+          const image = existing ?? (await onImage(scene));
+          await onVideo(scene, image);
+        }),
+      );
+      toast.success("Toutes les scènes sont prêtes");
+    } finally {
+      setGeneratingAll(false);
+    }
+  };
+
 
   const onVoice = async (scene: Scene) => {
     patch(scene.index, { audioLoading: true });
