@@ -32,6 +32,7 @@ import {
   generateScript,
   pollSceneVideo,
   generateSceneVoice,
+  listVoices,
   startSceneVideo,
   suggestTopic,
 } from "@/lib/studio.functions";
@@ -150,6 +151,14 @@ function Studio() {
   const [visual, setVisual] = useState<VisualStyle>("papercraft");
   const [engine, setEngine] = useState<VoiceEngine>("elevenlabs");
   const [voice, setVoice] = useState(defaultVoice("elevenlabs"));
+  const [accountVoices, setAccountVoices] = useState<{ id: string; label: string }[]>([]);
+
+  const runListVoices = useServerFn(listVoices);
+  useEffect(() => {
+    runListVoices({})
+      .then((r) => setAccountVoices((r as { voices: { id: string; label: string }[] }).voices))
+      .catch(() => setAccountVoices([]));
+  }, [runListVoices]);
 
   const [orientation, setOrientation] = useState<"vertical" | "square" | "horizontal">("square");
   const [script, setScript] = useState<Script | null>(null);
@@ -775,7 +784,10 @@ function Studio() {
                 onChange={(e) => setVoice(e.target.value)}
                 className="mt-2 w-full rounded-lg border border-input bg-background/60 p-2 text-sm outline-none focus:ring-2 focus:ring-ring"
               >
-                {voicesFor(engine).map((v) => (
+                {(engine === "elevenlabs" && accountVoices.length
+                  ? accountVoices
+                  : voicesFor(engine)
+                ).map((v) => (
                   <option key={v.id} value={v.id}>
                     {v.label}
                   </option>
