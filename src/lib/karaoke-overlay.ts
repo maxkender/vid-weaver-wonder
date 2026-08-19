@@ -248,21 +248,23 @@ export function smoothTimings(
 
   // 2. Regroupement des mots trop brefs.
   const groups: { word: string; start: number; end: number }[] = [];
-  for (const t of scaled) {
+  for (let i = 0; i < scaled.length; i++) {
+    const t = scaled[i]!;
+    const next = scaled[i + 1];
+    const visible = Math.max((next ? next.start : t.end) - t.start, 0.05);
     const prev = groups[groups.length - 1];
-    const next = scaled[scaled.indexOf(t) + 1];
-    const visible = (next ? next.start : t.end) - t.start;
     if (
       prev &&
       prev.end - prev.start < MIN_CAPTION_HOLD &&
       prev.word.split(" ").length < MAX_GROUP_WORDS
     ) {
       prev.word = `${prev.word} ${t.word}`;
-      prev.end = Math.max(prev.end, t.start + Math.max(visible, 0.05));
+      prev.end = t.start + visible;
       continue;
     }
-    groups.push({ word: t.word, start: t.start, end: t.start + Math.max(visible, 0.05) });
+    groups.push({ word: t.word, start: t.start, end: t.start + visible });
   }
+
 
   // 3. Continuité : un groupe reste jusqu'au suivant.
   return groups.map((g, i) => {
