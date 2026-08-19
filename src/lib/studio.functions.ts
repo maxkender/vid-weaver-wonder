@@ -22,7 +22,7 @@ export const generateScript = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) =>
     z
       .object({
-        topic: z.string().max(300).default(""),
+        topic: z.string().max(5000).default(""),
         kind: z.enum(["faits", "culture", "pub"]),
         style: z
           .enum(["question", "revelation", "storytelling", "listicle"])
