@@ -7,6 +7,7 @@ import {
   Image as ImageIcon,
   Loader2,
   Play,
+  Mic,
   Sparkles,
   Wand2,
 } from "lucide-react";
@@ -17,6 +18,7 @@ import {
   generateSceneImage,
   generateScript,
   pollSceneVideo,
+  generateSceneVoice,
   startSceneVideo,
   suggestTopic,
 } from "@/lib/studio.functions";
@@ -71,6 +73,8 @@ type SceneState = {
   videoUrl?: string | undefined;
   videoLoading?: boolean | undefined;
   progress?: number | undefined;
+  audio?: string | undefined;
+  audioLoading?: boolean | undefined;
 };
 
 
@@ -97,6 +101,7 @@ function Studio() {
   const runImage = useServerFn(generateSceneImage);
   const runVideo = useServerFn(startSceneVideo);
   const runPoll = useServerFn(pollSceneVideo);
+  const runVoice = useServerFn(generateSceneVoice);
 
   const [topic, setTopic] = useState("");
   const [angle, setAngle] = useState("");
@@ -108,11 +113,13 @@ function Studio() {
   const [sceneCount, setSceneCount] = useState(5);
   const [style, setStyle] = useState<NarrationStyle>("revelation");
   const [visual, setVisual] = useState<VisualStyle>("papercraft");
+  const [voice, setVoice] = useState("ballad");
   const [orientation, setOrientation] = useState<"vertical" | "square" | "horizontal">("square");
   const [script, setScript] = useState<Script | null>(null);
   const [loadingScript, setLoadingScript] = useState(false);
   const [states, setStates] = useState<Record<number, SceneState>>({});
   const busyRef = useRef(false);
+  const audioRefs = useRef<Record<number, HTMLAudioElement | null>>({});
 
   const patch = useCallback((i: number, value: SceneState) => {
     setStates((prev) => ({ ...prev, [i]: { ...prev[i], ...value } }));
@@ -216,6 +223,20 @@ function Studio() {
       toast.error(e instanceof Error ? e.message : "Échec de la vidéo");
     } finally {
       busyRef.current = false;
+    }
+  };
+
+  const onVoice = async (scene: Scene) => {
+    patch(scene.index, { audioLoading: true });
+    try {
+      const { audioDataUrl } = (await runVoice({
+        data: { text: scene.narration, voice },
+      })) as { audioDataUrl: string };
+      patch(scene.index, { audio: audioDataUrl, audioLoading: false });
+      toast.success(`Voix off scène ${scene.index + 1}`);
+    } catch (e) {
+      patch(scene.index, { audioLoading: false });
+      toast.error(e instanceof Error ? e.message : "Échec de la voix off");
     }
   };
 
@@ -412,7 +433,20 @@ function Studio() {
                         loop
                         playsInline
                         preload="metadata"
+                        muted={Boolean(st.audio)}
                         {...(st.image ? { poster: st.image } : {})}
+                        onPlay={(e) => {
+                          const a = audioRefs.current[scene.index];
+                          if (a) {
+                            a.currentTime = e.currentTarget.currentTime;
+                            void a.play();
+                          }
+                        }}
+                        onPause={() => audioRefs.current[scene.index]?.pause()}
+                        onSeeked={(e) => {
+                          const a = audioRefs.current[scene.index];
+                          if (a) a.currentTime = e.currentTarget.currentTime;
+                        }}
                         className="h-full w-full object-contain"
                       />
                     ) : st.image ? (
@@ -467,6 +501,27 @@ function Studio() {
                       >
                         <Play className="h-3.5 w-3.5" /> Animer
                       </button>
+                      <button
+                        onClick={() => onVoice(scene)}
+                        disabled={st.audioLoading}
+                        className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-xs uppercase tracking-widest hover:border-primary disabled:opacity-50"
+                      >
+                        {st.audioLoading ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <Mic className="h-3.5 w-3.5" />
+                        )}
+                        Voix off
+                      </button>
+                      {st.audio && (
+                        <a
+                          href={st.audio}
+                          download={`scene-${scene.index + 1}.mp3`}
+                          className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-xs uppercase tracking-widest hover:border-primary"
+                        >
+                          <Download className="h-3.5 w-3.5" /> MP3
+                        </a>
+                      )}
                       {st.videoUrl && (
                         <a
                           href={st.videoUrl}
@@ -477,6 +532,17 @@ function Studio() {
                         </a>
                       )}
                     </div>
+
+                    {st.audio && (
+                      <audio
+                        ref={(el) => {
+                          audioRefs.current[scene.index] = el;
+                        }}
+                        src={st.audio}
+                        controls
+                        className="mt-4 w-full"
+                      />
+                    )}
                   </div>
                 </article>
               );
