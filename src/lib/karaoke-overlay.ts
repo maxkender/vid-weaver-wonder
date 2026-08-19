@@ -13,15 +13,11 @@ async function ensureFont(size: number) {
 /** Taille de police relative des sous-titres (2× plus petit qu'avant). */
 export const CAPTION_SIZE_RATIO = 0.062;
 
-/** Couleur du mot en cours de prononciation (style CapCut). */
-export const CAPTION_ACTIVE_COLOR = "#ffd233";
-
 const cleanWord = (w: string) =>
   w.replace(/[«»"]/g, "").replace(/\s+/g, " ").trim().toLowerCase();
 
 /**
- * Dessine la phrase sur une seule ligne, avec le mot prononcé mis en couleur
- * (karaoké mot à mot façon CapCut, sans zoom).
+ * Dessine la phrase sur une seule ligne, en blanc uni, sans zoom.
  */
 function drawWord(
   ctx: CanvasRenderingContext2D,
@@ -30,7 +26,6 @@ function drawWord(
   height: number,
   scale = 1,
   alpha = 1,
-  activeIndex = -1,
 ) {
   const words = cleanWord(word).split(" ").filter(Boolean);
   if (!words.length) return;
@@ -75,10 +70,10 @@ function drawWord(
   ctx.miterLimit = 2;
   ctx.lineWidth = Math.max(8, fontSize * 0.16);
   ctx.strokeStyle = "#000000";
+  ctx.fillStyle = "#ffffff";
 
   words.forEach((w, i) => {
     ctx.strokeText(w, x, 0);
-    ctx.fillStyle = i === activeIndex ? CAPTION_ACTIVE_COLOR : "#ffffff";
     ctx.fillText(w, x, 0);
     x += widths[i]! + space;
   });
