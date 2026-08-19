@@ -35,6 +35,8 @@ export const generateScript = createServerFn({ method: "POST" })
         targetSeconds: z.number().int().min(15).max(90).default(35),
         /** Brief de narration personnalisé (page Paramètres). */
         styleBrief: z.string().max(4000).optional(),
+        /** Densité du texte réglée dans Paramètres (mots par plan). */
+        wordsBias: z.number().int().min(-6).max(6).default(0),
       })
       .parse(input),
   )
@@ -43,8 +45,8 @@ export const generateScript = createServerFn({ method: "POST" })
     const narrationSeconds = Math.max(8, data.targetSeconds - 7);
     // ~2,5 mots/seconde en lecture naturelle.
     const wordsPerScene = Math.min(
-      26,
-      Math.max(10, Math.round((narrationSeconds * 2.5) / data.sceneCount)),
+      28,
+      Math.max(8, Math.round((narrationSeconds * 2.5) / data.sceneCount) + data.wordsBias),
     );
     const script = await chatJSON<Script>(
       "google/gemini-3.7-flash",
