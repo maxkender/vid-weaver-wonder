@@ -1,0 +1,45 @@
+/** Voix off premium via ElevenLabs (clé fournie par le connecteur). */
+
+export const ELEVEN_VOICES = [
+  { id: "9BWtsMINqrJLrRacOk9x", label: "Aria — chaleureuse" },
+  { id: "JBFqnCBsd6RMkjVDRZzb", label: "George — narrateur doc" },
+  { id: "onwK4e9ZLuTAKqWW03F9", label: "Daniel — grave, posé" },
+  { id: "XrExE9yKIg1WjnnlVkGX", label: "Matilda — claire, jeune" },
+  { id: "N2lVS1w4EtoT3dr4eOWO", label: "Callum — intense" },
+  { id: "EXAVITQu4vr4xnSDxMaL", label: "Sarah — douce" },
+] as const;
+
+export async function generateElevenSpeechDataUrl(
+  text: string,
+  voiceId: string,
+): Promise<string> {
+  const apiKey = process.env["ELEVENLABS_API_KEY"];
+  if (!apiKey) throw new Error("ElevenLabs n'est pas connecté à ce projet.");
+
+  const res = await fetch(
+    `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}?output_format=mp3_44100_128`,
+    {
+      method: "POST",
+      headers: { "xi-api-key": apiKey, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        text,
+        model_id: "eleven_multilingual_v2",
+        voice_settings: {
+          stability: 0.45,
+          similarity_boost: 0.8,
+          style: 0.35,
+          use_speaker_boost: true,
+          speed: 1.0,
+        },
+      }),
+    },
+  );
+
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    throw new Error(`ElevenLabs [${res.status}] : ${body || "échec de la synthèse vocale"}`);
+  }
+
+  const buf = Buffer.from(await res.arrayBuffer());
+  return `data:audio/mpeg;base64,${buf.toString("base64")}`;
+}
