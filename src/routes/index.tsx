@@ -287,7 +287,7 @@ function Studio() {
               />
             </div>
             <div className="flex gap-2">
-              {(["vertical", "horizontal"] as const).map((o) => (
+              {(["vertical", "square", "horizontal"] as const).map((o) => (
                 <button
                   key={o}
                   onClick={() => setOrientation(o)}
@@ -297,10 +297,11 @@ function Studio() {
                       : "border-border bg-secondary/40 text-muted-foreground"
                   }`}
                 >
-                  {o === "vertical" ? "9:16" : "16:9"}
+                  {o === "vertical" ? "9:16" : o === "square" ? "1:1 dans 9:16" : "16:9"}
                 </button>
               ))}
             </div>
+
             <button
               onClick={onScript}
               disabled={loadingScript}
