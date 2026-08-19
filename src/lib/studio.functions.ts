@@ -42,6 +42,16 @@ export const generateScript = createServerFn({ method: "POST" })
       index: i,
     }));
     script.cta = SOPHIA_OUTRO;
+    // L'outro Sophia devient une vraie scène finale (narration + visuel + vidéo)
+    script.scenes.push({
+      index: script.scenes.length,
+      narration: SOPHIA_OUTRO,
+      overlay: "Sophia",
+      imagePrompt:
+        "a hand holding a simple smartphone showing a clean study app screen, small floating book and lightbulb shapes around it, calm background",
+      videoPrompt:
+        "static frontal shot, the smartphone rises slightly while small book and lightbulb shapes float gently around it",
+    } as Script["scenes"][number]);
     return script;
   });
 
