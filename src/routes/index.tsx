@@ -124,7 +124,7 @@ function Studio() {
   const [script, setScript] = useState<Script | null>(null);
   const [loadingScript, setLoadingScript] = useState(false);
   const [states, setStates] = useState<Record<number, SceneState>>({});
-  const busyRef = useRef(false);
+  
   const audioRefs = useRef<Record<number, HTMLAudioElement | null>>({});
   const videoRefs = useRef<Record<number, HTMLVideoElement | null>>({});
   const [previewVoice, setPreviewVoice] = useState(false);
