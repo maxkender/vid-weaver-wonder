@@ -473,6 +473,46 @@ function Studio() {
                 </span>
               ))}
             </div>
+
+            <div className="mt-6 rounded-lg border border-border bg-secondary/30 p-4">
+              <div className="flex flex-wrap items-center gap-3">
+                <button
+                  onClick={onAssemble}
+                  disabled={assembling || readyScenes.length === 0}
+                  className="btn-gold inline-flex items-center gap-2 rounded-lg px-4 py-2.5 text-xs font-bold uppercase tracking-widest disabled:opacity-50"
+                >
+                  {assembling ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Film className="h-3.5 w-3.5" />
+                  )}
+                  Assembler la vidéo entière
+                </button>
+                <span className="text-xs uppercase tracking-widest text-muted-foreground">
+                  {assembling
+                    ? assembleStep
+                    : `${readyScenes.length}/${script.scenes.length} scènes animées`}
+                </span>
+                {finalUrl && (
+                  <a
+                    href={finalUrl}
+                    download="video-finale.mp4"
+                    className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-xs uppercase tracking-widest hover:border-primary"
+                  >
+                    <Download className="h-3.5 w-3.5" /> MP4 final
+                  </a>
+                )}
+              </div>
+              {finalUrl && (
+                <video
+                  src={finalUrl}
+                  controls
+                  playsInline
+                  className="mt-4 max-h-[70vh] w-full rounded-lg bg-black object-contain"
+                />
+              )}
+            </div>
+
             <button
               onClick={() => {
                 void navigator.clipboard.writeText(fullNarration);
