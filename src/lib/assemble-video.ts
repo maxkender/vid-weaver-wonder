@@ -6,6 +6,8 @@ export type AssembleScene = {
   audio?: string | undefined;
   /** PNG transparent (texte incrusté) superposé sur toute la durée du plan. */
   overlay?: Blob | null | undefined;
+  /** Sous-titres karaoké : un PNG par mot, affiché entre start et end. */
+  karaoke?: { blob: Blob; start: number; end: number }[] | undefined;
   /** Durée cible du plan (= durée de la voix off), en secondes. */
   duration?: number | undefined;
 };
@@ -85,13 +87,30 @@ export async function assembleVideo(
       args.push("-f", "lavfi", "-i", "anullsrc=channel_layout=stereo:sample_rate=44100");
     }
 
-    const hasOverlay = Boolean(scene.overlay);
-    if (scene.overlay) {
-      await ffmpeg.writeFile(`ov${i}.png`, new Uint8Array(await scene.overlay.arrayBuffer()));
-      args.push("-i", `ov${i}.png`);
-    }
+    const karaoke = scene.karaoke ?? [];
+    const overlayFiles: string[] = [];
 
-    if (hasOverlay) {
+    if (karaoke.length) {
+      // Un PNG par mot, affiché sur son intervalle de temps (karaoké gravé).
+      for (let k = 0; k < karaoke.length; k++) {
+        const name = `kw${i}_${k}.png`;
+        await ffmpeg.writeFile(name, new Uint8Array(await karaoke[k]!.blob.arrayBuffer()));
+        args.push("-i", name);
+        overlayFiles.push(name);
+      }
+      let chain = `[0:v]${vf}[v0]`;
+      karaoke.forEach((f, k) => {
+        const input = k + 2;
+        chain += `;[${input}:v]scale=${width}:${height}[t${k}];[v${k}][t${k}]overlay=0:0:enable='between(t,${f.start.toFixed(
+          2,
+        )},${f.end.toFixed(2)})'[v${k + 1}]`;
+      });
+      args.push("-filter_complex", chain, "-map", `[v${karaoke.length}]`, "-map", "1:a:0");
+    } else if (scene.overlay) {
+      const name = `ov${i}.png`;
+      await ffmpeg.writeFile(name, new Uint8Array(await scene.overlay.arrayBuffer()));
+      args.push("-i", name);
+      overlayFiles.push(name);
       args.push(
         "-filter_complex",
         `[0:v]${vf}[base];[2:v]scale=${width}:${height}[txt];[base][txt]overlay=0:0[v]`,
@@ -127,7 +146,7 @@ export async function assembleVideo(
     await run(ffmpeg, args, `Scène ${i + 1}`);
     await ffmpeg.deleteFile(vName);
     if (scene.audio) await ffmpeg.deleteFile(`voice${i}.mp3`);
-    if (scene.overlay) await ffmpeg.deleteFile(`ov${i}.png`);
+    for (const f of overlayFiles) await ffmpeg.deleteFile(f);
 
     parts.push(out);
   }

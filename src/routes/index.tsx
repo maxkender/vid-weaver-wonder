@@ -23,6 +23,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { KaraokeCaption } from "@/components/karaoke-caption";
 import { MusicLibrary } from "@/components/music-library";
 import { audioDuration, estimateSpeechSeconds } from "@/lib/duration";
+import { defaultVoice, voicesFor, type VoiceEngine } from "@/lib/voices";
 
 
 
@@ -144,7 +145,8 @@ function Studio() {
   const [sceneCount, setSceneCount] = useState(5);
   const [style, setStyle] = useState<NarrationStyle>("revelation");
   const [visual, setVisual] = useState<VisualStyle>("papercraft");
-  const [voice, setVoice] = useState("ballad");
+  const [engine, setEngine] = useState<VoiceEngine>("lovable");
+  const [voice, setVoice] = useState(defaultVoice("lovable"));
   const [orientation, setOrientation] = useState<"vertical" | "square" | "horizontal">("square");
   const [script, setScript] = useState<Script | null>(null);
   const [loadingScript, setLoadingScript] = useState(false);
@@ -327,7 +329,7 @@ function Studio() {
     patch(scene.index, { audioLoading: true });
     try {
       const { audioDataUrl } = (await runVoice({
-        data: { text: scene.narration, voice },
+        data: { text: scene.narration, voice, engine },
       })) as { audioDataUrl: string };
       patch(scene.index, { audio: audioDataUrl, audioLoading: false });
       toast.success(`Voix off scène ${scene.index + 1}`);
@@ -340,16 +342,18 @@ function Studio() {
   const onPreviewVoice = async () => {
     setPreviewVoice(true);
     try {
-      let src = voiceSamples.current[voice];
+      const sampleKey = `${engine}:${voice}`;
+      let src = voiceSamples.current[sampleKey];
       if (!src) {
         const { audioDataUrl } = (await runVoice({
           data: {
             text: "Et si je te racontais un fait que presque personne ne connaît ? Écoute bien.",
             voice,
+            engine,
           },
         })) as { audioDataUrl: string };
         src = audioDataUrl;
-        voiceSamples.current[voice] = audioDataUrl;
+        voiceSamples.current[sampleKey] = audioDataUrl;
       }
       const el = sampleRef.current;
       if (el) {
@@ -379,6 +383,7 @@ function Studio() {
       const { assembleVideo } = await import("@/lib/assemble-video");
       const { randomTrack } = await import("@/lib/music-store");
       const { makeOverlayPng } = await import("@/lib/overlay-png");
+      const { makeKaraokeFrames } = await import("@/lib/karaoke-overlay");
       const dims =
         orientation === "horizontal"
           ? { width: 1280, height: 720 }
@@ -389,12 +394,21 @@ function Studio() {
           Boolean(x.st?.videoUrl),
         );
       const withDurations = await Promise.all(
-        ordered.map(async ({ scene, st }) => ({
-          videoUrl: st.videoUrl,
-          audio: st.audio,
-          overlay: await makeOverlayPng(scene.overlay, dims.width, dims.height),
-          duration: st.audio ? await audioDuration(st.audio) : undefined,
-        })),
+        ordered.map(async ({ scene, st }) => {
+          const duration = st.audio ? await audioDuration(st.audio) : undefined;
+          const karaoke = duration
+            ? await makeKaraokeFrames(scene.narration, dims.width, dims.height, duration)
+            : [];
+          return {
+            videoUrl: st.videoUrl,
+            audio: st.audio,
+            karaoke,
+            overlay: karaoke.length
+              ? null
+              : await makeOverlayPng(scene.overlay, dims.width, dims.height),
+            duration,
+          };
+        }),
       );
       const track = await randomTrack(style);
       if (track) setAssembleStep(`Musique : ${track.name}`);
@@ -432,17 +446,25 @@ function Studio() {
     try {
       const { assembleVideo } = await import("@/lib/assemble-video");
       const { makeOverlayPng } = await import("@/lib/overlay-png");
+      const { makeKaraokeFrames } = await import("@/lib/karaoke-overlay");
       const dims =
         orientation === "horizontal"
           ? { width: 1280, height: 720 }
           : { width: 720, height: 1280 };
+      const duration = st.audio ? await audioDuration(st.audio) : undefined;
+      const karaoke = duration
+        ? await makeKaraokeFrames(scene.narration, dims.width, dims.height, duration)
+        : [];
       const blob = await assembleVideo(
         [
           {
             videoUrl: st.videoUrl,
             audio: st.audio,
-            overlay: await makeOverlayPng(scene.overlay, dims.width, dims.height),
-            duration: st.audio ? await audioDuration(st.audio) : undefined,
+            karaoke,
+            overlay: karaoke.length
+              ? null
+              : await makeOverlayPng(scene.overlay, dims.width, dims.height),
+            duration,
           },
         ],
         dims,
@@ -636,14 +658,32 @@ function Studio() {
               <label className="text-xs uppercase tracking-widest text-muted-foreground">
                 Voix off
               </label>
+              <div className="mt-2 flex gap-2">
+                {(["lovable", "elevenlabs"] as const).map((e) => (
+                  <button
+                    key={e}
+                    onClick={() => {
+                      setEngine(e);
+                      setVoice(defaultVoice(e));
+                    }}
+                    className={`flex-1 rounded-lg border px-3 py-2 text-xs uppercase tracking-widest ${
+                      engine === e
+                        ? "border-primary bg-primary/15"
+                        : "border-border bg-secondary/40 text-muted-foreground"
+                    }`}
+                  >
+                    {e === "lovable" ? "Standard" : "Premium (ElevenLabs)"}
+                  </button>
+                ))}
+              </div>
               <select
                 value={voice}
                 onChange={(e) => setVoice(e.target.value)}
                 className="mt-2 w-full rounded-lg border border-input bg-background/60 p-2 text-sm outline-none focus:ring-2 focus:ring-ring"
               >
-                {["ballad", "ash", "verse", "sage", "coral", "alloy"].map((v) => (
-                  <option key={v} value={v}>
-                    {v}
+                {voicesFor(engine).map((v) => (
+                  <option key={v.id} value={v.id}>
+                    {v.label}
                   </option>
                 ))}
               </select>
