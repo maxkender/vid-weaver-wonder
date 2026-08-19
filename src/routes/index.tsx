@@ -8,11 +8,15 @@ import {
   Loader2,
   Play,
   Mic,
+  Volume2,
+
   Sparkles,
   Wand2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Toaster } from "@/components/ui/sonner";
+import { KaraokeCaption } from "@/components/karaoke-caption";
+
 
 import {
   generateSceneImage,
@@ -120,6 +124,11 @@ function Studio() {
   const [states, setStates] = useState<Record<number, SceneState>>({});
   const busyRef = useRef(false);
   const audioRefs = useRef<Record<number, HTMLAudioElement | null>>({});
+  const videoRefs = useRef<Record<number, HTMLVideoElement | null>>({});
+  const [previewVoice, setPreviewVoice] = useState(false);
+  const voiceSamples = useRef<Record<string, string>>({});
+  const sampleRef = useRef<HTMLAudioElement | null>(null);
+
 
   const patch = useCallback((i: number, value: SceneState) => {
     setStates((prev) => ({ ...prev, [i]: { ...prev[i], ...value } }));
@@ -239,6 +248,35 @@ function Studio() {
       toast.error(e instanceof Error ? e.message : "Échec de la voix off");
     }
   };
+
+  const onPreviewVoice = async () => {
+    setPreviewVoice(true);
+    try {
+      let src = voiceSamples.current[voice];
+      if (!src) {
+        const { audioDataUrl } = (await runVoice({
+          data: {
+            text: "Et si je te racontais un fait que presque personne ne connaît ? Écoute bien.",
+            voice,
+          },
+        })) as { audioDataUrl: string };
+        src = audioDataUrl;
+        voiceSamples.current[voice] = audioDataUrl;
+      }
+      const el = sampleRef.current;
+      if (el) {
+        el.src = src;
+        el.currentTime = 0;
+        await el.play();
+      }
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Échec de l'aperçu de voix");
+    } finally {
+      setPreviewVoice(false);
+    }
+  };
+
+
 
   const fullNarration = useMemo(
     () =>
@@ -382,6 +420,20 @@ function Studio() {
                   </option>
                 ))}
               </select>
+              <button
+                onClick={onPreviewVoice}
+                disabled={previewVoice}
+                className="mt-2 inline-flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-xs uppercase tracking-widest hover:border-primary disabled:opacity-50"
+              >
+                {previewVoice ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Volume2 className="h-3.5 w-3.5" />
+                )}
+                Écouter un exemple
+              </button>
+              <audio ref={sampleRef} className="hidden" />
+
             </div>
 
             <button
@@ -445,7 +497,11 @@ function Studio() {
                     {st.videoUrl ? (
                       <video
                         key={st.videoUrl}
+                        ref={(el) => {
+                          videoRefs.current[scene.index] = el;
+                        }}
                         src={st.videoUrl}
+
                         controls
                         loop
                         playsInline
@@ -478,12 +534,14 @@ function Studio() {
                       </div>
                     )}
 
+                    <KaraokeCaption
+                      text={scene.narration}
+                      fallback={scene.overlay}
+                      getMedia={() =>
+                        audioRefs.current[scene.index] ?? videoRefs.current[scene.index] ?? null
+                      }
+                    />
 
-                    <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-5">
-                      <p className="caption-overlay text-2xl leading-tight text-white">
-                        {scene.overlay}
-                      </p>
-                    </div>
 
                     {(st.imageLoading || st.videoLoading) && (
                       <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/60">
