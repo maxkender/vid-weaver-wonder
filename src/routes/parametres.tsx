@@ -217,6 +217,22 @@ function SettingsPage() {
           <label className="flex items-start gap-3 text-sm">
             <input
               type="checkbox"
+              checked={settings.hd}
+              onChange={(e) => persist({ ...settings, hd: e.target.checked })}
+              className="mt-1 h-4 w-4 accent-[oklch(0.79_0.16_72)]"
+            />
+            <span>
+              Export en 1080p
+              <span className="block text-xs text-muted-foreground">
+                Génération et export en 1080 × 1920 (au lieu de 720 × 1280). Les plans font
+                alors obligatoirement 8 secondes et coûtent un peu plus cher.
+              </span>
+            </span>
+          </label>
+
+          <label className="flex items-start gap-3 text-sm">
+            <input
+              type="checkbox"
               checked={settings.sophiaLogo}
               onChange={(e) => persist({ ...settings, sophiaLogo: e.target.checked })}
               className="mt-1 h-4 w-4 accent-[oklch(0.79_0.16_72)]"

@@ -126,13 +126,15 @@ export const startSceneVideo = createServerFn({ method: "POST" })
         visualBrief: z.string().max(4000).optional(),
         quality: z.string().max(2000).optional(),
         motion: z.string().max(2000).optional(),
+        /** 1080p : le modèle n'accepte cette définition que sur des plans de 8 s. */
+        hd: z.boolean().default(false),
       })
       .parse(input),
   )
   .handler(async ({ data }) => {
     const square = data.orientation === "square";
     const est = estimateSpeechSeconds(data.narration);
-    const seconds = data.seconds ?? (est <= 4 ? "4" : est <= 6 ? "6" : "8");
+    const seconds = data.hd ? "8" : (data.seconds ?? (est <= 4 ? "4" : est <= 6 ? "6" : "8"));
     const job = await createVideoJob({
       prompt: motionPrompt(data.videoPrompt, data.visual, square, {
         bible: data.bible,
@@ -141,7 +143,13 @@ export const startSceneVideo = createServerFn({ method: "POST" })
         motion: data.motion,
       }),
       seconds,
-      size: data.orientation === "horizontal" ? "1280x720" : "720x1280",
+      size: data.hd
+        ? data.orientation === "horizontal"
+          ? "1920x1080"
+          : "1080x1920"
+        : data.orientation === "horizontal"
+          ? "1280x720"
+          : "720x1280",
       ...(data.imageDataUrl ? { inputReference: data.imageDataUrl } : {}),
     });
     return { id: job.id, status: job.status };

@@ -427,6 +427,7 @@ function Studio() {
           visual,
           ...visualOpts,
           motion: settings.visual[visual].motion,
+          hd: settings.hd,
         },
       })) as { id: string };
       patch(scene.index, { videoId: id });
@@ -555,8 +556,8 @@ function Studio() {
     );
     const dims =
       orientation === "horizontal"
-        ? { width: 1280, height: 720 }
-        : { width: 720, height: 1280 };
+        ? { width: settings.hd ? 1920 : 1280, height: settings.hd ? 1080 : 720 }
+        : { width: settings.hd ? 1080 : 720, height: settings.hd ? 1920 : 1280 };
     const ordered = (script?.scenes ?? [])
       .map((s) => ({ scene: s, st: snapshot[s.index] }))
       .filter((x): x is { scene: Scene; st: SceneState & { videoUrl: string } } =>
@@ -712,8 +713,8 @@ function Studio() {
       );
       const dims =
         orientation === "horizontal"
-          ? { width: 1280, height: 720 }
-          : { width: 720, height: 1280 };
+          ? { width: settings.hd ? 1920 : 1280, height: settings.hd ? 1080 : 720 }
+          : { width: settings.hd ? 1080 : 720, height: settings.hd ? 1920 : 1280 };
       const duration = st.audio ? await audioDuration(st.audio) : undefined;
       const logoWin =
         settings.sophiaLogo && duration

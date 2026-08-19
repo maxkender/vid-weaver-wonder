@@ -70,6 +70,8 @@ export type StudioSettings = {
   musicVolume: number;
   /** Logo Sophia qui apparaît quand la voix dit « Sophia ». */
   sophiaLogo: boolean;
+  /** Export et génération en 1080p (plans de 8 s imposés par le modèle vidéo). */
+  hd: boolean;
 };
 
 export function defaultSettings(): StudioSettings {
@@ -86,7 +88,7 @@ export function defaultSettings(): StudioSettings {
       square: k === "papercraft",
     };
   });
-  return { narration, visual, useReferenceImage: true, musicVolume: 0.14, sophiaLogo: true };
+  return { narration, visual, useReferenceImage: true, musicVolume: 0.14, sophiaLogo: true, hd: true };
 }
 
 const KEY = "studio-settings-v1";
