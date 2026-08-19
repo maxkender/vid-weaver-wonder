@@ -152,7 +152,7 @@ export async function assembleVideo(
     await ffmpeg.deleteFile(vName);
     if (scene.audio) await ffmpeg.deleteFile(`voice${i}.mp3`);
     for (const f of overlayFiles) await ffmpeg.deleteFile(f);
-    if (karaokeList) await ffmpeg.deleteFile(karaokeList);
+    
 
     parts.push(out);
   }
