@@ -394,60 +394,81 @@ function Studio() {
     [script, states],
   );
 
+  const buildFinalVideo = async (
+    snapshot: Record<number, SceneState | undefined>,
+    autoDownload: boolean,
+  ) => {
+    const { assembleVideo } = await import("@/lib/assemble-video");
+    const { randomTrack } = await import("@/lib/music-store");
+    const { makeOverlayPng } = await import("@/lib/overlay-png");
+    const { makeKaraokeSequence } = await import("@/lib/karaoke-overlay");
+    const dims =
+      orientation === "horizontal"
+        ? { width: 1280, height: 720 }
+        : { width: 720, height: 1280 };
+    const ordered = (script?.scenes ?? [])
+      .map((s) => ({ scene: s, st: snapshot[s.index] }))
+      .filter((x): x is { scene: Scene; st: SceneState & { videoUrl: string } } =>
+        Boolean(x.st?.videoUrl),
+      );
+    if (!ordered.length) throw new Error("Aucune scène animée à assembler.");
+
+    setAssembleStep("Préparation des sous-titres…");
+    const withDurations = await Promise.all(
+      ordered.map(async ({ scene, st }) => {
+        const duration = st.audio ? await audioDuration(st.audio) : undefined;
+        const karaokeSeq = duration
+          ? await makeKaraokeSequence(
+              scene.narration,
+              dims.width,
+              dims.height,
+              duration,
+              8,
+              st.words ?? null,
+            )
+          : null;
+        return {
+          videoUrl: st.videoUrl,
+          audio: st.audio,
+          karaokeSeq,
+          overlay: karaokeSeq
+            ? null
+            : await makeOverlayPng(scene.overlay, dims.width, dims.height),
+          duration,
+        };
+      }),
+    );
+
+    const track = await randomTrack(style);
+    if (track) setAssembleStep(`Musique : ${track.name}`);
+    const blob = await assembleVideo(withDurations, {
+      ...dims,
+      music: track?.blob,
+      onProgress: (step) => setAssembleStep(step),
+    });
+
+    const url = URL.createObjectURL(blob);
+    setFinalUrl((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return url;
+    });
+    if (autoDownload) {
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${(script?.title ?? "video").replace(/[^\p{L}\p{N}]+/gu, "-").toLowerCase()}.mp4`;
+      a.click();
+    }
+    toast.success(
+      track ? `Vidéo assemblée (musique : ${track.name})` : "Vidéo finale assemblée",
+    );
+  };
+
   const onAssemble = async () => {
     if (readyScenes.length === 0) return;
     setAssembling(true);
     setAssembleStep("Préparation…");
     try {
-      const { assembleVideo } = await import("@/lib/assemble-video");
-      const { randomTrack } = await import("@/lib/music-store");
-      const { makeOverlayPng } = await import("@/lib/overlay-png");
-      const { makeKaraokeSequence } = await import("@/lib/karaoke-overlay");
-      const dims =
-        orientation === "horizontal"
-          ? { width: 1280, height: 720 }
-          : { width: 720, height: 1280 };
-      const ordered = (script?.scenes ?? [])
-        .map((s) => ({ scene: s, st: states[s.index] }))
-        .filter((x): x is { scene: Scene; st: SceneState & { videoUrl: string } } =>
-          Boolean(x.st?.videoUrl),
-        );
-      const withDurations = await Promise.all(
-        ordered.map(async ({ scene, st }) => {
-          const duration = st.audio ? await audioDuration(st.audio) : undefined;
-          const karaokeSeq = duration
-            ? await makeKaraokeSequence(scene.narration, dims.width, dims.height, duration)
-            : null;
-          return {
-            videoUrl: st.videoUrl,
-            audio: st.audio,
-            karaokeSeq,
-            overlay: karaokeSeq
-              ? null
-              : await makeOverlayPng(scene.overlay, dims.width, dims.height),
-            duration,
-          };
-        }),
-      );
-
-      const track = await randomTrack(style);
-      if (track) setAssembleStep(`Musique : ${track.name}`);
-      const blob = await assembleVideo(
-        withDurations,
-        {
-          ...dims,
-          music: track?.blob,
-          onProgress: (step) => setAssembleStep(step),
-        },
-      );
-
-      setFinalUrl((prev) => {
-        if (prev) URL.revokeObjectURL(prev);
-        return URL.createObjectURL(blob);
-      });
-      toast.success(
-        track ? `Vidéo assemblée (musique : ${track.name})` : "Vidéo finale assemblée",
-      );
+      await buildFinalVideo(states, false);
     } catch (e) {
       console.error(e);
       toast.error(e instanceof Error ? e.message : "Échec de l'assemblage");
@@ -455,6 +476,47 @@ function Studio() {
       setAssembling(false);
     }
   };
+
+  /** Tout d'un coup : images + vidéos + voix off manquantes, puis export MP4. */
+  const onExportEverything = async () => {
+    if (!script) return;
+    setAssembling(true);
+    try {
+      setAssembleStep("Génération des scènes manquantes…");
+      const results = await Promise.all(
+        script.scenes.map(async (scene) => {
+          const st = states[scene.index] ?? {};
+          const image = st.image ?? (await onImage(scene));
+          const videoUrl = st.videoUrl ?? (await onVideo(scene, image));
+          let audio = st.audio;
+          let words = st.words;
+          if (!audio) {
+            const res = (await runVoice({
+              data: { text: scene.narration, voice, engine },
+            }).catch(() => null)) as
+              | { audioDataUrl: string; words?: { word: string; start: number; end: number }[] }
+              | null;
+            if (res) {
+              audio = res.audioDataUrl;
+              words = res.words ?? [];
+              patch(scene.index, { audio, words });
+            }
+          }
+          return [scene.index, { ...st, image, videoUrl, audio, words }] as const;
+        }),
+      );
+      const snapshot: Record<number, SceneState | undefined> = { ...states };
+      for (const [i, st] of results) snapshot[i] = st as SceneState;
+      await buildFinalVideo(snapshot, true);
+    } catch (e) {
+      console.error(e);
+      toast.error(e instanceof Error ? e.message : "Échec de l'export complet");
+    } finally {
+      setAssembling(false);
+    }
+  };
+
+
 
   const [exporting, setExporting] = useState<number | null>(null);
 
