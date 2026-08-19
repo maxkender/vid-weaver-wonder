@@ -108,7 +108,10 @@ export async function assembleVideo(
       ? `[1:a]silenceremove=stop_periods=-1:stop_duration=0.3:stop_threshold=-45dB,apad=pad_dur=0.25,aresample=44100,aformat=sample_fmts=fltp:channel_layouts=stereo[a]`
       : `[1:a]atrim=0:${(target ?? 8).toFixed(2)},aresample=44100,aformat=sample_fmts=fltp:channel_layouts=stereo[a]`;
 
-    const seq = scene.karaokeSeq ?? null;
+    const rawSeq = scene.karaokeSeq;
+    const seq: KaraokeSeqInput | null =
+      typeof rawSeq === "function" ? await rawSeq() : (rawSeq ?? null);
+
     const overlayFiles: string[] = [];
 
     if (seq && seq.frames.length) {
