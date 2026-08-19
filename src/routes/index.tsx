@@ -1118,12 +1118,23 @@ function Studio() {
                       </div>
                     )}
 
+                    {visual === "papercraft" && orientation !== "horizontal" && (
+                      <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                        <div
+                          className="aspect-square w-full rounded-[7%]"
+                          style={{ boxShadow: "0 0 0 9999px #000" }}
+                        />
+                      </div>
+                    )}
+
                     <KaraokeCaption
                       text={scene.narration}
                       fallback={scene.overlay}
+                      words={st.words}
                       getMedia={() =>
                         audioRefs.current[scene.index] ?? videoRefs.current[scene.index] ?? null
                       }
+
                     />
 
 
