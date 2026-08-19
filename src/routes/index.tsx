@@ -658,13 +658,14 @@ function Studio() {
   };
 
   /** Tout d'un coup : images + vidéos + voix off manquantes, puis export MP4. */
-  const onExportEverything = async () => {
-    if (!script) return;
+  const onExportEverything = async (scriptOverride?: Script) => {
+    const doc = scriptOverride ?? script;
+    if (!doc) return;
     setAssembling(true);
     try {
       setAssembleStep("Génération des scènes manquantes…");
       const results = await Promise.all(
-        script.scenes.map(async (scene) => {
+        doc.scenes.map(async (scene) => {
           const st = states[scene.index] ?? {};
           const image = st.image ?? (await onImage(scene));
           const videoUrl = st.videoUrl ?? (await onVideo(scene, image));
@@ -687,7 +688,7 @@ function Studio() {
       );
       const snapshot: Record<number, SceneState | undefined> = { ...states };
       for (const [i, st] of results) snapshot[i] = st as SceneState;
-      await buildFinalVideo(snapshot, true);
+      await buildFinalVideo(snapshot, true, doc);
     } catch (e) {
       console.error(e);
       toast.error(e instanceof Error ? e.message : "Échec de l'export complet");
@@ -695,6 +696,25 @@ function Studio() {
       setAssembling(false);
     }
   };
+
+  /** Un seul clic depuis le sujet : script → images → vidéos → voix → MP4. */
+  const [autoRunning, setAutoRunning] = useState(false);
+  const onAutoAll = async () => {
+    if (!topic.trim()) {
+      toast.error("Écris d'abord le sujet de la vidéo");
+      return;
+    }
+    setAutoRunning(true);
+    try {
+      setAssembleStep("Écriture du script…");
+      const fresh = await onScript();
+      if (!fresh) return;
+      await onExportEverything(fresh);
+    } finally {
+      setAutoRunning(false);
+    }
+  };
+
 
 
 
