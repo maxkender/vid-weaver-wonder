@@ -547,7 +547,10 @@ function Studio() {
   const buildFinalVideo = async (
     snapshot: Record<number, SceneState | undefined>,
     autoDownload: boolean,
+    scriptOverride?: Script,
   ) => {
+    const doc = scriptOverride ?? script;
+
     const { assembleVideo } = await import("@/lib/assemble-video");
     const { randomTrack } = await import("@/lib/music-store");
     const { makeOverlayPng } = await import("@/lib/overlay-png");
