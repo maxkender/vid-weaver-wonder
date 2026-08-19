@@ -276,7 +276,9 @@ export function smoothTimings(
   });
 
   // 2. Découpage : on coupe sur la ponctuation, la longueur, ou une pause marquée.
-  type G = { words: string[]; start: number; end: number };
+  type Item = { word: string; start: number; end: number };
+  type G = { items: Item[]; start: number; end: number };
+  const text = (g: G) => g.items.map((i) => i.word).join(" ");
   const groups: G[] = [];
   for (let i = 0; i < scaled.length; i++) {
     const t = scaled[i]!;
@@ -284,19 +286,19 @@ export function smoothTimings(
     const gap = i > 0 ? t.start - scaled[i - 1]!.end : 0;
     const fits =
       prev &&
-      prev.words.length < MAX_GROUP_WORDS &&
-      prev.words.join(" ").length + 1 + t.word.length <= MAX_GROUP_CHARS &&
-      !/[.!?…,;:]$/.test(prev.words[prev.words.length - 1]!) &&
+      prev.items.length < MAX_GROUP_WORDS &&
+      text(prev).length + 1 + t.word.length <= MAX_GROUP_CHARS &&
+      !/[.!?…,;:]$/.test(prev.items[prev.items.length - 1]!.word) &&
       gap < 0.28;
     if (fits && prev) {
-      prev.words.push(t.word);
+      prev.items.push(t);
       prev.end = t.end;
     } else {
-      groups.push({ words: [t.word], start: t.start, end: t.end });
+      groups.push({ items: [t], start: t.start, end: t.end });
     }
   }
 
-  // 3. Fusion des groupes trop courts (anti-clignotement), puis rééquilibrage.
+  // 3. Fusion des groupes trop courts (anti-clignotement).
   for (let i = 0; i < groups.length; i++) {
     const g = groups[i]!;
     if (g.end - g.start >= MIN_CAPTION_HOLD) continue;
@@ -304,35 +306,45 @@ export function smoothTimings(
     const prev = groups[i - 1];
     const canNext =
       next &&
-      g.words.length + next.words.length <= MAX_GROUP_WORDS + 1 &&
-      g.words.join(" ").length + 1 + next.words.join(" ").length <= MAX_GROUP_CHARS + 6;
+      g.items.length + next.items.length <= MAX_GROUP_WORDS + 1 &&
+      text(g).length + 1 + text(next).length <= MAX_GROUP_CHARS + 6;
     const canPrev =
       prev &&
-      prev.words.length + g.words.length <= MAX_GROUP_WORDS + 1 &&
-      prev.words.join(" ").length + 1 + g.words.join(" ").length <= MAX_GROUP_CHARS + 6;
+      prev.items.length + g.items.length <= MAX_GROUP_WORDS + 1 &&
+      text(prev).length + 1 + text(g).length <= MAX_GROUP_CHARS + 6;
     if (canNext && next) {
-      next.words = [...g.words, ...next.words];
+      next.items = [...g.items, ...next.items];
       next.start = g.start;
       groups.splice(i, 1);
       i--;
     } else if (canPrev && prev) {
-      prev.words = [...prev.words, ...g.words];
+      prev.items = [...prev.items, ...g.items];
       prev.end = g.end;
       groups.splice(i, 1);
       i--;
     }
   }
 
-  // 4. Continuité : un groupe reste affiché jusqu'au suivant (aucun trou noir).
+  // 4. Continuité : un groupe reste affiché jusqu'au suivant (aucun trou noir),
+  // et chaque mot du groupe garde son propre timing pour le surlignage karaoké.
   return groups.map((g, i) => {
     const next = groups[i + 1];
     const start = Math.max(0, g.start - LEAD_IN);
     const end = next
       ? Math.max(next.start - LEAD_IN, start + 0.18)
       : Math.min(duration, Math.max(g.end, start + 0.5));
-    return { word: g.words.join(" "), start, end };
+    const words = g.items.map((it, k) => {
+      const nx = g.items[k + 1];
+      return {
+        word: it.word,
+        start: k === 0 ? start : it.start - LEAD_IN,
+        end: nx ? nx.start - LEAD_IN : end,
+      };
+    });
+    return { word: text(g), start, end, words };
   });
 }
+
 
 
 
