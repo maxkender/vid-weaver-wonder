@@ -73,6 +73,8 @@ export function scriptSystemPrompt(
     "Compte réellement les mots de chaque narration avant de répondre. Si c'est trop long, coupe.",
     "Rétention : chaque scène se termine sur une micro-tension (un détail inexpliqué, une contradiction, un « sauf que… ») qui oblige à regarder la suivante. La révélation principale n'arrive jamais avant la dernière scène.",
     "Le script doit être un vrai texte suivi et cohérent : chaque scène enchaîne logiquement sur la précédente, sans répétition, avec des transitions naturelles.",
+    "VOCABULAIRE SIMPLE : écris pour quelqu'un de 15 ans. Mots du quotidien uniquement, phrases courtes, zéro jargon, zéro mot savant, zéro terme technique ou administratif. Si un mot compliqué est indispensable, explique-le en 3 mots juste après.",
+    "Reste sur des faits simples à comprendre : une seule idée par scène, pas de chronologie complexe, pas d'empilement de noms, de traités, de dynasties ou de concepts abstraits.",
     "Ton : oral, naturel, direct, tutoiement, phrases courtes et rythmées. Pas de langue de bois, pas de formules d'IA, pas de « dans cet article ». Zéro emoji.",
     "À partir de la scène 2, donne des détails concrets (lieux, noms, époques). Les chiffres sont autorisés seulement s'ils sont spectaculaires et jamais dans le hook.",
     "Le champ overlay est le texte incrusté à l'écran : 3 à 6 mots, percutant, qui résume le choc de la scène.",
@@ -127,3 +129,14 @@ export function motionPrompt(
   } Consistent art direction, no on-screen text, no subtitles, no watermark.`;
 }
 
+
+export const TOPIC_BRIEF: Record<NarrationStyle, string> = {
+  question:
+    "Le sujet doit être une GRANDE QUESTION que beaucoup de gens se sont déjà posée sans jamais avoir la réponse (pourquoi la mer est salée, pourquoi on rêve, pourquoi l'empire romain est tombé, pourquoi on a peur du noir…). Quelque chose de familier, que tout le monde connaît, mais dont personne ne connaît vraiment l'explication. Formule le sujet comme une question simple.",
+  revelation:
+    "Le sujet doit être une croyance très répandue ou une histoire connue qui cache un retournement : ce que les gens croient est faux, ou l'explication réelle est bien plus étrange.",
+  storytelling:
+    "Le sujet doit être une histoire vraie avec des personnages, un lieu et un moment précis, qu'on peut raconter comme une scène vécue.",
+  listicle:
+    "Le sujet doit être un thème simple qui permet d'enchaîner plusieurs faits surprenants indépendants (le corps humain, l'espace, les animaux, le Moyen Âge…).",
+};
