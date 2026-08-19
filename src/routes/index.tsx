@@ -205,7 +205,13 @@ function Studio() {
   const runSuggest = useServerFn(suggestTopic);
   const kind: Kind = "faits";
 
-  const [sceneCount, setSceneCount] = useState(5);
+  // On choisit la DURÉE de la vidéo ; le nombre de plans en découle.
+  const [targetSeconds, setTargetSeconds] = useState(35);
+  const sceneCount = useMemo(
+    () => Math.min(8, Math.max(3, Math.round((targetSeconds - 7) / 6))),
+    [targetSeconds],
+  );
+
   const [style, setStyle] = useState<NarrationStyle>("revelation");
   const [visual, setVisual] = useState<VisualStyle>("papercraft");
   const [engine, setEngine] = useState<VoiceEngine>("elevenlabs");
@@ -327,7 +333,7 @@ function Studio() {
     setLoadingScript(true);
     try {
       const result = (await runScript({
-        data: { topic, kind, sceneCount, style },
+        data: { topic, kind, sceneCount, style, targetSeconds },
       })) as Script;
       setScript(result);
       setStates({});
@@ -484,7 +490,9 @@ function Studio() {
     const { assembleVideo } = await import("@/lib/assemble-video");
     const { randomTrack } = await import("@/lib/music-store");
     const { makeOverlayPng } = await import("@/lib/overlay-png");
-    const { makeKaraokeSequence } = await import("@/lib/karaoke-overlay");
+    const { makeKaraokeSequence, makeRoundedSquareMask } = await import(
+      "@/lib/karaoke-overlay"
+    );
     const dims =
       orientation === "horizontal"
         ? { width: 1280, height: 720 }
@@ -496,6 +504,12 @@ function Studio() {
       );
     if (!ordered.length) throw new Error("Aucune scène animée à assembler.");
 
+    // Papier découpé : masque carré à coins arrondis, toujours présent.
+    const mask =
+      visual === "papercraft" && orientation !== "horizontal"
+        ? await makeRoundedSquareMask(dims.width, dims.height)
+        : null;
+
     setAssembleStep("Préparation des sous-titres…");
     const withDurations = await Promise.all(
       ordered.map(async ({ scene, st }) => {
@@ -503,6 +517,7 @@ function Studio() {
         return {
           videoUrl: st.videoUrl,
           audio: st.audio,
+          mask,
           // Les images de sous-titres sont fabriquées juste avant l'encodage du
           // plan (et libérées après) : sinon toutes les scènes tiennent en
           // mémoire en même temps et l'onglet plante pendant l'export.
@@ -513,7 +528,7 @@ function Studio() {
                   dims.width,
                   dims.height,
                   duration,
-                  8,
+                  15,
                   st.words ?? null,
                 )
             : null,
@@ -524,6 +539,7 @@ function Studio() {
         };
       }),
     );
+
 
 
     const track = await randomTrack(style);
@@ -625,7 +641,9 @@ function Studio() {
     try {
       const { assembleVideo } = await import("@/lib/assemble-video");
       const { makeOverlayPng } = await import("@/lib/overlay-png");
-      const { makeKaraokeSequence } = await import("@/lib/karaoke-overlay");
+      const { makeKaraokeSequence, makeRoundedSquareMask } = await import(
+        "@/lib/karaoke-overlay"
+      );
       const dims =
         orientation === "horizontal"
           ? { width: 1280, height: 720 }
@@ -637,10 +655,14 @@ function Studio() {
             dims.width,
             dims.height,
             duration,
-            8,
+            15,
             st.words ?? null,
           )
         : null;
+      const mask =
+        visual === "papercraft" && orientation !== "horizontal"
+          ? await makeRoundedSquareMask(dims.width, dims.height)
+          : null;
 
       const blob = await assembleVideo(
         [
@@ -648,12 +670,14 @@ function Studio() {
             videoUrl: st.videoUrl,
             audio: st.audio,
             karaokeSeq,
+            mask,
             overlay: karaokeSeq
               ? null
               : await makeOverlayPng(scene.overlay, dims.width, dims.height),
             duration,
           },
         ],
+
 
         dims,
       );
@@ -821,17 +845,23 @@ function Studio() {
           <div className="flex flex-col gap-4">
             <div>
               <label className="text-xs uppercase tracking-widest text-muted-foreground">
-                Nombre de scènes : {sceneCount}
+                Durée de la vidéo : {targetSeconds}s
               </label>
               <input
                 type="range"
-                min={3}
-                max={8}
-                value={sceneCount}
-                onChange={(e) => setSceneCount(Number(e.target.value))}
+                min={15}
+                max={75}
+                step={5}
+                value={targetSeconds}
+                onChange={(e) => setTargetSeconds(Number(e.target.value))}
                 className="mt-3 w-full accent-[oklch(0.79_0.16_72)]"
               />
+              <p className="mt-1 text-xs text-muted-foreground">
+                {sceneCount} plans + CTA · le texte est calibré pour tenir exactement dans cette
+                durée
+              </p>
             </div>
+
             <div className="flex gap-2">
               {(["vertical", "square", "horizontal"] as const).map((o) => (
                 <button
@@ -1088,12 +1118,23 @@ function Studio() {
                       </div>
                     )}
 
+                    {visual === "papercraft" && orientation !== "horizontal" && (
+                      <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                        <div
+                          className="aspect-square w-full rounded-[7%]"
+                          style={{ boxShadow: "0 0 0 9999px #000" }}
+                        />
+                      </div>
+                    )}
+
                     <KaraokeCaption
                       text={scene.narration}
                       fallback={scene.overlay}
+                      words={st.words}
                       getMedia={() =>
                         audioRefs.current[scene.index] ?? videoRefs.current[scene.index] ?? null
                       }
+
                     />
 
 

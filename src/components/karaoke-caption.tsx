@@ -1,35 +1,48 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+
+import { wordTimings } from "@/lib/karaoke-overlay";
+
+type Timing = { word: string; start: number; end: number };
 
 type Props = {
   text: string;
   fallback: string;
   getMedia: () => HTMLMediaElement | null;
+  /** Timings exacts (alignement ElevenLabs) si disponibles. */
+  words?: Timing[] | undefined;
 };
 
 /** Word-by-word caption synced with the scene audio/video (TikTok style). */
-export function KaraokeCaption({ text, fallback, getMedia }: Props) {
-  const [word, setWord] = useState<string | null>(null);
+export function KaraokeCaption({ text, fallback, getMedia, words }: Props) {
+  const [state, setState] = useState<{ word: string; pop: number } | null>(null);
   const frame = useRef<number | null>(null);
+  const exact = useMemo(
+    () => (words && words.length ? words.filter((w) => w.end > w.start) : null),
+    [words],
+  );
 
   useEffect(() => {
-    const words = text.split(/\s+/).filter(Boolean);
-    const weights = words.map((w) => w.length + 2);
-    const total = weights.reduce((a, b) => a + b, 0);
-    const bounds: number[] = [];
-    let acc = 0;
-    for (const w of weights) {
-      acc += w;
-      bounds.push(acc / total);
-    }
+    let cached: { duration: number; timings: Timing[] } | null = null;
 
     const tick = () => {
       const media = getMedia();
       if (!media || media.paused || !media.duration || Number.isNaN(media.duration)) {
-        setWord(null);
+        setState(null);
       } else {
-        const ratio = Math.min(0.9999, media.currentTime / media.duration);
-        const i = bounds.findIndex((b) => ratio < b);
-        setWord(words[i === -1 ? words.length - 1 : i] ?? null);
+        let timings = exact;
+        if (!timings) {
+          if (!cached || Math.abs(cached.duration - media.duration) > 0.05) {
+            cached = { duration: media.duration, timings: wordTimings(text, media.duration) };
+          }
+          timings = cached.timings;
+        }
+        const t = media.currentTime;
+        const cur = timings.find((w) => t >= w.start && t < w.end) ?? null;
+        if (!cur) setState(null);
+        else {
+          const pop = Math.min(1, Math.max(0, (t - cur.start) / 0.13));
+          setState({ word: cur.word, pop });
+        }
       }
       frame.current = requestAnimationFrame(tick);
     };
@@ -37,16 +50,25 @@ export function KaraokeCaption({ text, fallback, getMedia }: Props) {
     return () => {
       if (frame.current) cancelAnimationFrame(frame.current);
     };
-  }, [text, getMedia]);
+  }, [text, getMedia, exact]);
 
-  if (word) {
+  if (state) {
+    const eased = 1 - Math.pow(1 - state.pop, 3);
+    const scale = 0.84 + 0.16 * eased + 0.05 * Math.sin(Math.PI * state.pop);
     return (
       <div className="pointer-events-none absolute inset-0 flex items-center justify-center px-6">
         <span
-          key={word}
-          className="caption-overlay animate-in fade-in zoom-in-95 duration-150 text-center text-3xl font-black uppercase tracking-tight text-white drop-shadow-[0_3px_10px_rgba(0,0,0,0.9)]"
+          className="caption-overlay select-none text-center text-4xl uppercase leading-none tracking-tight text-white"
+          style={{
+            fontFamily: '"Anton", "Arial Narrow", Impact, sans-serif',
+            transform: `scale(${scale.toFixed(3)})`,
+            transition: "none",
+            WebkitTextStroke: "3px #000",
+            paintOrder: "stroke fill",
+            textShadow: "0 4px 18px rgba(0,0,0,0.55)",
+          }}
         >
-          {word}
+          {state.word.replace(/[«»"]/g, "").toUpperCase()}
         </span>
       </div>
     );

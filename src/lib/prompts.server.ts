@@ -68,7 +68,10 @@ export function scriptSystemPrompt(
   kind: VideoKind,
   sceneCount: number,
   style: NarrationStyle,
+  wordsPerScene = 18,
 ) {
+  const lo = Math.max(8, Math.round(wordsPerScene - 4));
+  const hi = Math.min(30, Math.round(wordsPerScene + 4));
   return [
     "Tu es un scénariste de vidéos courtes verticales (TikTok / Reels) en français, spécialisé en culture générale.",
     KIND_BRIEF[kind],
@@ -78,8 +81,9 @@ export function scriptSystemPrompt(
     "Le hook NE CONTIENT AUCUN CHIFFRE, aucune date, aucune statistique, aucun « saviez-vous que », aucune question rhétorique molle, aucun mot d'intro type « aujourd'hui », « voici », « dans cette vidéo ».",
     "Modèles de hooks qui marchent : « Le cyclope de l'Odyssée a vraiment existé, et les Grecs avaient des preuves. », « Pendant des siècles, personne n'a osé ouvrir cette porte. », « Ce tableau cache un détail que son peintre a supplié d'effacer. » — affirmation choc, mystère immédiat, zéro préambule.",
     "Le champ hook reprend exactement la première phrase de la scène 1.",
-    "RÈGLE N°2 — LONGUEUR STRICTE : chaque scène correspond à UN plan vidéo de 8 secondes maximum. La narration d'une scène fait donc entre 12 et 22 MOTS (1 à 2 phrases courtes), jamais plus. Une scène de plus de 22 mots est une erreur.",
+    `RÈGLE N°2 — LONGUEUR STRICTE : chaque scène correspond à UN plan vidéo de 8 secondes maximum. La narration d'une scène fait entre ${lo} et ${hi} MOTS, jamais plus. Une scène plus longue est une erreur.`,
     "Compte réellement les mots de chaque narration avant de répondre. Si c'est trop long, coupe.",
+
     "Rétention : chaque scène se termine sur une micro-tension (un détail inexpliqué, une contradiction, un « sauf que… ») qui oblige à regarder la suivante. La révélation principale n'arrive jamais avant la dernière scène.",
     "Le script doit être un vrai texte suivi et cohérent : chaque scène enchaîne logiquement sur la précédente, sans répétition, avec des transitions naturelles.",
     "VOCABULAIRE SIMPLE : écris pour quelqu'un de 15 ans. Mots du quotidien uniquement, phrases courtes, zéro jargon, zéro mot savant, zéro terme technique ou administratif. Si un mot compliqué est indispensable, explique-le en 3 mots juste après.",
@@ -114,7 +118,8 @@ const QUALITY: Record<VisualStyle, string> = {
 };
 
 const SQUARE_FRAME =
-  "Framing: the whole scene is composed inside a perfect centered square (1:1) that touches the left and right edges; above and below that square the frame is pure solid black, completely empty, like a square clip letterboxed in a vertical canvas. Nothing of the scene spills into the black bands.";
+  "Framing: the whole scene is composed inside a perfect centered square (1:1) with softly rounded corners, touching the left and right edges; above and below that square the frame is pure solid black, completely empty, like a rounded square clip letterboxed in a vertical canvas. Nothing of the scene spills into the black bands or past the rounded corners.";
+
 
 export function coverPrompt(
   imagePrompt: string,

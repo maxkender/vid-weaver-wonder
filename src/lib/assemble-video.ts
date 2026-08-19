@@ -20,8 +20,11 @@ export type AssembleScene = {
     | null
     | undefined
     | (() => Promise<KaraokeSeqInput | null>);
+  /** Masque PNG (carré à coins arrondis) appliqué sous le texte. */
+  mask?: Blob | null | undefined;
   /** Durée cible du plan (= durée de la voix off), en secondes. */
   duration?: number | undefined;
+
 };
 
 
@@ -133,55 +136,49 @@ async function assembleVideoInner(
       typeof rawSeq === "function" ? await rawSeq() : (rawSeq ?? null);
 
     const overlayFiles: string[] = [];
+    let nextInput = 2; // 0 = vidéo, 1 = audio
+    const chain: string[] = [`[0:v]${vf}[base]`];
+    let last = "base";
+
+    // Masque carré à coins arrondis (papier découpé) : appliqué SOUS le texte.
+    if (scene.mask) {
+      const name = `mask${i}.png`;
+      await ffmpeg.writeFile(name, new Uint8Array(await scene.mask.arrayBuffer()));
+      overlayFiles.push(name);
+      args.push("-i", name);
+      const idx = nextInput++;
+      chain.push(`[${idx}:v]scale=${width}:${height},format=rgba[mask]`);
+      chain.push(`[${last}][mask]overlay=0:0[masked]`);
+      last = "masked";
+    }
 
     if (seq && seq.frames.length) {
       // Une séquence d'images à cadence fixe : FFmpeg la lit comme une vidéo,
       // c'est bien plus robuste (et léger) qu'un overlay par mot.
-      // Les images commencent à l'index 0 -> -start_number 0 est obligatoire.
       for (let k = 0; k < seq.frames.length; k++) {
         const name = `kw${i}_${String(k).padStart(4, "0")}.png`;
         await ffmpeg.writeFile(name, new Uint8Array(await seq.frames[k]!.arrayBuffer()));
         overlayFiles.push(name);
       }
-      args.push(
-        "-framerate",
-        String(seq.fps),
-        "-start_number",
-        "0",
-        "-i",
-        `kw${i}_%04d.png`,
-      );
-      args.push(
-        "-filter_complex",
-        `[0:v]${vf}[base];[2:v]fps=24,scale=${width}:${height},format=rgba[txt];[base][txt]overlay=0:0:shortest=0[v];${af}`,
-        "-map",
-        "[v]",
-        "-map",
-        "[a]",
-      );
+      args.push("-framerate", String(seq.fps), "-start_number", "0", "-i", `kw${i}_%04d.png`);
+      const idx = nextInput++;
+      chain.push(`[${idx}:v]fps=24,scale=${width}:${height},format=rgba[txt]`);
+      chain.push(`[${last}][txt]overlay=0:0:shortest=0[v]`);
+      last = "v";
     } else if (scene.overlay) {
       const name = `ov${i}.png`;
       await ffmpeg.writeFile(name, new Uint8Array(await scene.overlay.arrayBuffer()));
       overlayFiles.push(name);
       args.push("-i", name);
-      args.push(
-        "-filter_complex",
-        `[0:v]${vf}[base];[2:v]scale=${width}:${height}[txt];[base][txt]overlay=0:0[v];${af}`,
-        "-map",
-        "[v]",
-        "-map",
-        "[a]",
-      );
-    } else {
-      args.push(
-        "-filter_complex",
-        `[0:v]${vf}[v];${af}`,
-        "-map",
-        "[v]",
-        "-map",
-        "[a]",
-      );
+      const idx = nextInput++;
+      chain.push(`[${idx}:v]scale=${width}:${height},format=rgba[txt]`);
+      chain.push(`[${last}][txt]overlay=0:0[v]`);
+      last = "v";
     }
+
+    if (last !== "v") chain.push(`[${last}]null[v]`);
+    args.push("-filter_complex", `${chain.join(";")};${af}`, "-map", "[v]", "-map", "[a]");
+
 
     args.push(
       "-c:v",
