@@ -389,6 +389,8 @@ function Studio() {
       setScript(result);
       setStates({});
       referenceImage.current = null;
+      previousImage.current = null;
+
       const id = `p${Date.now()}`;
       setProjectId(id);
       saveHistory(id, result);
