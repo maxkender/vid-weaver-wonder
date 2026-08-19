@@ -367,6 +367,23 @@ function Studio() {
               ))}
             </div>
 
+            <div>
+              <label className="text-xs uppercase tracking-widest text-muted-foreground">
+                Voix off
+              </label>
+              <select
+                value={voice}
+                onChange={(e) => setVoice(e.target.value)}
+                className="mt-2 w-full rounded-lg border border-input bg-background/60 p-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+              >
+                {["ballad", "ash", "verse", "sage", "coral", "alloy"].map((v) => (
+                  <option key={v} value={v}>
+                    {v}
+                  </option>
+                ))}
+              </select>
+            </div>
+
             <button
               onClick={onScript}
               disabled={loadingScript}
