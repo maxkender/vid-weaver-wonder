@@ -698,15 +698,33 @@ function Studio() {
               )}
             </div>
 
-            <button
-              onClick={() => {
-                void navigator.clipboard.writeText(fullNarration);
-                toast.success("Voix off copiée");
-              }}
-              className="mt-5 rounded-lg border border-border px-4 py-2 text-xs uppercase tracking-widest text-muted-foreground hover:text-foreground"
-            >
-              Copier la voix off complète
-            </button>
+            <div className="mt-5 flex flex-wrap gap-2">
+              <button
+                onClick={() => {
+                  const allOpen = script.scenes.every((s) => editing[s.index]);
+                  setEditing(
+                    allOpen
+                      ? {}
+                      : Object.fromEntries(script.scenes.map((s) => [s.index, true])),
+                  );
+                }}
+                className="rounded-lg border border-border px-4 py-2 text-xs uppercase tracking-widest text-muted-foreground hover:text-foreground"
+              >
+                {script.scenes.every((s) => editing[s.index])
+                  ? "Fermer l'édition du script"
+                  : "Modifier le script avant les images"}
+              </button>
+              <button
+                onClick={() => {
+                  void navigator.clipboard.writeText(fullNarration);
+                  toast.success("Voix off copiée");
+                }}
+                className="rounded-lg border border-border px-4 py-2 text-xs uppercase tracking-widest text-muted-foreground hover:text-foreground"
+              >
+                Copier la voix off complète
+              </button>
+            </div>
+
           </div>
 
           <div className="mt-8 grid gap-6 lg:grid-cols-2">

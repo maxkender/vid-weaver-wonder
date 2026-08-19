@@ -22,9 +22,18 @@ export type Script = {
   hashtags: string[];
 };
 
-/** Outro imposée, identique sur toutes les vidéos. */
+/** Outro par défaut (fallback si l'IA n'en génère pas). */
 export const SOPHIA_OUTRO =
-  "Ce fait est tiré de l'application Sophia, qui améliore ta culture générale gratuitement avec des cours simples et intéressants. Check l'appli si tu veux un parcours personnalisé et pas te perdre dans un océan de culture.";
+  "Ce fait vient de l'application Sophia : des cours simples et gratuits pour booster ta culture générale. Télécharge Sophia, c'est gratuit.";
+
+/** Consignes de CTA : outro adaptée au sujet, orientée téléchargement de l'app. */
+export const CTA_BRIEF = [
+  "RÈGLE CTA : la dernière scène est TOUJOURS un appel à l'action pour l'application Sophia, mais il doit être RÉÉCRIT et ADAPTÉ au sujet de la vidéo (jamais copié-collé d'une vidéo à l'autre).",
+  "Le CTA fait 18 à 30 mots, ton oral et naturel, et suit cette logique : rebond sur le fait qu'on vient de raconter → Sophia (app gratuite de culture générale, cours simples) → invitation claire à TÉLÉCHARGER l'appli maintenant.",
+  "Exemple de forme (à ne pas recopier) : « Des histoires comme ça, Sophia t'en apprend une par jour, gratuitement, en cours de deux minutes. Télécharge l'appli, c'est cadeau. »",
+  "Le CTA doit donner envie de télécharger : bénéfice concret, zéro ton publicitaire agressif, zéro emoji.",
+].join("\n");
+
 
 const KIND_BRIEF: Record<VideoKind, string> = {
   faits:
@@ -82,7 +91,9 @@ export function scriptSystemPrompt(
     "imagePrompt décrit UNE composition simple et lisible : 1 à 3 éléments maximum, une silhouette claire au premier plan, un décor minimal (collines, ciel, mur uni). Pas de foule, pas de détails minuscules, pas de perspective compliquée.",
     "N'utilise JAMAIS de noms propres d'œuvres, films, jeux, marques, artistes ou personnages protégés dans imagePrompt et videoPrompt : décris ce qu'on voit (« a one-eyed giant figure », « a warrior in red armor holding a spear ») plutôt que de le nommer.",
     "videoPrompt décrit un mouvement de caméra et une action de 8 secondes maximum.",
-    `Le champ cta doit être EXACTEMENT ce texte, mot pour mot : "${SOPHIA_OUTRO}"`,
+    CTA_BRIEF,
+    "Le champ cta contient ce CTA Sophia adapté au sujet (texte prêt à être lu à voix haute).",
+
     'Réponds uniquement en JSON: {"title":string,"hook":string,"scenes":[{"index":number,"narration":string,"overlay":string,"imagePrompt":string,"videoPrompt":string}],"cta":string,"hashtags":string[]}',
   ].join("\n");
 }
