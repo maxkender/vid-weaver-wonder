@@ -66,11 +66,9 @@ async function run(ffmpeg: FFmpeg, args: string[], label: string) {
   try {
     code = await ffmpeg.exec(args);
   } catch (e) {
-    resetFFmpeg();
     throw new Error(`${label} : ${lastErrors() || (e as Error)?.message || "échec ffmpeg"}`);
   }
   if (code !== 0) {
-    resetFFmpeg();
     throw new Error(`${label} : ${lastErrors() || `ffmpeg code ${code}`}`);
   }
 }
@@ -79,7 +77,7 @@ async function run(ffmpeg: FFmpeg, args: string[], label: string) {
  * Assemble every scene (video + optional voiceover) into a single MP4,
  * fully in the browser with ffmpeg.wasm. Optionally mixes a background music track.
  */
-export async function assembleVideo(
+async function assembleVideoInner(
   scenes: AssembleScene[],
   opts: {
     width: number;
@@ -298,4 +296,20 @@ export async function assembleVideo(
 
   onProgress?.("Terminé", 1);
   return new Blob([data.slice().buffer as ArrayBuffer], { type: "video/mp4" });
+}
+
+/**
+ * Enveloppe : en cas d'échec (mémoire saturée notamment), l'instance ffmpeg est
+ * détruite pour que la tentative suivante reparte propre au lieu de replanter.
+ */
+export async function assembleVideo(
+  scenes: AssembleScene[],
+  opts: Parameters<typeof assembleVideoInner>[1],
+): Promise<Blob> {
+  try {
+    return await assembleVideoInner(scenes, opts);
+  } catch (e) {
+    resetFFmpeg();
+    throw e;
+  }
 }
