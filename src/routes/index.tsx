@@ -529,14 +529,17 @@ function Studio() {
             {history.map((h) => (
               <div key={h.id} className="flex items-center justify-between gap-3">
                 <button
-                  onClick={() => {
+                  onClick={async () => {
                     setScript(h.script);
                     setProjectId(h.id);
-                    setStates({});
                     setFinalUrl(null);
                     setShowHistory(false);
+                    const { loadProjectMedia } = await import("@/lib/project-store");
+                    const media = await loadProjectMedia(h.id);
+                    setStates(media);
                     toast.success("Projet rechargé");
                   }}
+
                   className="flex-1 truncate text-left text-sm hover:text-primary"
                 >
                   {h.title}
