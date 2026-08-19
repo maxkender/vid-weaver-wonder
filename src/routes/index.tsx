@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Clapperboard,
   Film,
@@ -88,6 +88,25 @@ type SceneState = {
 };
 
 
+
+type HistoryItem = { id: string; title: string; date: number; script: Script };
+
+const HISTORY_KEY = "studio-history-v1";
+
+function readHistory(): HistoryItem[] {
+  if (typeof window === "undefined") return [];
+  try {
+    return JSON.parse(window.localStorage.getItem(HISTORY_KEY) ?? "[]") as HistoryItem[];
+  } catch {
+    return [];
+  }
+}
+
+function writeHistory(items: HistoryItem[]) {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(HISTORY_KEY, JSON.stringify(items.slice(0, 30)));
+}
+
 const STYLES: { id: NarrationStyle; label: string; hint: string }[] = [
   {
     id: "question",
@@ -137,6 +156,45 @@ function Studio() {
   const [assembling, setAssembling] = useState(false);
   const [assembleStep, setAssembleStep] = useState("");
   const [finalUrl, setFinalUrl] = useState<string | null>(null);
+  const [projectId, setProjectId] = useState<string | null>(null);
+  const [history, setHistory] = useState<HistoryItem[]>([]);
+  const [showHistory, setShowHistory] = useState(false);
+  const [editing, setEditing] = useState<Record<number, boolean>>({});
+
+  useEffect(() => {
+    setHistory(readHistory());
+  }, []);
+
+  const saveHistory = useCallback((id: string, next: Script) => {
+    const items = readHistory().filter((h) => h.id !== id);
+    const updated = [
+      { id, title: next.title || "Sans titre", date: Date.now(), script: next },
+      ...items,
+    ];
+    writeHistory(updated);
+    setHistory(updated);
+  }, []);
+
+  const updateScene = useCallback(
+    (index: number, field: keyof Scene, value: string) => {
+      setScript((prev) => {
+        if (!prev) return prev;
+        const next = {
+          ...prev,
+          scenes: prev.scenes.map((s) => (s.index === index ? { ...s, [field]: value } : s)),
+        };
+        if (projectId) saveHistory(projectId, next);
+        return next;
+      });
+    },
+    [projectId, saveHistory],
+  );
+
+  const deleteHistory = useCallback((id: string) => {
+    const updated = readHistory().filter((h) => h.id !== id);
+    writeHistory(updated);
+    setHistory(updated);
+  }, []);
 
 
 
