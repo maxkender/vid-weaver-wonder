@@ -188,6 +188,8 @@ export async function assembleVideo(
     await ffmpeg.deleteFile(vName);
     if (scene.audio) await ffmpeg.deleteFile(`voice${i}.mp3`);
     for (const f of overlayFiles) await ffmpeg.deleteFile(f);
+    // Libère les PNG karaoké de la mémoire JS dès que le plan est encodé.
+    if (seq) seq.frames.length = 0;
 
     parts.push(out);
   }
