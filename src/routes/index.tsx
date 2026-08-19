@@ -18,7 +18,9 @@ import {
   generateScript,
   pollSceneVideo,
   startSceneVideo,
+  suggestTopic,
 } from "@/lib/studio.functions";
+
 
 export const Route = createFileRoute("/")({
   head: () => ({
