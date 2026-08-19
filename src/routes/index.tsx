@@ -827,17 +827,23 @@ function Studio() {
           <div className="flex flex-col gap-4">
             <div>
               <label className="text-xs uppercase tracking-widest text-muted-foreground">
-                Nombre de scènes : {sceneCount}
+                Durée de la vidéo : {targetSeconds}s
               </label>
               <input
                 type="range"
-                min={3}
-                max={8}
-                value={sceneCount}
-                onChange={(e) => setSceneCount(Number(e.target.value))}
+                min={15}
+                max={75}
+                step={5}
+                value={targetSeconds}
+                onChange={(e) => setTargetSeconds(Number(e.target.value))}
                 className="mt-3 w-full accent-[oklch(0.79_0.16_72)]"
               />
+              <p className="mt-1 text-xs text-muted-foreground">
+                {sceneCount} plans + CTA · le texte est calibré pour tenir exactement dans cette
+                durée
+              </p>
             </div>
+
             <div className="flex gap-2">
               {(["vertical", "square", "horizontal"] as const).map((o) => (
                 <button
