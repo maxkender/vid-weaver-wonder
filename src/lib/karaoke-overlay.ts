@@ -190,14 +190,15 @@ export function wordTimings(text: string, duration: number) {
   return out;
 }
 
-/** Pop d'apparition : le mot grossit vite puis se stabilise (rendu fluide). */
+/** Pop d'apparition du logo uniquement (le texte, lui, ne zoome pas). */
 function popScale(progress: number) {
   if (progress >= 1) return 1;
   const p = Math.max(0, progress);
   return 0.82 + 0.18 * (1 - Math.pow(1 - p, 3)) + 0.05 * Math.sin(Math.PI * p);
 }
 
-const SCALE_STEPS = 6;
+// Paliers d'animation du logo Sophia (le mot, lui, est toujours à l'échelle 1).
+const LOGO_STEPS = 6;
 
 /**
  * Séquence d'images (une par frame, cadence fixe) prête à être incrustée par FFmpeg.
@@ -227,18 +228,20 @@ export async function makeKaraokeSequence(
   const blank = await renderPng(width, height, null);
   if (!blank) return null;
 
-  // Cache : une image par (mot, palier d'échelle) → animation fluide sans exploser la mémoire.
+  // Cache : une image par (mot, palier de logo) → rendu léger en mémoire.
   const cache = new Map<string, Blob>();
-  const get = async (word: string | null, step: number, logoStep = -1) => {
-    const key = `${word ?? ""}#${step}#${logoStep}`;
+  const get = async (word: string | null, logoStep = -1) => {
+    const key = `${word ?? ""}#${logoStep}`;
     let b = cache.get(key);
     if (!b) {
-      const scale = step >= SCALE_STEPS - 1 ? 1 : popScale(step / (SCALE_STEPS - 1));
       const lg =
         logoStep >= 0 && logoImg
-          ? { img: logoImg as CanvasImageSource, progress: logoStep / (SCALE_STEPS - 1) }
+          ? {
+              img: logoImg as CanvasImageSource,
+              progress: logoStep / (LOGO_STEPS - 1),
+            }
           : null;
-      b = (await renderPng(width, height, word, scale, lg)) ?? blank;
+      b = (await renderPng(width, height, word, 1, lg)) ?? blank;
       cache.set(key, b);
     }
     return b;
@@ -246,22 +249,16 @@ export async function makeKaraokeSequence(
 
   const count = Math.max(1, Math.ceil(duration * fps));
   const frames: Blob[] = [];
-  const popTime = 0.13; // durée de l'animation d'apparition
   for (let f = 0; f < count; f++) {
     const t = (f + 0.5) / fps;
     const lg = logoAt(t);
-    const logoStep = lg
-      ? Math.min(SCALE_STEPS - 1, Math.round(lg.progress * (SCALE_STEPS - 1)))
-      : -1;
+    const logoStep = lg ? Math.min(LOGO_STEPS - 1, Math.round(lg.progress * (LOGO_STEPS - 1))) : -1;
     const idx = timings.findIndex((w2) => t >= w2.start && t < w2.end);
     if (idx < 0) {
-      frames.push(logoStep >= 0 ? await get(null, 0, logoStep) : blank);
+      frames.push(logoStep >= 0 ? await get(null, logoStep) : blank);
       continue;
     }
-    const w = timings[idx]!;
-    const progress = Math.min(1, (t - w.start) / popTime);
-    const step = Math.min(SCALE_STEPS - 1, Math.round(progress * (SCALE_STEPS - 1)));
-    frames.push(await get(w.word, step, logoStep));
+    frames.push(await get(timings[idx]!.word, logoStep));
   }
   return { fps, frames };
 }
