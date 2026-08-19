@@ -89,10 +89,22 @@ export function scriptUserPrompt(kind: VideoKind, topic: string) {
     : `Sujet : ${base}.`;
 }
 
+const QUALITY: Record<VisualStyle, string> = {
+  papercraft:
+    "shot straight on like a real photograph of a physical paper set, shallow relief depth, crisp paper edges, no digital illustration look, no cartoon outlines, no glossy plastic, no clay",
+  cinematique: "ultra detailed, high fidelity",
+  documentaire: "ultra detailed, realistic",
+  retro: "detailed, analog film look",
+};
+
 export function coverPrompt(imagePrompt: string, visual: VisualStyle = "papercraft") {
-  return `Vertical 9:16 key frame, ${VISUAL_BRIEF[visual]}, ultra detailed, no text, no watermark, no logo. Scene: ${imagePrompt}`;
+  return `Vertical 9:16 key frame. ${VISUAL_BRIEF[visual]}. ${QUALITY[visual]}. Absolutely no text, no letters, no watermark, no logo. Scene: ${imagePrompt}`;
 }
 
 export function motionPrompt(videoPrompt: string, visual: VisualStyle = "papercraft") {
-  return `${videoPrompt}. Vertical short-form video, ${VISUAL_BRIEF[visual]}, subtle smooth camera movement, consistent art direction, no on-screen text, no subtitles, no watermark.`;
+  return `${videoPrompt}. Vertical short-form video. ${VISUAL_BRIEF[visual]}. ${QUALITY[visual]}. ${
+    visual === "papercraft"
+      ? "Stop-motion paper animation: the paper cut-outs move in small discrete steps, slight handmade jitter, layers sliding over each other, static or very slow push-in camera."
+      : "Subtle smooth camera movement."
+  } Consistent art direction, no on-screen text, no subtitles, no watermark.`;
 }
