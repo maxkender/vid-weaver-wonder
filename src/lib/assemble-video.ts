@@ -50,10 +50,29 @@ function lastErrors() {
   return (errs.length ? errs : logLines).slice(-8).join(" | ");
 }
 
+/** Repart d'une instance propre : une instance en échec (mémoire saturée) reste inutilisable. */
+export function resetFFmpeg() {
+  try {
+    ffmpegInstance?.terminate();
+  } catch {
+    /* ignore */
+  }
+  ffmpegInstance = null;
+}
+
 async function run(ffmpeg: FFmpeg, args: string[], label: string) {
   logLines.length = 0;
-  const code = await ffmpeg.exec(args);
-  if (code !== 0) throw new Error(`${label} : ${lastErrors() || `ffmpeg code ${code}`}`);
+  let code: number;
+  try {
+    code = await ffmpeg.exec(args);
+  } catch (e) {
+    resetFFmpeg();
+    throw new Error(`${label} : ${lastErrors() || (e as Error)?.message || "échec ffmpeg"}`);
+  }
+  if (code !== 0) {
+    resetFFmpeg();
+    throw new Error(`${label} : ${lastErrors() || `ffmpeg code ${code}`}`);
+  }
 }
 
 /**
