@@ -1,6 +1,15 @@
 export type KaraokeFrame = { blob: Blob; start: number; end: number };
 export type KaraokeSequence = { fps: number; frames: Blob[] };
 
+/** Charge la police d'affichage avant de dessiner (sinon canvas retombe sur Arial). */
+async function ensureFont(size: number) {
+  try {
+    await (document as unknown as { fonts: FontFaceSet }).fonts.load(`900 ${size}px Anton`);
+  } catch {
+    /* police indisponible : on garde la fallback */
+  }
+}
+
 function drawWord(
   ctx: CanvasRenderingContext2D,
   word: string,
@@ -10,8 +19,8 @@ function drawWord(
   const clean = word.toUpperCase();
   let fontSize = Math.round(width * 0.13);
   const maxWidth = width * 0.86;
-  const font = (s: number) =>
-    `900 ${s}px "Archivo Black", "Arial Black", Impact, sans-serif`;
+  // Même police que l'aperçu dans l'app (--font-display).
+  const font = (s: number) => `400 ${s}px "Anton", "Arial Narrow", Impact, sans-serif`;
   ctx.font = font(fontSize);
   while (ctx.measureText(clean).width > maxWidth && fontSize > 20) {
     fontSize -= 4;
@@ -19,19 +28,22 @@ function drawWord(
   }
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  const y = height * 0.74;
+  // Centré comme dans l'aperçu (au milieu de l'image, pas en bas).
+  const y = height * 0.5;
 
   ctx.save();
-  ctx.shadowColor = "rgba(0,0,0,0.9)";
-  ctx.shadowBlur = fontSize * 0.4;
-  ctx.lineWidth = Math.max(8, fontSize * 0.18);
-  ctx.strokeStyle = "#000";
+  ctx.shadowColor = "rgba(0,0,0,0.85)";
+  ctx.shadowBlur = fontSize * 0.5;
+  ctx.shadowOffsetY = fontSize * 0.06;
+  ctx.lineWidth = Math.max(6, fontSize * 0.12);
+  ctx.strokeStyle = "rgba(0,0,0,0.75)";
   ctx.lineJoin = "round";
   ctx.strokeText(clean, width / 2, y);
   ctx.restore();
   ctx.fillStyle = "#ffffff";
   ctx.fillText(clean, width / 2, y);
 }
+
 
 async function renderPng(
   width: number,
