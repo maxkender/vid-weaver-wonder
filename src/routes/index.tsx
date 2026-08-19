@@ -404,6 +404,24 @@ function Studio() {
     }
   };
 
+  /** Résumé narratif : ce qui vient d'être raconté et ce qui suit. */
+  const storyContext = (scene: Scene) => {
+    if (!script) return undefined;
+    const all = script.scenes;
+    const before = all
+      .filter((s) => s.index < scene.index)
+      .slice(-3)
+      .map((s) => `shot ${s.index + 1}: ${s.imagePrompt}`);
+    const next = all.find((s) => s.index === scene.index + 1);
+    const parts = [
+      `full story: ${script.title ?? topic}`,
+      before.length ? `previous shots — ${before.join(" | ")}` : "this is the opening shot",
+      `current shot ${scene.index + 1} of ${all.length}`,
+      next ? `next shot will be: ${next.imagePrompt}` : "this is the final shot",
+    ];
+    return parts.join(". ").slice(0, 3500);
+  };
+
   const onImage = async (scene: Scene) => {
     patch(scene.index, { imageLoading: true });
     try {
@@ -411,12 +429,14 @@ function Studio() {
       const ref = consistent ? referenceImage.current : null;
       // Continuité : on montre aussi le plan précédent au modèle.
       const prev = consistent ? (previousImage.current ?? null) : null;
+      const story = storyContext(scene);
       const { dataUrl } = (await runImage({
         data: {
           imagePrompt: scene.imagePrompt,
           visual,
           square: orientation === "square",
           ...visualOpts,
+          ...(story ? { story } : {}),
           ...(ref ? { referenceImage: ref } : {}),
           ...(prev && prev !== ref ? { previousImage: prev } : {}),
         },
@@ -435,9 +455,13 @@ function Studio() {
 
 
   const onVideo = async (scene: Scene, imageOverride?: string) => {
+    // Économie de crédits : on ne relance pas un plan déjà généré.
+    const done = states[scene.index]?.videoUrl;
+    if (done && !imageOverride) return done;
     patch(scene.index, { videoLoading: true, progress: 0, videoUrl: undefined });
     try {
       const image = imageOverride ?? states[scene.index]?.image;
+      const story = storyContext(scene);
       const { id } = (await runVideo({
         data: {
           videoPrompt: scene.videoPrompt,
@@ -446,6 +470,7 @@ function Studio() {
           orientation,
           visual,
           ...visualOpts,
+          ...(story ? { story } : {}),
           motion: settings.visual[visual].motion,
           hd: settings.hd,
         },
@@ -489,26 +514,25 @@ function Studio() {
     if (!script) return;
     setGeneratingAll(true);
     try {
-      // Le premier plan sert de référence visuelle aux suivants (personnages,
-      // couleurs, palette) : il est donc généré en premier.
-      const [first, ...rest] = script.scenes;
-      if (first) {
-        const img0 = states[first.index]?.image ?? (await onImage(first));
-        if (img0) referenceImage.current = img0;
-        await Promise.all([
-          onVideo(first, img0),
-          ...rest.map(async (scene) => {
-            const existing = states[scene.index]?.image;
-            const image = existing ?? (await onImage(scene));
-            await onVideo(scene, image);
-          }),
-        ]);
+      // Les images sont générées EN CHAÎNE (chaque plan voit le plan d'ouverture
+      // + le plan précédent) pour que la vidéo se lise comme une seule histoire.
+      // Les vidéos, elles, partent dès que leur image est prête (pas de crédit
+      // dépensé deux fois : on saute les plans déjà générés).
+      const videoJobs: Promise<unknown>[] = [];
+      for (const scene of script.scenes) {
+        const existing = states[scene.index]?.image;
+        const image = existing ?? (await onImage(scene));
+        if (scene.index === 0 && image) referenceImage.current = image;
+        if (image) previousImage.current = image;
+        if (!states[scene.index]?.videoUrl) videoJobs.push(onVideo(scene, image));
       }
+      await Promise.all(videoJobs);
       toast.success("Toutes les scènes sont prêtes");
     } finally {
       setGeneratingAll(false);
     }
   };
+
 
 
   const onVoice = async (scene: Scene) => {
