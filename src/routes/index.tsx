@@ -305,7 +305,8 @@ function Studio() {
             progress: 100,
           });
           toast.success(`Scène ${scene.index + 1} prête`);
-          return;
+          return `/api/video-content/${id}`;
+
         }
         if (job.status === "failed") {
           throw new Error(job.error ?? "La génération vidéo a échoué.");
