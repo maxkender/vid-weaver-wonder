@@ -206,6 +206,8 @@ function Studio() {
   const [topic, setTopic] = useState("");
   const [angle, setAngle] = useState("");
   const [suggesting, setSuggesting] = useState(false);
+  const [topicCategory, setTopicCategory] = useState<TopicCategory>("aleatoire");
+
   const pastTopics = useRef<string[]>([]);
   const runSuggest = useServerFn(suggestTopic);
   const kind: Kind = "faits";
