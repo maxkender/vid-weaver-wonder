@@ -5,6 +5,7 @@ import {
   chatJSON,
   createVideoJob,
   generateImageDataUrl,
+  generateSpeechDataUrl,
   getVideoJob,
 } from "./ai-gateway.server";
 import {
@@ -131,4 +132,18 @@ export const suggestTopic = createServerFn({ method: "POST" })
         : "Propose un sujet.",
     );
     return { topic: res.topic?.trim() ?? "", angle: res.angle?.trim() ?? "" };
+  });
+
+export const generateSceneVoice = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        text: z.string().min(2).max(4000),
+        voice: z.string().min(2).max(30).default("ballad"),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data }) => {
+    const audioDataUrl = await generateSpeechDataUrl(data.text, data.voice);
+    return { audioDataUrl };
   });
