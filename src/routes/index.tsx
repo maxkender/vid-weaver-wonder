@@ -490,7 +490,9 @@ function Studio() {
     const { assembleVideo } = await import("@/lib/assemble-video");
     const { randomTrack } = await import("@/lib/music-store");
     const { makeOverlayPng } = await import("@/lib/overlay-png");
-    const { makeKaraokeSequence } = await import("@/lib/karaoke-overlay");
+    const { makeKaraokeSequence, makeRoundedSquareMask } = await import(
+      "@/lib/karaoke-overlay"
+    );
     const dims =
       orientation === "horizontal"
         ? { width: 1280, height: 720 }
@@ -502,6 +504,12 @@ function Studio() {
       );
     if (!ordered.length) throw new Error("Aucune scène animée à assembler.");
 
+    // Papier découpé : masque carré à coins arrondis, toujours présent.
+    const mask =
+      visual === "papercraft" && orientation !== "horizontal"
+        ? await makeRoundedSquareMask(dims.width, dims.height)
+        : null;
+
     setAssembleStep("Préparation des sous-titres…");
     const withDurations = await Promise.all(
       ordered.map(async ({ scene, st }) => {
@@ -509,6 +517,7 @@ function Studio() {
         return {
           videoUrl: st.videoUrl,
           audio: st.audio,
+          mask,
           // Les images de sous-titres sont fabriquées juste avant l'encodage du
           // plan (et libérées après) : sinon toutes les scènes tiennent en
           // mémoire en même temps et l'onglet plante pendant l'export.
@@ -519,7 +528,7 @@ function Studio() {
                   dims.width,
                   dims.height,
                   duration,
-                  8,
+                  15,
                   st.words ?? null,
                 )
             : null,
@@ -530,6 +539,7 @@ function Studio() {
         };
       }),
     );
+
 
 
     const track = await randomTrack(style);
