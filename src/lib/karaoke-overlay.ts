@@ -126,24 +126,30 @@ async function renderPng(
   return await new Promise<Blob | null>((r) => canvas.toBlob((b) => r(b), "image/png"));
 }
 
+/** Marge latérale de la fenêtre carrée (fraction de la largeur, de chaque côté). */
+export const SQUARE_MARGIN_RATIO = 0.06;
+/** Rayon des coins de la fenêtre carrée (fraction du côté). */
+export const SQUARE_RADIUS_RATIO = 0.07;
+
 /**
  * Masque carré à coins arrondis : tout ce qui dépasse du carré centré devient noir.
- * Utilisé pour le style papier découpé (vidéo carrée dans un cadre vertical).
+ * La fenêtre garde toujours la même marge à gauche et à droite, sur toute la vidéo.
  */
 export async function makeRoundedSquareMask(
   width: number,
   height: number,
-  radiusRatio = 0.07,
+  radiusRatio = SQUARE_RADIUS_RATIO,
 ): Promise<Blob | null> {
   const canvas = document.createElement("canvas");
   canvas.width = width;
   canvas.height = height;
   const ctx = canvas.getContext("2d");
   if (!ctx) return null;
-  const side = Math.min(width, height);
-  const x = (width - side) / 2;
-  const y = (height - side) / 2;
+  const side = Math.round(Math.min(width * (1 - 2 * SQUARE_MARGIN_RATIO), height));
+  const x = Math.round((width - side) / 2);
+  const y = Math.round((height - side) / 2);
   const r = side * radiusRatio;
+
 
   ctx.fillStyle = "#000000";
   ctx.fillRect(0, 0, width, height);
