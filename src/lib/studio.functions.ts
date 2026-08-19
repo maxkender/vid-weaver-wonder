@@ -14,6 +14,7 @@ import {
   scriptSystemPrompt,
   scriptUserPrompt,
   SOPHIA_OUTRO,
+  TOPIC_BRIEF,
   type Script,
 } from "./prompts.server";
 import { estimateSpeechSeconds } from "./duration";
