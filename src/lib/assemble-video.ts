@@ -164,24 +164,43 @@ export async function assembleVideo(
   onProgress?.("Assemblage final", 0.9);
   const list = parts.map((p) => `file '${p}'`).join("\n");
   await ffmpeg.writeFile("list.txt", new TextEncoder().encode(list));
-  await run(
-    ffmpeg,
-    [
-      "-f",
-      "concat",
-      "-safe",
-      "0",
-      "-i",
-      "list.txt",
-      "-c",
-      "copy",
-      "-movflags",
-      "+faststart",
-      "-y",
-      "concat.mp4",
-    ],
-    "Concaténation",
-  );
+  const concatArgs = (copy: boolean) => [
+    "-f",
+    "concat",
+    "-safe",
+    "0",
+    "-i",
+    "list.txt",
+    ...(copy
+      ? ["-c", "copy"]
+      : [
+          "-c:v",
+          "libx264",
+          "-preset",
+          "ultrafast",
+          "-pix_fmt",
+          "yuv420p",
+          "-c:a",
+          "aac",
+          "-b:a",
+          "128k",
+          "-ar",
+          "44100",
+          "-ac",
+          "2",
+        ]),
+    "-movflags",
+    "+faststart",
+    "-y",
+    "concat.mp4",
+  ];
+  try {
+    await run(ffmpeg, concatArgs(true), "Concaténation");
+  } catch {
+    // Repli : ré-encodage complet si la copie de flux échoue.
+    await run(ffmpeg, concatArgs(false), "Concaténation");
+  }
+
 
   let finalName = "concat.mp4";
   if (music) {

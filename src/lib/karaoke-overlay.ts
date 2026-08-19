@@ -90,28 +90,44 @@ export async function makeKaraokeSequence(
   width: number,
   height: number,
   duration: number,
-  fps = 10,
+  fps = 8,
+  exactTimings?: { word: string; start: number; end: number }[] | null,
 ): Promise<KaraokeSequence | null> {
-  const timings = wordTimings(text, duration);
+  // Timings exacts (alignement ElevenLabs) si disponibles, sinon estimation.
+  const timings =
+    exactTimings && exactTimings.length
+      ? exactTimings.filter((t) => t.end > t.start && t.start < duration + 0.5)
+      : wordTimings(text, duration);
   if (!timings.length) return null;
 
-  const blank = await renderPng(width, height, null);
+  // Les PNG sont rendus en demi-résolution puis remis à l'échelle par FFmpeg :
+  // 4x moins de mémoire, aucune perte visible sur un texte plein écran.
+  const w = Math.round(width / 2);
+  const h = Math.round(height / 2);
+
+  const blank = await renderPng(w, h, null);
   if (!blank) return null;
+  const cache = new Map<string, Blob>();
   const wordBlobs: Blob[] = [];
   for (const t of timings) {
-    const b = await renderPng(width, height, t.word);
-    wordBlobs.push(b ?? blank);
+    let b = cache.get(t.word);
+    if (!b) {
+      b = (await renderPng(w, h, t.word)) ?? blank;
+      cache.set(t.word, b);
+    }
+    wordBlobs.push(b);
   }
 
   const count = Math.max(1, Math.ceil(duration * fps));
   const frames: Blob[] = [];
   for (let f = 0; f < count; f++) {
     const t = (f + 0.5) / fps;
-    const idx = timings.findIndex((w) => t >= w.start && t < w.end);
+    const idx = timings.findIndex((w2) => t >= w2.start && t < w2.end);
     frames.push(idx >= 0 ? wordBlobs[idx]! : blank);
   }
   return { fps, frames };
 }
+
 
 /** @deprecated conservé pour l'aperçu : un PNG par mot avec son intervalle. */
 export async function makeKaraokeFrames(
