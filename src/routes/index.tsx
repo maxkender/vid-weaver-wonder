@@ -535,8 +535,16 @@ function Studio() {
           : { width: 720, height: 1280 };
       const duration = st.audio ? await audioDuration(st.audio) : undefined;
       const karaokeSeq = duration
-        ? await makeKaraokeSequence(scene.narration, dims.width, dims.height, duration)
+        ? await makeKaraokeSequence(
+            scene.narration,
+            dims.width,
+            dims.height,
+            duration,
+            8,
+            st.words ?? null,
+          )
         : null;
+
       const blob = await assembleVideo(
         [
           {
