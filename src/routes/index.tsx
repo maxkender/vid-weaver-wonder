@@ -40,6 +40,8 @@ import {
   suggestTopic,
 
 } from "@/lib/studio.functions";
+import { TOPIC_CATEGORIES, type TopicCategory } from "@/lib/topic-categories";
+
 
 
 export const Route = createFileRoute("/")({
