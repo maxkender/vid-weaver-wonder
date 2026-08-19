@@ -223,17 +223,20 @@ export const CAPTION_FADE = 0.12;
 const FADE_STEPS = 8;
 
 /** Durée minimale d'affichage d'un groupe de mots (secondes). */
-export const MIN_CAPTION_HOLD = 0.45;
-/** Durée idéale d'un groupe : en dessous, on agrège le mot suivant. */
-const TARGET_GROUP_DURATION = 0.72;
+export const MIN_CAPTION_HOLD = 0.55;
 /** Nombre maximal de mots affichés ensemble. */
 const MAX_GROUP_WORDS = 4;
+/** Longueur maximale d'un groupe (une seule ligne). */
+const MAX_GROUP_CHARS = 26;
+/** Léger devancement : le texte apparaît juste avant la syllabe (perçu comme synchro). */
+const LEAD_IN = 0.05;
 
 /**
  * Rend les timings continus, calés sur la voix :
  *  1. recalage proportionnel sur la durée réelle de l'audio ;
- *  2. regroupement en courtes phrases (2-4 mots) façon TikTok, jamais de clignotement ;
- *  3. chaque groupe reste affiché jusqu'au suivant.
+ *  2. découpage en courtes phrases lisibles (ponctuation + rythme de la voix) ;
+ *  3. fusion des groupes trop brefs pour éviter tout clignotement ;
+ *  4. chaque groupe reste affiché jusqu'au suivant.
  */
 export function smoothTimings(
   timings: { word: string; start: number; end: number }[],
@@ -244,59 +247,76 @@ export function smoothTimings(
     .sort((a, b) => a.start - b.start);
   if (!sorted.length) return [];
 
-  // 1. Recalage : si l'alignement s'arrête nettement avant/après la fin réelle,
-  // on étire (ou compresse) proportionnellement pour éviter le décalage cumulé.
+  // 1. Recalage proportionnel sur la durée réelle de l'audio.
   const last = sorted[sorted.length - 1]!;
   const span = Math.max(last.end, last.start + 0.1);
   const factor = span > 0.5 && duration > 0.5 ? Math.min(1.35, Math.max(0.75, duration / span)) : 1;
-  const scaled =
-    factor === 1
-      ? sorted
-      : sorted.map((t) => ({ word: t.word, start: t.start * factor, end: t.end * factor }));
+  const scaled = sorted.map((t, i) => {
+    const next = sorted[i + 1];
+    const start = t.start * factor;
+    const end = Math.max(next ? next.start * factor : t.end * factor, start + 0.06);
+    return { word: t.word, start, end };
+  });
 
-  // 2. Calibrage sur la vitesse réelle de la voix (mots/seconde).
-  const spokenSpan = Math.max(0.5, Math.min(duration, span * factor));
-  const wps = scaled.length / spokenSpan;
-  // Voix lente (~2 mots/s) → groupes courts ; voix rapide (~4,5 mots/s) → groupes plus longs.
-  const targetGroup = Math.max(0.55, Math.min(1.0, 2.2 / Math.max(1.4, wps)));
-  const minHold = Math.max(0.34, Math.min(MIN_CAPTION_HOLD, targetGroup * 0.72));
-  const maxWords = wps >= 4 ? 4 : wps >= 3 ? 3 : 2;
-  // Une seule ligne : limite de caractères pour rester lisible sans retour à la ligne.
-  const MAX_GROUP_CHARS = 22;
-
-  // 3. Regroupement en courtes phrases lisibles (une ligne max).
-  const groups: { word: string; start: number; end: number }[] = [];
+  // 2. Découpage : on coupe sur la ponctuation, la longueur, ou une pause marquée.
+  type G = { words: string[]; start: number; end: number };
+  const groups: G[] = [];
   for (let i = 0; i < scaled.length; i++) {
     const t = scaled[i]!;
-    const next = scaled[i + 1];
-    const visibleEnd = Math.max(next ? next.start : t.end, t.start + 0.05);
     const prev = groups[groups.length - 1];
-    const prevWords = prev ? prev.word.split(" ").length : 0;
-    const prevEndsSentence = prev ? /[.!?…,;:]$/.test(prev.word) : false;
-    if (
+    const gap = i > 0 ? t.start - scaled[i - 1]!.end : 0;
+    const fits =
       prev &&
-      !prevEndsSentence &&
-      prevWords < maxWords &&
-      prev.word.length + 1 + t.word.length <= MAX_GROUP_CHARS &&
-      // on complète tant que le groupe est trop court pour être lu confortablement
-      (prev.end - prev.start < targetGroup || visibleEnd - t.start < minHold) &&
-      visibleEnd - prev.start <= 1.8
-    ) {
-
-      prev.word = `${prev.word} ${t.word}`;
-      prev.end = visibleEnd;
-      continue;
+      prev.words.length < MAX_GROUP_WORDS &&
+      prev.words.join(" ").length + 1 + t.word.length <= MAX_GROUP_CHARS &&
+      !/[.!?…,;:]$/.test(prev.words[prev.words.length - 1]!) &&
+      gap < 0.28;
+    if (fits && prev) {
+      prev.words.push(t.word);
+      prev.end = t.end;
+    } else {
+      groups.push({ words: [t.word], start: t.start, end: t.end });
     }
-    groups.push({ word: t.word, start: t.start, end: visibleEnd });
   }
 
-  // 3. Continuité : un groupe reste affiché jusqu'au suivant (aucun trou noir).
+  // 3. Fusion des groupes trop courts (anti-clignotement), puis rééquilibrage.
+  for (let i = 0; i < groups.length; i++) {
+    const g = groups[i]!;
+    if (g.end - g.start >= MIN_CAPTION_HOLD) continue;
+    const next = groups[i + 1];
+    const prev = groups[i - 1];
+    const canNext =
+      next &&
+      g.words.length + next.words.length <= MAX_GROUP_WORDS + 1 &&
+      g.words.join(" ").length + 1 + next.words.join(" ").length <= MAX_GROUP_CHARS + 6;
+    const canPrev =
+      prev &&
+      prev.words.length + g.words.length <= MAX_GROUP_WORDS + 1 &&
+      prev.words.join(" ").length + 1 + g.words.join(" ").length <= MAX_GROUP_CHARS + 6;
+    if (canNext && next) {
+      next.words = [...g.words, ...next.words];
+      next.start = g.start;
+      groups.splice(i, 1);
+      i--;
+    } else if (canPrev && prev) {
+      prev.words = [...prev.words, ...g.words];
+      prev.end = g.end;
+      groups.splice(i, 1);
+      i--;
+    }
+  }
+
+  // 4. Continuité : un groupe reste affiché jusqu'au suivant (aucun trou noir).
   return groups.map((g, i) => {
     const next = groups[i + 1];
-    const end = next ? next.start : Math.min(duration, Math.max(g.end, g.start + 0.5));
-    return { word: g.word, start: g.start, end: Math.max(end, g.start + 0.2) };
+    const start = Math.max(0, g.start - LEAD_IN);
+    const end = next
+      ? Math.max(next.start - LEAD_IN, start + 0.18)
+      : Math.min(duration, Math.max(g.end, start + 0.5));
+    return { word: g.words.join(" "), start, end };
   });
 }
+
 
 
 /**
