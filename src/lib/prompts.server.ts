@@ -91,7 +91,9 @@ export function scriptSystemPrompt(
     "imagePrompt décrit UNE composition simple et lisible : 1 à 3 éléments maximum, une silhouette claire au premier plan, un décor minimal (collines, ciel, mur uni). Pas de foule, pas de détails minuscules, pas de perspective compliquée.",
     "N'utilise JAMAIS de noms propres d'œuvres, films, jeux, marques, artistes ou personnages protégés dans imagePrompt et videoPrompt : décris ce qu'on voit (« a one-eyed giant figure », « a warrior in red armor holding a spear ») plutôt que de le nommer.",
     "videoPrompt décrit un mouvement de caméra et une action de 8 secondes maximum.",
-    `Le champ cta doit être EXACTEMENT ce texte, mot pour mot : "${SOPHIA_OUTRO}"`,
+    CTA_BRIEF,
+    "Le champ cta contient ce CTA Sophia adapté au sujet (texte prêt à être lu à voix haute).",
+
     'Réponds uniquement en JSON: {"title":string,"hook":string,"scenes":[{"index":number,"narration":string,"overlay":string,"imagePrompt":string,"videoPrompt":string}],"cta":string,"hashtags":string[]}',
   ].join("\n");
 }
