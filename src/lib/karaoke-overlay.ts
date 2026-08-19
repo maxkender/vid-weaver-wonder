@@ -112,10 +112,11 @@ export async function makeKaraokeSequence(
       : wordTimings(text, duration);
   if (!timings.length) return null;
 
-  // Les PNG sont rendus en demi-résolution puis remis à l'échelle par FFmpeg :
-  // 4x moins de mémoire, aucune perte visible sur un texte plein écran.
-  const w = Math.round(width / 2);
-  const h = Math.round(height / 2);
+  // Pleine résolution : les PNG sont mis en cache par mot (une image par mot
+  // unique), donc la mémoire reste faible et le texte n'est plus flou.
+  const w = width;
+  const h = height;
+
 
   const blank = await renderPng(w, h, null);
   if (!blank) return null;
