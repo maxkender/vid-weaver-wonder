@@ -14,10 +14,14 @@ import {
 
   Sparkles,
   Wand2,
+  History,
+  Pencil,
+  Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Toaster } from "@/components/ui/sonner";
 import { KaraokeCaption } from "@/components/karaoke-caption";
+import { audioDuration, estimateSpeechSeconds } from "@/lib/duration";
 
 
 import {
@@ -169,6 +173,9 @@ function Studio() {
       })) as Script;
       setScript(result);
       setStates({});
+      const id = `p${Date.now()}`;
+      setProjectId(id);
+      saveHistory(id, result);
       toast.success("Script généré");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Échec de la génération du script");
@@ -201,7 +208,7 @@ function Studio() {
         data: {
           videoPrompt: scene.videoPrompt,
           ...(image ? { imageDataUrl: image } : {}),
-          seconds: "8" as const,
+          narration: scene.narration,
           orientation,
           visual,
         },
@@ -314,8 +321,15 @@ function Studio() {
         orientation === "horizontal"
           ? { width: 1280, height: 720 }
           : { width: 720, height: 1280 };
+      const withDurations = await Promise.all(
+        readyScenes.map(async (st) => ({
+          videoUrl: st.videoUrl,
+          audio: st.audio,
+          duration: st.audio ? await audioDuration(st.audio) : undefined,
+        })),
+      );
       const blob = await assembleVideo(
-        readyScenes.map((st) => ({ videoUrl: st.videoUrl, audio: st.audio })),
+        withDurations,
         {
           ...dims,
           onProgress: (step) => setAssembleStep(step),
