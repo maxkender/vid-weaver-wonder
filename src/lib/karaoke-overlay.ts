@@ -10,15 +10,19 @@ async function ensureFont(size: number) {
   }
 }
 
+/** Taille de police relative des sous-titres (2× plus petit qu'avant). */
+export const CAPTION_SIZE_RATIO = 0.062;
+
 function drawWord(
   ctx: CanvasRenderingContext2D,
   word: string,
   width: number,
   height: number,
   scale = 1,
+  alpha = 1,
 ) {
-  const clean = word.replace(/[«»"]/g, "").toUpperCase();
-  let fontSize = Math.round(width * 0.125);
+  const clean = word.replace(/[«»"]/g, "").toLowerCase();
+  let fontSize = Math.round(width * CAPTION_SIZE_RATIO);
   const maxWidth = width * 0.82;
   const font = (s: number) => `400 ${s}px "Anton", "Arial Narrow", Impact, sans-serif`;
   ctx.font = font(fontSize);
@@ -33,9 +37,11 @@ function drawWord(
   const cy = height * 0.5;
 
   ctx.save();
+  ctx.globalAlpha = Math.max(0, Math.min(1, alpha));
   ctx.translate(cx, cy);
   ctx.scale(scale, scale);
   ctx.font = font(fontSize);
+  ctx.lineWidth = Math.max(4, fontSize * 0.16);
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
 
@@ -104,6 +110,7 @@ async function renderPng(
   word: string | null,
   scale = 1,
   logo?: { img: CanvasImageSource; progress: number } | null,
+  alpha = 1,
 ): Promise<Blob | null> {
   const canvas = document.createElement("canvas");
   canvas.width = width;
@@ -112,8 +119,8 @@ async function renderPng(
   if (!ctx) return null;
   if (logo) drawLogo(ctx, logo.img, width, height, logo.progress);
   if (word) {
-    await ensureFont(Math.round(width * 0.125));
-    drawWord(ctx, word, width, height, scale);
+    await ensureFont(Math.round(width * CAPTION_SIZE_RATIO));
+    drawWord(ctx, word, width, height, scale, alpha);
   }
 
   return await new Promise<Blob | null>((r) => canvas.toBlob((b) => r(b), "image/png"));
@@ -199,6 +206,27 @@ function popScale(progress: number) {
 
 // Paliers d'animation du logo Sophia (le mot, lui, est toujours à l'échelle 1).
 const LOGO_STEPS = 6;
+/** Durée du fondu d'apparition d'un mot (secondes). */
+export const CAPTION_FADE = 0.1;
+const FADE_STEPS = 4;
+
+/**
+ * Rend les timings continus : chaque mot reste affiché jusqu'au suivant
+ * (plus de clignotements ni de mots qui « sautent » plus vite que la voix).
+ */
+export function smoothTimings(
+  timings: { word: string; start: number; end: number }[],
+  duration: number,
+) {
+  const sorted = [...timings]
+    .filter((t) => t.word && t.start >= 0 && t.start < duration + 0.5)
+    .sort((a, b) => a.start - b.start);
+  return sorted.map((t, i) => {
+    const next = sorted[i + 1];
+    const end = next ? next.start : Math.min(duration, Math.max(t.end, t.start + 0.35));
+    return { word: t.word, start: t.start, end: Math.max(end, t.start + 0.08) };
+  });
+}
 
 /**
  * Séquence d'images (une par frame, cadence fixe) prête à être incrustée par FFmpeg.
@@ -212,10 +240,12 @@ export async function makeKaraokeSequence(
   exactTimings?: { word: string; start: number; end: number }[] | null,
   logo?: { url: string; start: number; end: number } | null,
 ): Promise<KaraokeSequence | null> {
-  const timings =
+  const timings = smoothTimings(
     exactTimings && exactTimings.length
-      ? exactTimings.filter((t) => t.end > t.start && t.start < duration + 0.5)
-      : wordTimings(text, duration);
+      ? exactTimings.filter((t) => t.end > t.start)
+      : wordTimings(text, duration),
+    duration,
+  );
   if (!timings.length) return null;
 
   const logoImg = logo ? await loadLogo(logo.url) : null;
@@ -230,8 +260,8 @@ export async function makeKaraokeSequence(
 
   // Cache : une image par (mot, palier de logo) → rendu léger en mémoire.
   const cache = new Map<string, Blob>();
-  const get = async (word: string | null, logoStep = -1) => {
-    const key = `${word ?? ""}#${logoStep}`;
+  const get = async (word: string | null, logoStep = -1, fadeStep = FADE_STEPS - 1) => {
+    const key = `${word ?? ""}#${logoStep}#${fadeStep}`;
     let b = cache.get(key);
     if (!b) {
       const lg =
@@ -241,7 +271,8 @@ export async function makeKaraokeSequence(
               progress: logoStep / (LOGO_STEPS - 1),
             }
           : null;
-      b = (await renderPng(width, height, word, 1, lg)) ?? blank;
+      const alpha = (fadeStep + 1) / FADE_STEPS;
+      b = (await renderPng(width, height, word, 1, lg, alpha)) ?? blank;
       cache.set(key, b);
     }
     return b;
@@ -258,7 +289,13 @@ export async function makeKaraokeSequence(
       frames.push(logoStep >= 0 ? await get(null, logoStep) : blank);
       continue;
     }
-    frames.push(await get(timings[idx]!.word, logoStep));
+    const cur = timings[idx]!;
+    // Fondu court à l'apparition du mot → transition douce, sans à-coups.
+    const fadeStep = Math.min(
+      FADE_STEPS - 1,
+      Math.max(0, Math.round(((t - cur.start) / CAPTION_FADE) * (FADE_STEPS - 1))),
+    );
+    frames.push(await get(cur.word, logoStep, fadeStep));
   }
   return { fps, frames };
 }

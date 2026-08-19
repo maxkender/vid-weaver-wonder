@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import { sophiaWindow, wordTimings } from "@/lib/karaoke-overlay";
+import { CAPTION_FADE, smoothTimings, sophiaWindow, wordTimings } from "@/lib/karaoke-overlay";
 import sophiaLogo from "@/assets/sophia-logo.png.asset.json";
 
 type Timing = { word: string; start: number; end: number };
@@ -34,13 +34,13 @@ export function KaraokeCaption({ text, fallback, getMedia, words, showLogo = tru
         setState(null);
         setLogoPop(null);
       } else {
-        let timings = exact;
-        if (!timings) {
-          if (!cached || Math.abs(cached.duration - media.duration) > 0.05) {
-            cached = { duration: media.duration, timings: wordTimings(text, media.duration) };
-          }
-          timings = cached.timings;
+        if (!cached || Math.abs(cached.duration - media.duration) > 0.05) {
+          cached = {
+            duration: media.duration,
+            timings: smoothTimings(exact ?? wordTimings(text, media.duration), media.duration),
+          };
         }
+        const timings = cached.timings;
         const t = media.currentTime;
         if (showLogo) {
           const win = sophiaWindow(text, media.duration, exact);
@@ -53,7 +53,8 @@ export function KaraokeCaption({ text, fallback, getMedia, words, showLogo = tru
         const cur = timings.find((w) => t >= w.start && t < w.end) ?? null;
         if (!cur) setState(null);
         else {
-          const pop = Math.min(1, Math.max(0, (t - cur.start) / 0.13));
+          // Fondu doux à l'apparition (pas de zoom).
+          const pop = Math.min(1, Math.max(0, (t - cur.start) / CAPTION_FADE));
           setState({ word: cur.word, pop });
         }
       }
@@ -90,17 +91,18 @@ export function KaraokeCaption({ text, fallback, getMedia, words, showLogo = tru
       >
         {logoNode}
         <span
-          className="caption-overlay select-none text-center uppercase leading-none tracking-tight text-white"
+          className="select-none text-center lowercase leading-none tracking-tight text-white"
           style={{
             fontFamily: '"Anton", "Arial Narrow", Impact, sans-serif',
-            // Même taille relative que dans l'export MP4 (12,5 % de la largeur).
-            fontSize: "12.5cqw",
-            WebkitTextStroke: "0.55cqw #000",
+            // Même taille relative que dans l'export MP4 (6,2 % de la largeur).
+            fontSize: "6.2cqw",
+            WebkitTextStroke: "0.28cqw #000",
             paintOrder: "stroke fill",
-            textShadow: "0 0.5cqw 2.2cqw rgba(0,0,0,0.55)",
+            textShadow: "0 0.28cqw 1.1cqw rgba(0,0,0,0.55)",
+            opacity: state.pop,
           }}
         >
-          {state.word.replace(/[«»"]/g, "").toUpperCase()}
+          {state.word.replace(/[«»"]/g, "").toLowerCase()}
         </span>
       </div>
     );
