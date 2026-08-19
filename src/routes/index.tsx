@@ -118,6 +118,27 @@ function Studio() {
     setStates((prev) => ({ ...prev, [i]: { ...prev[i], ...value } }));
   }, []);
 
+  const onSuggest = async () => {
+    setSuggesting(true);
+    try {
+      const res = (await runSuggest({ data: { avoid: pastTopics.current.slice(-8) } })) as {
+        topic: string;
+        angle: string;
+      };
+      if (res.topic) {
+        pastTopics.current.push(res.topic);
+        setTopic(res.topic);
+        setAngle(res.angle);
+        toast.success("Sujet proposé");
+      }
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Échec de la proposition");
+    } finally {
+      setSuggesting(false);
+    }
+  };
+
+
   const onScript = async () => {
     setLoadingScript(true);
     try {
