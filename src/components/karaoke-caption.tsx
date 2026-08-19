@@ -34,13 +34,13 @@ export function KaraokeCaption({ text, fallback, getMedia, words, showLogo = tru
         setState(null);
         setLogoPop(null);
       } else {
-        let timings = exact;
-        if (!timings) {
-          if (!cached || Math.abs(cached.duration - media.duration) > 0.05) {
-            cached = { duration: media.duration, timings: wordTimings(text, media.duration) };
-          }
-          timings = cached.timings;
+        if (!cached || Math.abs(cached.duration - media.duration) > 0.05) {
+          cached = {
+            duration: media.duration,
+            timings: smoothTimings(exact ?? wordTimings(text, media.duration), media.duration),
+          };
         }
+        const timings = cached.timings;
         const t = media.currentTime;
         if (showLogo) {
           const win = sophiaWindow(text, media.duration, exact);
