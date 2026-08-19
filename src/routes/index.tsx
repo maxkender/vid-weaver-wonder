@@ -279,6 +279,9 @@ function Studio() {
 
   /** Image de référence (1er plan généré) pour garder les mêmes personnages. */
   const referenceImage = useRef<string | null>(null);
+  /** Image du plan précédent : continuité d'une scène à l'autre. */
+  const previousImage = useRef<string | null>(null);
+
 
   useEffect(() => {
     const current = readHistory();
@@ -386,6 +389,8 @@ function Studio() {
       setScript(result);
       setStates({});
       referenceImage.current = null;
+      previousImage.current = null;
+
       const id = `p${Date.now()}`;
       setProjectId(id);
       saveHistory(id, result);
@@ -402,8 +407,10 @@ function Studio() {
   const onImage = async (scene: Scene) => {
     patch(scene.index, { imageLoading: true });
     try {
-      const ref =
-        settings.useReferenceImage && scene.index > 0 ? referenceImage.current : null;
+      const consistent = settings.useReferenceImage && scene.index > 0;
+      const ref = consistent ? referenceImage.current : null;
+      // Continuité : on montre aussi le plan précédent au modèle.
+      const prev = consistent ? (previousImage.current ?? null) : null;
       const { dataUrl } = (await runImage({
         data: {
           imagePrompt: scene.imagePrompt,
@@ -411,10 +418,12 @@ function Studio() {
           square: orientation === "square",
           ...visualOpts,
           ...(ref ? { referenceImage: ref } : {}),
+          ...(prev && prev !== ref ? { previousImage: prev } : {}),
         },
       })) as { dataUrl: string };
 
       if (scene.index === 0 || !referenceImage.current) referenceImage.current = dataUrl;
+      previousImage.current = dataUrl;
       patch(scene.index, { image: dataUrl, imageLoading: false });
       return dataUrl;
     } catch (e) {
@@ -423,6 +432,7 @@ function Studio() {
       return undefined;
     }
   };
+
 
   const onVideo = async (scene: Scene, imageOverride?: string) => {
     patch(scene.index, { videoLoading: true, progress: 0, videoUrl: undefined });

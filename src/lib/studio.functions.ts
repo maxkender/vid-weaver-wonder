@@ -93,8 +93,10 @@ export const generateSceneImage = createServerFn({ method: "POST" })
         bible: z.string().max(4000).optional(),
         visualBrief: z.string().max(4000).optional(),
         quality: z.string().max(2000).optional(),
-        /** Image de référence (plan précédent) pour garder les mêmes personnages. */
+        /** Image de référence (plan 1 = style) pour garder les mêmes personnages. */
         referenceImage: z.string().startsWith("data:image/").optional(),
+        /** Image du plan précédent : continuité immédiate de l'histoire. */
+        previousImage: z.string().startsWith("data:image/").optional(),
       })
       .parse(input),
   )
@@ -104,15 +106,22 @@ export const generateSceneImage = createServerFn({ method: "POST" })
       visualBrief: data.visualBrief,
       quality: data.quality,
     });
-    const prompt = data.referenceImage
-      ? `${base}\n\nUse the attached image only as a STYLE AND CHARACTER REFERENCE: keep exactly the same characters (same faces, same clothing colors, same materials), the same colour palette, the same lighting and the same art direction. Do not copy its composition — render the new scene described above.`
-      : base;
-    const dataUrl = await generateImageDataUrl(
-      prompt,
-      data.referenceImage ? [data.referenceImage] : [],
+    const refs = [data.referenceImage, data.previousImage].filter(
+      (r): r is string => typeof r === "string" && r.length > 0,
     );
+    // Évite d'envoyer deux fois la même image.
+    const unique = refs.filter((r, i) => refs.indexOf(r) === i);
+    const prompt = unique.length
+      ? `${base}\n\nThe attached image${unique.length > 1 ? "s are" : " is"} a STYLE AND CHARACTER REFERENCE${
+          unique.length > 1
+            ? " (first = the opening shot of the story, second = the immediately previous shot)"
+            : ""
+        }: keep EXACTLY the same characters (same faces, same hair, same clothing shapes and colours), the same materials and paper textures, the same colour palette, the same lighting and the same art direction, so the video reads as one single illustrated story. Do not copy the composition — render the new scene described above as the next shot of that same story.`
+      : base;
+    const dataUrl = await generateImageDataUrl(prompt, unique);
     return { dataUrl };
   });
+
 
 export const startSceneVideo = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) =>
