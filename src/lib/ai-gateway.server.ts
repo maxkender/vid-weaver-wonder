@@ -44,16 +44,26 @@ export async function chatJSON<T>(model: string, system: string, user: string): 
 }
 
 /** Génère une image (Nano Banana) et renvoie une data URL. */
-export async function generateImageDataUrl(prompt: string): Promise<string> {
+export async function generateImageDataUrl(
+  prompt: string,
+  referenceImages: string[] = [],
+): Promise<string> {
+  const content = referenceImages.length
+    ? [
+        { type: "text", text: prompt },
+        ...referenceImages.map((url) => ({ type: "image_url", image_url: { url } })),
+      ]
+    : prompt;
   const res = await fetch(`${GATEWAY}/chat/completions`, {
     method: "POST",
     headers: gatewayHeaders(),
     body: JSON.stringify({
       model: "google/gemini-3.1-flash-image",
       modalities: ["image", "text"],
-      messages: [{ role: "user", content: prompt }],
+      messages: [{ role: "user", content }],
     }),
   });
+
   if (!res.ok) throw new Error(await readError(res));
   const data = (await res.json()) as {
     choices: { message: { images?: { image_url?: { url?: string } }[] } }[];

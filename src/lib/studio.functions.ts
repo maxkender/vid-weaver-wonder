@@ -33,6 +33,10 @@ export const generateScript = createServerFn({ method: "POST" })
         sceneCount: z.number().int().min(3).max(8).default(5),
         /** Durée cible de la vidéo finale (secondes), CTA inclus. */
         targetSeconds: z.number().int().min(15).max(90).default(35),
+        /** Brief de narration personnalisé (page Paramètres). */
+        styleBrief: z.string().max(4000).optional(),
+        /** Densité du texte réglée dans Paramètres (mots par plan). */
+        wordsBias: z.number().int().min(-6).max(6).default(0),
       })
       .parse(input),
   )
@@ -41,12 +45,18 @@ export const generateScript = createServerFn({ method: "POST" })
     const narrationSeconds = Math.max(8, data.targetSeconds - 7);
     // ~2,5 mots/seconde en lecture naturelle.
     const wordsPerScene = Math.min(
-      26,
-      Math.max(10, Math.round((narrationSeconds * 2.5) / data.sceneCount)),
+      28,
+      Math.max(8, Math.round((narrationSeconds * 2.5) / data.sceneCount) + data.wordsBias),
     );
     const script = await chatJSON<Script>(
       "google/gemini-3.7-flash",
-      scriptSystemPrompt(data.kind, data.sceneCount, data.style, wordsPerScene),
+      scriptSystemPrompt(
+        data.kind,
+        data.sceneCount,
+        data.style,
+        wordsPerScene,
+        data.styleBrief,
+      ),
       scriptUserPrompt(data.kind, data.topic),
     );
 
@@ -77,12 +87,27 @@ export const generateSceneImage = createServerFn({ method: "POST" })
         imagePrompt: z.string().min(3).max(2000),
         visual: visualEnum.default("papercraft"),
         square: z.boolean().default(false),
+        /** Bible visuelle (personnages + palette) répétée sur chaque plan. */
+        bible: z.string().max(4000).optional(),
+        visualBrief: z.string().max(4000).optional(),
+        quality: z.string().max(2000).optional(),
+        /** Image de référence (plan précédent) pour garder les mêmes personnages. */
+        referenceImage: z.string().startsWith("data:image/").optional(),
       })
       .parse(input),
   )
   .handler(async ({ data }) => {
+    const base = coverPrompt(data.imagePrompt, data.visual, data.square, {
+      bible: data.bible,
+      visualBrief: data.visualBrief,
+      quality: data.quality,
+    });
+    const prompt = data.referenceImage
+      ? `${base}\n\nUse the attached image only as a STYLE AND CHARACTER REFERENCE: keep exactly the same characters (same faces, same clothing colors, same materials), the same colour palette, the same lighting and the same art direction. Do not copy its composition — render the new scene described above.`
+      : base;
     const dataUrl = await generateImageDataUrl(
-      coverPrompt(data.imagePrompt, data.visual, data.square),
+      prompt,
+      data.referenceImage ? [data.referenceImage] : [],
     );
     return { dataUrl };
   });
@@ -97,6 +122,10 @@ export const startSceneVideo = createServerFn({ method: "POST" })
         narration: z.string().max(4000).default(""),
         orientation: z.enum(["vertical", "horizontal", "square"]).default("vertical"),
         visual: visualEnum.default("papercraft"),
+        bible: z.string().max(4000).optional(),
+        visualBrief: z.string().max(4000).optional(),
+        quality: z.string().max(2000).optional(),
+        motion: z.string().max(2000).optional(),
       })
       .parse(input),
   )
@@ -105,7 +134,12 @@ export const startSceneVideo = createServerFn({ method: "POST" })
     const est = estimateSpeechSeconds(data.narration);
     const seconds = data.seconds ?? (est <= 4 ? "4" : est <= 6 ? "6" : "8");
     const job = await createVideoJob({
-      prompt: motionPrompt(data.videoPrompt, data.visual, square),
+      prompt: motionPrompt(data.videoPrompt, data.visual, square, {
+        bible: data.bible,
+        visualBrief: data.visualBrief,
+        quality: data.quality,
+        motion: data.motion,
+      }),
       seconds,
       size: data.orientation === "horizontal" ? "1280x720" : "720x1280",
       ...(data.imageDataUrl ? { inputReference: data.imageDataUrl } : {}),

@@ -59,17 +59,58 @@ function drawWord(
   ctx.restore();
 }
 
+/** Charge (et mémorise) le logo Sophia pour l'incruster dans les frames. */
+const logoCache = new Map<string, HTMLImageElement>();
+export async function loadLogo(url: string): Promise<HTMLImageElement | null> {
+  const hit = logoCache.get(url);
+  if (hit) return hit;
+  try {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.src = url;
+    await img.decode();
+    logoCache.set(url, img);
+    return img;
+  } catch {
+    return null;
+  }
+}
+
+/** Logo Sophia qui « pop » en haut du cadre pendant la mention de la marque. */
+function drawLogo(
+  ctx: CanvasRenderingContext2D,
+  img: CanvasImageSource,
+  width: number,
+  height: number,
+  progress: number,
+) {
+  const eased = 1 - Math.pow(1 - Math.max(0, Math.min(1, progress)), 3);
+  const scale = 0.7 + 0.3 * eased + 0.06 * Math.sin(Math.PI * Math.min(1, progress));
+  const size = width * 0.34 * scale;
+  const cx = width / 2;
+  const cy = height * 0.26;
+  ctx.save();
+  ctx.globalAlpha = Math.min(1, progress * 3);
+  ctx.shadowColor = "rgba(0,0,0,0.5)";
+  ctx.shadowBlur = size * 0.18;
+  ctx.shadowOffsetY = size * 0.05;
+  ctx.drawImage(img, cx - size / 2, cy - size / 2, size, size);
+  ctx.restore();
+}
+
 async function renderPng(
   width: number,
   height: number,
   word: string | null,
   scale = 1,
+  logo?: { img: CanvasImageSource; progress: number } | null,
 ): Promise<Blob | null> {
   const canvas = document.createElement("canvas");
   canvas.width = width;
   canvas.height = height;
   const ctx = canvas.getContext("2d");
   if (!ctx) return null;
+  if (logo) drawLogo(ctx, logo.img, width, height, logo.progress);
   if (word) {
     await ensureFont(Math.round(width * 0.125));
     drawWord(ctx, word, width, height, scale);
@@ -168,6 +209,7 @@ export async function makeKaraokeSequence(
   duration: number,
   fps = 15,
   exactTimings?: { word: string; start: number; end: number }[] | null,
+  logo?: { url: string; start: number; end: number } | null,
 ): Promise<KaraokeSequence | null> {
   const timings =
     exactTimings && exactTimings.length
@@ -175,17 +217,28 @@ export async function makeKaraokeSequence(
       : wordTimings(text, duration);
   if (!timings.length) return null;
 
+  const logoImg = logo ? await loadLogo(logo.url) : null;
+  const logoAt = (t: number) => {
+    if (!logoImg || !logo) return null;
+    if (t < logo.start || t > logo.end) return null;
+    return { img: logoImg, progress: Math.min(1, (t - logo.start) / 0.35) };
+  };
+
   const blank = await renderPng(width, height, null);
   if (!blank) return null;
 
   // Cache : une image par (mot, palier d'échelle) → animation fluide sans exploser la mémoire.
   const cache = new Map<string, Blob>();
-  const get = async (word: string, step: number) => {
-    const key = `${word}#${step}`;
+  const get = async (word: string | null, step: number, logoStep = -1) => {
+    const key = `${word ?? ""}#${step}#${logoStep}`;
     let b = cache.get(key);
     if (!b) {
       const scale = step >= SCALE_STEPS - 1 ? 1 : popScale(step / (SCALE_STEPS - 1));
-      b = (await renderPng(width, height, word, scale)) ?? blank;
+      const lg =
+        logoStep >= 0 && logoImg
+          ? { img: logoImg as CanvasImageSource, progress: logoStep / (SCALE_STEPS - 1) }
+          : null;
+      b = (await renderPng(width, height, word, scale, lg)) ?? blank;
       cache.set(key, b);
     }
     return b;
@@ -196,15 +249,19 @@ export async function makeKaraokeSequence(
   const popTime = 0.13; // durée de l'animation d'apparition
   for (let f = 0; f < count; f++) {
     const t = (f + 0.5) / fps;
+    const lg = logoAt(t);
+    const logoStep = lg
+      ? Math.min(SCALE_STEPS - 1, Math.round(lg.progress * (SCALE_STEPS - 1)))
+      : -1;
     const idx = timings.findIndex((w2) => t >= w2.start && t < w2.end);
     if (idx < 0) {
-      frames.push(blank);
+      frames.push(logoStep >= 0 ? await get(null, 0, logoStep) : blank);
       continue;
     }
     const w = timings[idx]!;
     const progress = Math.min(1, (t - w.start) / popTime);
     const step = Math.min(SCALE_STEPS - 1, Math.round(progress * (SCALE_STEPS - 1)));
-    frames.push(await get(w.word, step));
+    frames.push(await get(w.word, step, logoStep));
   }
   return { fps, frames };
 }
@@ -223,4 +280,23 @@ export async function makeKaraokeFrames(
     if (blob) frames.push({ blob, start: t.start, end: t.end });
   }
   return frames;
+}
+
+/**
+ * Fenêtre d'apparition du logo Sophia : dès que la voix prononce « Sophia »,
+ * le logo pop et reste ~2,5 s (ou jusqu'à la fin du plan).
+ */
+export function sophiaWindow(
+  text: string,
+  duration: number,
+  exactTimings?: { word: string; start: number; end: number }[] | null,
+): { start: number; end: number } | null {
+  const norm = (s: string) =>
+    s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  if (!/sophia/.test(norm(text ?? ""))) return null;
+  const timings =
+    exactTimings && exactTimings.length ? exactTimings : wordTimings(text, duration);
+  const hit = timings.find((t) => norm(t.word).includes("sophia"));
+  const start = hit ? Math.max(0, hit.start - 0.1) : Math.max(0, duration * 0.55);
+  return { start, end: Math.min(duration, start + 2.8) };
 }

@@ -10,11 +10,17 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ParametresRouteImport } from './routes/parametres'
 import { Route as ApiVideoContentIdRouteImport } from './routes/api/video-content.$id'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ParametresRoute = ParametresRouteImport.update({
+  id: '/parametres',
+  path: '/parametres',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiVideoContentIdRoute = ApiVideoContentIdRouteImport.update({
@@ -25,27 +31,31 @@ const ApiVideoContentIdRoute = ApiVideoContentIdRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/parametres': typeof ParametresRoute
   '/api/video-content/$id': typeof ApiVideoContentIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/parametres': typeof ParametresRoute
   '/api/video-content/$id': typeof ApiVideoContentIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/parametres': typeof ParametresRoute
   '/api/video-content/$id': typeof ApiVideoContentIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/api/video-content/$id'
+  fullPaths: '/' | '/parametres' | '/api/video-content/$id'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/api/video-content/$id'
-  id: '__root__' | '/' | '/api/video-content/$id'
+  to: '/' | '/parametres' | '/api/video-content/$id'
+  id: '__root__' | '/' | '/parametres' | '/api/video-content/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ParametresRoute: typeof ParametresRoute
   ApiVideoContentIdRoute: typeof ApiVideoContentIdRoute
 }
 
@@ -56,6 +66,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/parametres': {
+      id: '/parametres'
+      path: '/parametres'
+      fullPath: '/parametres'
+      preLoaderRoute: typeof ParametresRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/video-content/$id': {
@@ -70,6 +87,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ParametresRoute: ParametresRoute,
   ApiVideoContentIdRoute: ApiVideoContentIdRoute,
 }
 export const routeTree = rootRouteImport

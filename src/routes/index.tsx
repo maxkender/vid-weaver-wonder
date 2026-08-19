@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -15,6 +15,7 @@ import {
   Sparkles,
   Wand2,
   History,
+  Settings,
   Pencil,
   Trash2,
 } from "lucide-react";
@@ -24,6 +25,8 @@ import { KaraokeCaption } from "@/components/karaoke-caption";
 import { MusicLibrary } from "@/components/music-library";
 import { audioDuration, estimateSpeechSeconds } from "@/lib/duration";
 import { defaultVoice, voicesFor, type VoiceEngine } from "@/lib/voices";
+import { defaultSettings, loadSettings, type StudioSettings } from "@/lib/style-presets";
+import sophiaLogo from "@/assets/sophia-logo.png.asset.json";
 
 
 
@@ -78,6 +81,8 @@ type Script = {
   scenes: Scene[];
   cta: string;
   hashtags: string[];
+  characters?: { name: string; description: string }[];
+  palette?: string;
 };
 
 type SceneState = {
@@ -225,6 +230,9 @@ function Studio() {
       .catch(() => setAccountVoices([]));
   }, [runListVoices]);
 
+  const [settings, setSettings] = useState<StudioSettings>(defaultSettings());
+  useEffect(() => setSettings(loadSettings()), []);
+
   const [orientation, setOrientation] = useState<"vertical" | "square" | "horizontal">("square");
   const [script, setScript] = useState<Script | null>(null);
   const [loadingScript, setLoadingScript] = useState(false);
@@ -242,6 +250,30 @@ function Studio() {
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [showHistory, setShowHistory] = useState(false);
   const [editing, setEditing] = useState<Record<number, boolean>>({});
+
+  /** Bible visuelle : personnages + palette répétés sur chaque plan. */
+  const bible = useMemo(() => {
+    if (!script) return "";
+    const chars = (script.characters ?? [])
+      .map((c) => `${c.name}: ${c.description}`)
+      .join(" | ");
+    return [chars, script.palette ?? ""].filter(Boolean).join(" || ");
+  }, [script]);
+
+  const visualOpts = useMemo(
+    () => ({
+      bible,
+      visualBrief: settings.visual[visual].brief,
+      quality: settings.visual[visual].quality,
+    }),
+    [bible, settings, visual],
+  );
+
+  /** Masque carré : dépend de la direction artistique réglée dans Paramètres. */
+  const useSquareMask = settings.visual[visual].square && orientation !== "horizontal";
+
+  /** Image de référence (1er plan généré) pour garder les mêmes personnages. */
+  const referenceImage = useRef<string | null>(null);
 
   useEffect(() => {
     const current = readHistory();
@@ -333,10 +365,19 @@ function Studio() {
     setLoadingScript(true);
     try {
       const result = (await runScript({
-        data: { topic, kind, sceneCount, style, targetSeconds },
+        data: {
+          topic,
+          kind,
+          sceneCount,
+          style,
+          targetSeconds,
+          styleBrief: settings.narration[style].brief,
+          wordsBias: settings.narration[style].wordsBias,
+        },
       })) as Script;
       setScript(result);
       setStates({});
+      referenceImage.current = null;
       const id = `p${Date.now()}`;
       setProjectId(id);
       saveHistory(id, result);
@@ -351,10 +392,19 @@ function Studio() {
   const onImage = async (scene: Scene) => {
     patch(scene.index, { imageLoading: true });
     try {
+      const ref =
+        settings.useReferenceImage && scene.index > 0 ? referenceImage.current : null;
       const { dataUrl } = (await runImage({
-        data: { imagePrompt: scene.imagePrompt, visual, square: orientation === "square" },
+        data: {
+          imagePrompt: scene.imagePrompt,
+          visual,
+          square: orientation === "square",
+          ...visualOpts,
+          ...(ref ? { referenceImage: ref } : {}),
+        },
       })) as { dataUrl: string };
 
+      if (scene.index === 0 || !referenceImage.current) referenceImage.current = dataUrl;
       patch(scene.index, { image: dataUrl, imageLoading: false });
       return dataUrl;
     } catch (e) {
@@ -375,6 +425,8 @@ function Studio() {
           narration: scene.narration,
           orientation,
           visual,
+          ...visualOpts,
+          motion: settings.visual[visual].motion,
         },
       })) as { id: string };
       patch(scene.index, { videoId: id });
@@ -416,13 +468,21 @@ function Studio() {
     if (!script) return;
     setGeneratingAll(true);
     try {
-      await Promise.all(
-        script.scenes.map(async (scene) => {
-          const existing = states[scene.index]?.image;
-          const image = existing ?? (await onImage(scene));
-          await onVideo(scene, image);
-        }),
-      );
+      // Le premier plan sert de référence visuelle aux suivants (personnages,
+      // couleurs, palette) : il est donc généré en premier.
+      const [first, ...rest] = script.scenes;
+      if (first) {
+        const img0 = states[first.index]?.image ?? (await onImage(first));
+        if (img0) referenceImage.current = img0;
+        await Promise.all([
+          onVideo(first, img0),
+          ...rest.map(async (scene) => {
+            const existing = states[scene.index]?.image;
+            const image = existing ?? (await onImage(scene));
+            await onVideo(scene, image);
+          }),
+        ]);
+      }
       toast.success("Toutes les scènes sont prêtes");
     } finally {
       setGeneratingAll(false);
@@ -490,7 +550,7 @@ function Studio() {
     const { assembleVideo } = await import("@/lib/assemble-video");
     const { randomTrack } = await import("@/lib/music-store");
     const { makeOverlayPng } = await import("@/lib/overlay-png");
-    const { makeKaraokeSequence, makeRoundedSquareMask } = await import(
+    const { makeKaraokeSequence, makeRoundedSquareMask, sophiaWindow } = await import(
       "@/lib/karaoke-overlay"
     );
     const dims =
@@ -505,10 +565,9 @@ function Studio() {
     if (!ordered.length) throw new Error("Aucune scène animée à assembler.");
 
     // Papier découpé : masque carré à coins arrondis, toujours présent.
-    const mask =
-      visual === "papercraft" && orientation !== "horizontal"
-        ? await makeRoundedSquareMask(dims.width, dims.height)
-        : null;
+    const mask = useSquareMask
+      ? await makeRoundedSquareMask(dims.width, dims.height)
+      : null;
 
     setAssembleStep("Préparation des sous-titres…");
     const withDurations = await Promise.all(
@@ -530,6 +589,12 @@ function Studio() {
                   duration,
                   15,
                   st.words ?? null,
+                  settings.sophiaLogo
+                    ? (() => {
+                        const win = sophiaWindow(scene.narration, duration, st.words ?? null);
+                        return win ? { url: sophiaLogo.url, ...win } : null;
+                      })()
+                    : null,
                 )
             : null,
           overlay: duration
@@ -552,6 +617,7 @@ function Studio() {
     const blob = await assembleVideo(withDurations, {
       ...dims,
       music: track?.blob,
+      musicVolume: settings.musicVolume,
       onProgress: (step) => setAssembleStep(step),
     });
 
@@ -641,7 +707,7 @@ function Studio() {
     try {
       const { assembleVideo } = await import("@/lib/assemble-video");
       const { makeOverlayPng } = await import("@/lib/overlay-png");
-      const { makeKaraokeSequence, makeRoundedSquareMask } = await import(
+      const { makeKaraokeSequence, makeRoundedSquareMask, sophiaWindow } = await import(
         "@/lib/karaoke-overlay"
       );
       const dims =
@@ -649,6 +715,10 @@ function Studio() {
           ? { width: 1280, height: 720 }
           : { width: 720, height: 1280 };
       const duration = st.audio ? await audioDuration(st.audio) : undefined;
+      const logoWin =
+        settings.sophiaLogo && duration
+          ? sophiaWindow(scene.narration, duration, st.words ?? null)
+          : null;
       const karaokeSeq = duration
         ? await makeKaraokeSequence(
             scene.narration,
@@ -657,12 +727,12 @@ function Studio() {
             duration,
             15,
             st.words ?? null,
+            logoWin ? { url: sophiaLogo.url, ...logoWin } : null,
           )
         : null;
-      const mask =
-        visual === "papercraft" && orientation !== "horizontal"
-          ? await makeRoundedSquareMask(dims.width, dims.height)
-          : null;
+      const mask = useSquareMask
+        ? await makeRoundedSquareMask(dims.width, dims.height)
+        : null;
 
       const blob = await assembleVideo(
         [
@@ -728,6 +798,12 @@ function Studio() {
           >
             <History className="h-3.5 w-3.5" /> Historique ({history.length})
           </button>
+          <Link
+            to="/parametres"
+            className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-xs uppercase tracking-widest hover:border-primary"
+          >
+            <Settings className="h-3.5 w-3.5" /> Paramètres
+          </Link>
         </div>
 
         {showHistory && (
@@ -1118,7 +1194,7 @@ function Studio() {
                       </div>
                     )}
 
-                    {visual === "papercraft" && orientation !== "horizontal" && (
+                    {useSquareMask && (
                       <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
                         <div
                           className="aspect-square w-full rounded-[7%]"
@@ -1131,6 +1207,7 @@ function Studio() {
                       text={scene.narration}
                       fallback={scene.overlay}
                       words={st.words}
+                      showLogo={settings.sophiaLogo}
                       getMedia={() =>
                         audioRefs.current[scene.index] ?? videoRefs.current[scene.index] ?? null
                       }
