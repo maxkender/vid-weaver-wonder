@@ -535,6 +535,18 @@ function Studio() {
             <div className="mt-6 rounded-lg border border-border bg-secondary/30 p-4">
               <div className="flex flex-wrap items-center gap-3">
                 <button
+                  onClick={onGenerateAll}
+                  disabled={generatingAll}
+                  className="inline-flex items-center gap-2 rounded-lg border border-border px-4 py-2.5 text-xs font-bold uppercase tracking-widest hover:border-primary disabled:opacity-50"
+                >
+                  {generatingAll ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Sparkles className="h-3.5 w-3.5" />
+                  )}
+                  Tout animer en parallèle
+                </button>
+                <button
                   onClick={onAssemble}
                   disabled={assembling || readyScenes.length === 0}
                   className="btn-gold inline-flex items-center gap-2 rounded-lg px-4 py-2.5 text-xs font-bold uppercase tracking-widest disabled:opacity-50"
