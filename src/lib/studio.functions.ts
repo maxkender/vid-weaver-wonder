@@ -73,12 +73,6 @@ export const generateSceneImage = createServerFn({ method: "POST" })
     return { dataUrl };
   });
 
-/** Durée de lecture estimée d'un texte français (≈ 2,6 mots/seconde). */
-export function estimateSpeechSeconds(text: string) {
-  const words = text.trim().split(/\s+/).filter(Boolean).length;
-  return words / 2.6;
-}
-
 export const startSceneVideo = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) =>
     z
