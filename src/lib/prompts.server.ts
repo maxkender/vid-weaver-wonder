@@ -76,6 +76,8 @@ export function scriptSystemPrompt(
     "À partir de la scène 2, donne des détails concrets (lieux, noms, époques). Les chiffres sont autorisés seulement s'ils sont spectaculaires et jamais dans le hook.",
     "Le champ overlay est le texte incrusté à l'écran : 3 à 6 mots, percutant, qui résume le choc de la scène.",
     "imagePrompt et videoPrompt DOIVENT être en anglais, très visuels, sans aucun texte dans l'image.",
+    "imagePrompt décrit UNE composition simple et lisible : 1 à 3 éléments maximum, une silhouette claire au premier plan, un décor minimal (collines, ciel, mur uni). Pas de foule, pas de détails minuscules, pas de perspective compliquée.",
+    "N'utilise JAMAIS de noms propres d'œuvres, films, jeux, marques, artistes ou personnages protégés dans imagePrompt et videoPrompt : décris ce qu'on voit (« a one-eyed giant figure », « a warrior in red armor holding a spear ») plutôt que de le nommer.",
     "videoPrompt décrit un mouvement de caméra et une action de 8 secondes maximum.",
     `Le champ cta doit être EXACTEMENT ce texte, mot pour mot : "${SOPHIA_OUTRO}"`,
     'Réponds uniquement en JSON: {"title":string,"hook":string,"scenes":[{"index":number,"narration":string,"overlay":string,"imagePrompt":string,"videoPrompt":string}],"cta":string,"hashtags":string[]}',
