@@ -433,6 +433,49 @@ function Studio() {
           Un sujet, et le studio écrit le script, dessine chaque plan, l'anime en vidéo avec
           son, et prépare vos textes incrustés.
         </p>
+        <div className="mt-6 flex flex-wrap items-center gap-3">
+          <button
+            onClick={() => setShowHistory((v) => !v)}
+            className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-xs uppercase tracking-widest hover:border-primary"
+          >
+            <History className="h-3.5 w-3.5" /> Historique ({history.length})
+          </button>
+        </div>
+
+        {showHistory && (
+          <div className="mt-4 space-y-2 rounded-lg border border-border bg-secondary/30 p-4">
+            {history.length === 0 && (
+              <p className="text-xs text-muted-foreground">Aucune vidéo enregistrée pour l'instant.</p>
+            )}
+            {history.map((h) => (
+              <div key={h.id} className="flex items-center justify-between gap-3">
+                <button
+                  onClick={() => {
+                    setScript(h.script);
+                    setProjectId(h.id);
+                    setStates({});
+                    setFinalUrl(null);
+                    setShowHistory(false);
+                    toast.success("Projet rechargé");
+                  }}
+                  className="flex-1 truncate text-left text-sm hover:text-primary"
+                >
+                  {h.title}
+                  <span className="ml-2 text-xs text-muted-foreground">
+                    {new Date(h.date).toLocaleString("fr-FR")}
+                  </span>
+                </button>
+                <button
+                  onClick={() => deleteHistory(h.id)}
+                  className="text-muted-foreground hover:text-destructive"
+                  aria-label="Supprimer"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
       </header>
 
       <section className="surface-card p-6 sm:p-8">
@@ -741,7 +784,42 @@ function Studio() {
                     <span className="text-xs uppercase tracking-widest text-muted-foreground">
                       Scène {scene.index + 1}
                     </span>
-                    <p className="mt-2 text-sm">{scene.narration}</p>
+                    {editing[scene.index] ? (
+                      <div className="mt-3 space-y-2">
+                        <textarea
+                          value={scene.narration}
+                          onChange={(e) => updateScene(scene.index, "narration", e.target.value)}
+                          rows={3}
+                          className="w-full rounded-lg border border-border bg-background p-2 text-sm"
+                        />
+                        <input
+                          value={scene.overlay}
+                          onChange={(e) => updateScene(scene.index, "overlay", e.target.value)}
+                          placeholder="Texte incrusté"
+                          className="w-full rounded-lg border border-border bg-background p-2 text-xs"
+                        />
+                        <textarea
+                          value={scene.imagePrompt}
+                          onChange={(e) => updateScene(scene.index, "imagePrompt", e.target.value)}
+                          rows={2}
+                          placeholder="Prompt image (anglais)"
+                          className="w-full rounded-lg border border-border bg-background p-2 text-xs"
+                        />
+                        <textarea
+                          value={scene.videoPrompt}
+                          onChange={(e) => updateScene(scene.index, "videoPrompt", e.target.value)}
+                          rows={2}
+                          placeholder="Prompt animation (anglais)"
+                          className="w-full rounded-lg border border-border bg-background p-2 text-xs"
+                        />
+                      </div>
+                    ) : (
+                      <p className="mt-2 text-sm">{scene.narration}</p>
+                    )}
+                    <p className="mt-2 text-xs uppercase tracking-widest text-muted-foreground">
+                      ≈ {estimateSpeechSeconds(scene.narration).toFixed(1)} s de voix
+                      {estimateSpeechSeconds(scene.narration) > 8 && " — plus long que le clip, l'image sera figée à la fin"}
+                    </p>
 
                     <div className="mt-4 flex flex-wrap gap-2">
                       <button
@@ -750,6 +828,15 @@ function Studio() {
                         className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-xs uppercase tracking-widest hover:border-primary disabled:opacity-50"
                       >
                         <ImageIcon className="h-3.5 w-3.5" /> Image
+                      </button>
+                      <button
+                        onClick={() =>
+                          setEditing((prev) => ({ ...prev, [scene.index]: !prev[scene.index] }))
+                        }
+                        className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-xs uppercase tracking-widest hover:border-primary"
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                        {editing[scene.index] ? "Terminé" : "Modifier"}
                       </button>
                       <button
                         onClick={() => onVideo(scene)}
