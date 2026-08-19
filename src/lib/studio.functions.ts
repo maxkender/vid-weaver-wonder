@@ -181,22 +181,40 @@ export const suggestTopic = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data }) => {
+    // Rotation de domaines : garantit une vraie variété d'un clic à l'autre.
+    const DOMAINS = [
+      "un film ou une série récente très connue (expliquer le vrai fait historique ou scientifique derrière)",
+      "une légende ou un mythe (Odyssée, Atlantide, loups-garous…) et son origine réelle",
+      "un fait historique marquant, raconté par un détail méconnu",
+      "la géographie : une frontière, une île, un fleuve, une ville avec une bizarrerie surprenante",
+      "un fait scientifique du quotidien (corps humain, météo, physique simple)",
+      "un animal ou la nature : un comportement incroyable mais vrai",
+      "l'espace et l'univers, expliqué simplement",
+      "l'origine d'un objet, d'un mot ou d'une habitude que tout le monde utilise",
+      "un personnage célèbre vu sous un angle inattendu",
+      "la nourriture, le sport ou la musique : une histoire surprenante derrière quelque chose de banal",
+      "une invention ou une découverte due au hasard",
+      "un mystère non résolu ou une théorie célèbre, expliqué avec des faits",
+    ];
+    const domain = DOMAINS[Math.floor(Math.random() * DOMAINS.length)]!;
     const res = await chatJSON<{ topic: string; angle: string }>(
       "google/gemini-3.7-flash",
       [
         "Tu proposes des sujets de vidéos courtes de culture générale en français.",
         TOPIC_BRIEF[data.style],
+        `DOMAINE IMPOSÉ POUR CETTE PROPOSITION : ${domain}. Reste dans ce domaine.`,
         "Le sujet doit être fascinant, vérifiable, et facile à raconter en 60 secondes.",
+        "Le sujet peut porter sur des choses très connues du grand public (films, monuments, animaux, pays) tant que l'angle est surprenant.",
         "VOCABULAIRE SIMPLE : formule le sujet avec des mots du quotidien, compréhensibles par tout le monde. Pas de jargon, pas de noms d'opérations militaires, de traités ou de termes techniques. Le sujet doit se comprendre en une seconde.",
         "Reste sur des faits simples : une seule idée, rien de trop pointu ni de trop spécialisé.",
         "Évite les sujets ultra rebattus (pyramides, Titanic, Mozart enfant prodige, Grande Muraille visible de l'espace).",
-        "Évite les marques, œuvres protégées et personnages de fiction récents.",
         'Réponds uniquement en JSON: {"topic": string (une phrase de 8 à 20 mots), "angle": string (une phrase expliquant l\'angle surprenant)}',
       ].join("\n"),
       data.avoid.length
         ? `Propose un sujet différent de ceux-ci : ${data.avoid.join(" | ")}`
         : "Propose un sujet.",
     );
+
     return { topic: res.topic?.trim() ?? "", angle: res.angle?.trim() ?? "" };
   });
 
