@@ -160,10 +160,10 @@ export const generateSceneVoice = createServerFn({ method: "POST" })
   )
   .handler(async ({ data }) => {
     if (data.engine === "elevenlabs") {
-      const { generateElevenSpeechDataUrl } = await import("./elevenlabs.server");
-      const audioDataUrl = await generateElevenSpeechDataUrl(data.text, data.voice);
-      return { audioDataUrl };
+      const { generateElevenSpeechWithTimings } = await import("./elevenlabs.server");
+      return await generateElevenSpeechWithTimings(data.text, data.voice);
     }
     const audioDataUrl = await generateSpeechDataUrl(data.text, data.voice);
-    return { audioDataUrl };
+    return { audioDataUrl, words: [] as { word: string; start: number; end: number }[] };
   });
+
