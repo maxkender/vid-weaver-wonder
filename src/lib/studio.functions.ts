@@ -93,6 +93,8 @@ export const generateSceneImage = createServerFn({ method: "POST" })
         bible: z.string().max(4000).optional(),
         visualBrief: z.string().max(4000).optional(),
         quality: z.string().max(2000).optional(),
+        /** Contexte narratif : plans précédents + plan suivant. */
+        story: z.string().max(4000).optional(),
         /** Image de référence (plan 1 = style) pour garder les mêmes personnages. */
         referenceImage: z.string().startsWith("data:image/").optional(),
         /** Image du plan précédent : continuité immédiate de l'histoire. */
@@ -105,11 +107,12 @@ export const generateSceneImage = createServerFn({ method: "POST" })
       bible: data.bible,
       visualBrief: data.visualBrief,
       quality: data.quality,
+      story: data.story,
     });
     const refs = [data.referenceImage, data.previousImage].filter(
       (r): r is string => typeof r === "string" && r.length > 0,
     );
-    // Évite d'envoyer deux fois la même image.
+    // Évite d'envoyer deux fois la même image (économie de tokens/crédits).
     const unique = refs.filter((r, i) => refs.indexOf(r) === i);
     const prompt = unique.length
       ? `${base}\n\nThe attached image${unique.length > 1 ? "s are" : " is"} a STYLE AND CHARACTER REFERENCE${
@@ -137,6 +140,8 @@ export const startSceneVideo = createServerFn({ method: "POST" })
         visualBrief: z.string().max(4000).optional(),
         quality: z.string().max(2000).optional(),
         motion: z.string().max(2000).optional(),
+        /** Contexte narratif : plans précédents + plan suivant. */
+        story: z.string().max(4000).optional(),
         /** 1080p : le modèle n'accepte cette définition que sur des plans de 8 s. */
         hd: z.boolean().default(false),
       })
@@ -145,16 +150,22 @@ export const startSceneVideo = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const square = data.orientation === "square";
     const est = estimateSpeechSeconds(data.narration);
-    const seconds = data.hd ? "8" : (data.seconds ?? (est <= 4 ? "4" : est <= 6 ? "6" : "8"));
+    // Économie de crédits : on ne paie jamais plus de secondes que nécessaire.
+    // Le 1080p n'existe qu'en 8 s : si le plan est plus court, on reste en 720p
+    // (upscalé à l'export) au lieu de payer un clip 8 s HD inutile.
+    const needed: "4" | "6" | "8" = est <= 4 ? "4" : est <= 6 ? "6" : "8";
+    const seconds = data.seconds ?? needed;
+    const hd = data.hd && seconds === "8";
     const job = await createVideoJob({
       prompt: motionPrompt(data.videoPrompt, data.visual, square, {
         bible: data.bible,
         visualBrief: data.visualBrief,
         quality: data.quality,
         motion: data.motion,
+        story: data.story,
       }),
       seconds,
-      size: data.hd
+      size: hd
         ? data.orientation === "horizontal"
           ? "1920x1080"
           : "1080x1920"
