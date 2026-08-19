@@ -114,6 +114,8 @@ export type PromptOverrides = {
   motion?: string | undefined;
   /** Bible visuelle (personnages + palette) à répéter sur chaque plan. */
   bible?: string | undefined;
+  /** Contexte narratif : plans précédents et plan suivant. */
+  story?: string | undefined;
 };
 
 function bibleLine(bible?: string) {
@@ -121,6 +123,13 @@ function bibleLine(bible?: string) {
     ? ` Consistent series bible (identical in every shot of this video): ${bible.trim()}.`
     : "";
 }
+
+function storyLine(story?: string) {
+  return story?.trim()
+    ? ` STORY CONTEXT (this shot is one chapter of a single continuous illustrated story, keep the same world, same characters, same costumes, same palette and a logical visual progression): ${story.trim()}.`
+    : "";
+}
+
 
 export function coverPrompt(
   imagePrompt: string,
