@@ -236,19 +236,21 @@ function popScale(progress: number) {
 
 // Paliers d'animation du logo Sophia (le mot, lui, est toujours à l'échelle 1).
 const LOGO_STEPS = 6;
-/** Durée du fondu d'apparition d'un mot (secondes). */
-export const CAPTION_FADE = 0.1;
-const FADE_STEPS = 6;
+/** Durée du fondu d'apparition d'un groupe (secondes). */
+export const CAPTION_FADE = 0.12;
+const FADE_STEPS = 8;
 
 /** Durée minimale d'affichage d'un groupe de mots (secondes). */
-export const MIN_CAPTION_HOLD = 0.24;
-/** Nombre maximal de mots affichés ensemble quand ils sont très rapides. */
-const MAX_GROUP_WORDS = 3;
+export const MIN_CAPTION_HOLD = 0.45;
+/** Durée idéale d'un groupe : en dessous, on agrège le mot suivant. */
+const TARGET_GROUP_DURATION = 0.72;
+/** Nombre maximal de mots affichés ensemble. */
+const MAX_GROUP_WORDS = 4;
 
 /**
  * Rend les timings continus, calés sur la voix :
- *  1. recalage proportionnel sur la durée réelle de l'audio (fin de l'alignement ≠ fin du fichier) ;
- *  2. regroupement des mots trop courts (les monosyllabes ne clignotent plus) ;
+ *  1. recalage proportionnel sur la durée réelle de l'audio ;
+ *  2. regroupement en courtes phrases (2-4 mots) façon TikTok, jamais de clignotement ;
  *  3. chaque groupe reste affiché jusqu'au suivant.
  */
 export function smoothTimings(
@@ -270,31 +272,36 @@ export function smoothTimings(
       ? sorted
       : sorted.map((t) => ({ word: t.word, start: t.start * factor, end: t.end * factor }));
 
-  // 2. Regroupement des mots trop brefs.
+  // 2. Regroupement en courtes phrases lisibles.
   const groups: { word: string; start: number; end: number }[] = [];
   for (let i = 0; i < scaled.length; i++) {
     const t = scaled[i]!;
     const next = scaled[i + 1];
-    const visible = Math.max((next ? next.start : t.end) - t.start, 0.05);
+    const visibleEnd = Math.max(next ? next.start : t.end, t.start + 0.05);
     const prev = groups[groups.length - 1];
+    const prevWords = prev ? prev.word.split(" ").length : 0;
+    const prevEndsSentence = prev ? /[.!?…,;:]$/.test(prev.word) : false;
     if (
       prev &&
-      prev.end - prev.start < MIN_CAPTION_HOLD &&
-      prev.word.split(" ").length < MAX_GROUP_WORDS
+      !prevEndsSentence &&
+      prevWords < MAX_GROUP_WORDS &&
+      // on complète tant que le groupe est trop court pour être lu confortablement
+      (prev.end - prev.start < TARGET_GROUP_DURATION ||
+        visibleEnd - t.start < MIN_CAPTION_HOLD) &&
+      visibleEnd - prev.start <= 1.9
     ) {
       prev.word = `${prev.word} ${t.word}`;
-      prev.end = t.start + visible;
+      prev.end = visibleEnd;
       continue;
     }
-    groups.push({ word: t.word, start: t.start, end: t.start + visible });
+    groups.push({ word: t.word, start: t.start, end: visibleEnd });
   }
 
-
-  // 3. Continuité : un groupe reste jusqu'au suivant.
+  // 3. Continuité : un groupe reste affiché jusqu'au suivant (aucun trou noir).
   return groups.map((g, i) => {
     const next = groups[i + 1];
-    const end = next ? next.start : Math.min(duration, Math.max(g.end, g.start + 0.35));
-    return { word: g.word, start: g.start, end: Math.max(end, g.start + MIN_CAPTION_HOLD * 0.6) };
+    const end = next ? next.start : Math.min(duration, Math.max(g.end, g.start + 0.5));
+    return { word: g.word, start: g.start, end: Math.max(end, g.start + 0.2) };
   });
 }
 
