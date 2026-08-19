@@ -145,8 +145,9 @@ function Studio() {
   const [sceneCount, setSceneCount] = useState(5);
   const [style, setStyle] = useState<NarrationStyle>("revelation");
   const [visual, setVisual] = useState<VisualStyle>("papercraft");
-  const [engine, setEngine] = useState<VoiceEngine>("lovable");
-  const [voice, setVoice] = useState(defaultVoice("lovable"));
+  const [engine, setEngine] = useState<VoiceEngine>("elevenlabs");
+  const [voice, setVoice] = useState(defaultVoice("elevenlabs"));
+
   const [orientation, setOrientation] = useState<"vertical" | "square" | "horizontal">("square");
   const [script, setScript] = useState<Script | null>(null);
   const [loadingScript, setLoadingScript] = useState(false);
