@@ -91,17 +91,19 @@ export function KaraokeCaption({ text, fallback, getMedia, words, showLogo = tru
       >
         {logoNode}
         <span
-          className="max-w-[78%] select-none text-balance text-center lowercase tracking-tight text-white"
+          className="max-w-[92%] select-none truncate text-center lowercase tracking-tight text-white"
           style={{
             fontFamily: '"Anton", "Arial Narrow", Impact, sans-serif',
             // Même taille relative que dans l'export MP4 (6,2 % de la largeur).
             fontSize: "6.2cqw",
             lineHeight: 1.08,
+            whiteSpace: "nowrap",
             WebkitTextStroke: "0.28cqw #000",
             paintOrder: "stroke fill",
             textShadow: "0 0.28cqw 1.1cqw rgba(0,0,0,0.55)",
             opacity: state.pop,
           }}
+
         >
           {state.word.replace(/[«»"]/g, "").toLowerCase()}
         </span>
