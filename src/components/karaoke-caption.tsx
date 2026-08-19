@@ -115,8 +115,22 @@ export function KaraokeCaption({ text, fallback, getMedia, words, showLogo = tru
           }}
 
         >
-          {state.word.replace(/[«»"]/g, "").toLowerCase()}
+          {state.word
+            .replace(/[«»"]/g, "")
+            .toLowerCase()
+            .split(" ")
+            .filter(Boolean)
+            .map((w, i, arr) => (
+              <span
+                key={`${w}-${i}`}
+                style={i === state.active ? { color: CAPTION_ACTIVE_COLOR } : undefined}
+              >
+                {w}
+                {i < arr.length - 1 ? " " : ""}
+              </span>
+            ))}
         </span>
+
       </div>
     );
   }
