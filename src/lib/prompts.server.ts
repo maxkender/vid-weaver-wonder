@@ -47,7 +47,7 @@ const STYLE_BRIEF: Record<NarrationStyle, string> = {
 
 const VISUAL_BRIEF: Record<VisualStyle, string> = {
   papercraft:
-    "handmade layered paper cut-out diorama photographed head-on, flat frontal composition, stacked planes of matte construction paper with torn deckled edges and visible paper grain, simple bold silhouettes with no fine detail, characters and objects built from flat cut shapes with slight relief, soft diffused studio light casting gentle drop shadows between paper layers, strictly limited palette: deep navy blue, dusty slate blue, bone cream white, terracotta red and mustard ochre accents, no gradients, no realistic textures, no 3D render look, stop-motion paper animation aesthetic, calm and graphic, quiet minimal background of layered rolling paper hills or a plain paper wall",
+    "handmade layered paper cut-out diorama photographed head-on, flat frontal composition, stacked planes of matte construction paper with torn deckled edges and visible paper grain, simple bold silhouettes with no fine detail, characters and objects built from flat cut shapes with slight relief, soft diffused studio light casting gentle drop shadows between paper layers, a cohesive limited palette of 4 to 5 flat matte paper colors chosen to fit the mood of this specific scene (warm, cold, earthy, nocturnal… vary freely from scene to scene), no gradients, no realistic textures, no 3D render look, stop-motion paper animation aesthetic, calm and graphic, quiet minimal background of layered paper shapes",
   cinematique:
     "photorealistic cinematic still, anamorphic lens, dramatic volumetric lighting, shallow depth of field, rich film grain, teal and amber grade",
   documentaire:

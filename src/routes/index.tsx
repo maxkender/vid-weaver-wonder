@@ -124,7 +124,7 @@ function Studio() {
   const [script, setScript] = useState<Script | null>(null);
   const [loadingScript, setLoadingScript] = useState(false);
   const [states, setStates] = useState<Record<number, SceneState>>({});
-  const busyRef = useRef(false);
+  
   const audioRefs = useRef<Record<number, HTMLAudioElement | null>>({});
   const videoRefs = useRef<Record<number, HTMLVideoElement | null>>({});
   const [previewVoice, setPreviewVoice] = useState(false);
@@ -185,25 +185,22 @@ function Studio() {
       })) as { dataUrl: string };
 
       patch(scene.index, { image: dataUrl, imageLoading: false });
+      return dataUrl;
     } catch (e) {
       patch(scene.index, { imageLoading: false });
       toast.error(e instanceof Error ? e.message : "Échec de l'image");
+      return undefined;
     }
   };
 
-  const onVideo = async (scene: Scene) => {
-    if (busyRef.current) {
-      toast.info("Une vidéo est déjà en cours de génération.");
-      return;
-    }
-    busyRef.current = true;
+  const onVideo = async (scene: Scene, imageOverride?: string) => {
     patch(scene.index, { videoLoading: true, progress: 0, videoUrl: undefined });
     try {
-      const state = states[scene.index];
+      const image = imageOverride ?? states[scene.index]?.image;
       const { id } = (await runVideo({
         data: {
           videoPrompt: scene.videoPrompt,
-          ...(state?.image ? { imageDataUrl: state.image } : {}),
+          ...(image ? { imageDataUrl: image } : {}),
           seconds: "8" as const,
           orientation,
           visual,
@@ -236,10 +233,28 @@ function Studio() {
     } catch (e) {
       patch(scene.index, { videoLoading: false });
       toast.error(e instanceof Error ? e.message : "Échec de la vidéo");
-    } finally {
-      busyRef.current = false;
     }
   };
+
+  const [generatingAll, setGeneratingAll] = useState(false);
+
+  const onGenerateAll = async () => {
+    if (!script) return;
+    setGeneratingAll(true);
+    try {
+      await Promise.all(
+        script.scenes.map(async (scene) => {
+          const existing = states[scene.index]?.image;
+          const image = existing ?? (await onImage(scene));
+          await onVideo(scene, image);
+        }),
+      );
+      toast.success("Toutes les scènes sont prêtes");
+    } finally {
+      setGeneratingAll(false);
+    }
+  };
+
 
   const onVoice = async (scene: Scene) => {
     patch(scene.index, { audioLoading: true });
@@ -519,6 +534,18 @@ function Studio() {
 
             <div className="mt-6 rounded-lg border border-border bg-secondary/30 p-4">
               <div className="flex flex-wrap items-center gap-3">
+                <button
+                  onClick={onGenerateAll}
+                  disabled={generatingAll}
+                  className="inline-flex items-center gap-2 rounded-lg border border-border px-4 py-2.5 text-xs font-bold uppercase tracking-widest hover:border-primary disabled:opacity-50"
+                >
+                  {generatingAll ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Sparkles className="h-3.5 w-3.5" />
+                  )}
+                  Tout animer en parallèle
+                </button>
                 <button
                   onClick={onAssemble}
                   disabled={assembling || readyScenes.length === 0}
