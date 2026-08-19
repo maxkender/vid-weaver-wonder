@@ -139,7 +139,7 @@ export function coverPrompt(
 ) {
   const brief = o.visualBrief?.trim() || DEFAULT_VISUAL_BRIEF[visual];
   const quality = o.quality?.trim() || DEFAULT_QUALITY[visual];
-  return `Vertical 9:16 key frame. ${brief}. ${quality}.${bibleLine(o.bible)} ${
+  return `Vertical 9:16 key frame. ${brief}. ${quality}.${bibleLine(o.bible)}${storyLine(o.story)} ${
     square ? SQUARE_FRAME + " " : ""
   }Absolutely no text, no letters, no watermark, no logo. Scene: ${imagePrompt}`;
 }
@@ -153,7 +153,7 @@ export function motionPrompt(
   const brief = o.visualBrief?.trim() || DEFAULT_VISUAL_BRIEF[visual];
   const quality = o.quality?.trim() || DEFAULT_QUALITY[visual];
   const motion = o.motion?.trim() || DEFAULT_MOTION[visual];
-  return `${videoPrompt}. Vertical short-form video. ${brief}. ${quality}.${bibleLine(o.bible)} ${
+  return `${videoPrompt}. Vertical short-form video. ${brief}. ${quality}.${bibleLine(o.bible)}${storyLine(o.story)} ${
     square ? SQUARE_FRAME + " The black bands stay perfectly static. " : ""
   }${motion} Consistent art direction, same characters and same colors as the reference image, no on-screen text, no subtitles, no watermark.`;
 }
