@@ -385,6 +385,7 @@ function Studio() {
       return result;
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Échec de la génération du script");
+      return undefined;
     } finally {
       setLoadingScript(false);
     }
