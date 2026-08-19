@@ -383,7 +383,7 @@ function Studio() {
       const { assembleVideo } = await import("@/lib/assemble-video");
       const { randomTrack } = await import("@/lib/music-store");
       const { makeOverlayPng } = await import("@/lib/overlay-png");
-      const { makeKaraokeFrames } = await import("@/lib/karaoke-overlay");
+      const { makeKaraokeSequence } = await import("@/lib/karaoke-overlay");
       const dims =
         orientation === "horizontal"
           ? { width: 1280, height: 720 }
@@ -396,20 +396,21 @@ function Studio() {
       const withDurations = await Promise.all(
         ordered.map(async ({ scene, st }) => {
           const duration = st.audio ? await audioDuration(st.audio) : undefined;
-          const karaoke = duration
-            ? await makeKaraokeFrames(scene.narration, dims.width, dims.height, duration)
-            : [];
+          const karaokeSeq = duration
+            ? await makeKaraokeSequence(scene.narration, dims.width, dims.height, duration)
+            : null;
           return {
             videoUrl: st.videoUrl,
             audio: st.audio,
-            karaoke,
-            overlay: karaoke.length
+            karaokeSeq,
+            overlay: karaokeSeq
               ? null
               : await makeOverlayPng(scene.overlay, dims.width, dims.height),
             duration,
           };
         }),
       );
+
       const track = await randomTrack(style);
       if (track) setAssembleStep(`Musique : ${track.name}`);
       const blob = await assembleVideo(
