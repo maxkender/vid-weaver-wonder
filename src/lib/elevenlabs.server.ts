@@ -126,28 +126,54 @@ export async function generateElevenSpeechWithTimings(
   }
 }
 
-/** Toutes les voix disponibles sur le compte ElevenLabs connecté. */
+/** Voix du compte + voix françaises de la bibliothèque partagée (FR en premier). */
 export async function listElevenVoices(): Promise<{ id: string; label: string }[]> {
   const apiKey = apiKeyOrThrow();
-  const res = await fetch("https://api.elevenlabs.io/v2/voices?page_size=100", {
-    headers: { "xi-api-key": apiKey },
-  });
-  if (!res.ok) throw new Error(`ElevenLabs voices ${res.status}: ${await res.text()}`);
-  const json = (await res.json()) as {
-    voices?: {
-      voice_id: string;
-      name: string;
-      labels?: Record<string, string>;
-      category?: string;
-    }[];
+  const headers = { "xi-api-key": apiKey };
+
+  const [ownRes, frRes] = await Promise.all([
+    fetch("https://api.elevenlabs.io/v2/voices?page_size=100", { headers }),
+    fetch("https://api.elevenlabs.io/v1/shared-voices?page_size=60&language=fr", { headers }).catch(() => null),
+  ]);
+
+  if (!ownRes.ok) throw new Error(`ElevenLabs voices ${ownRes.status}: ${await ownRes.text()}`);
+  const own = (await ownRes.json()) as {
+    voices?: { voice_id: string; name: string; labels?: Record<string, string> }[];
   };
-  return (json.voices ?? []).map((v) => {
-    const bits = [v.labels?.["language"], v.labels?.["accent"], v.labels?.["description"], v.labels?.["use_case"]]
+
+  const french: { id: string; label: string }[] = [];
+  if (frRes && frRes.ok) {
+    const shared = (await frRes.json()) as {
+      voices?: {
+        voice_id: string;
+        name: string;
+        accent?: string;
+        gender?: string;
+        age?: string;
+        descriptive?: string;
+        use_case?: string;
+      }[];
+    };
+    for (const v of shared.voices ?? []) {
+      const bits = [v.gender, v.age, v.descriptive, v.use_case].filter(Boolean).join(", ");
+      french.push({ id: v.voice_id, label: `🇫🇷 ${v.name}${bits ? ` — ${bits}` : ""}` });
+    }
+  }
+
+  const seen = new Set(french.map((v) => v.id));
+  const others: { id: string; label: string }[] = [];
+  for (const v of own.voices ?? []) {
+    if (seen.has(v.voice_id)) continue;
+    const lang = v.labels?.["language"];
+    const bits = [lang, v.labels?.["accent"], v.labels?.["description"], v.labels?.["use_case"]]
       .filter(Boolean)
       .join(", ");
-    return {
-      id: v.voice_id,
-      label: bits ? `${v.name} — ${bits}` : v.name,
-    };
-  });
+    const isFr = (lang ?? "").toLowerCase().startsWith("fr");
+    const entry = { id: v.voice_id, label: `${isFr ? "🇫🇷 " : ""}${v.name}${bits ? ` — ${bits}` : ""}` };
+    if (isFr) french.unshift(entry);
+    else others.push(entry);
+  }
+
+  return [...french, ...others];
 }
+
