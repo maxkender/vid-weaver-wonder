@@ -361,7 +361,7 @@ function Studio() {
   };
 
 
-  const onScript = async () => {
+  const onScript = async (): Promise<Script | undefined> => {
     setLoadingScript(true);
     try {
       const result = (await runScript({
@@ -382,6 +382,7 @@ function Studio() {
       setProjectId(id);
       saveHistory(id, result);
       toast.success("Script généré");
+      return result;
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Échec de la génération du script");
     } finally {
@@ -561,7 +562,7 @@ function Studio() {
       orientation === "horizontal"
         ? { width: settings.hd ? 1920 : 1280, height: settings.hd ? 1080 : 720 }
         : { width: settings.hd ? 1080 : 720, height: settings.hd ? 1920 : 1280 };
-    const ordered = (script?.scenes ?? [])
+    const ordered = (doc?.scenes ?? [])
       .map((s) => ({ scene: s, st: snapshot[s.index] }))
       .filter((x): x is { scene: Scene; st: SceneState & { videoUrl: string } } =>
         Boolean(x.st?.videoUrl),
@@ -638,7 +639,7 @@ function Studio() {
     if (autoDownload) {
       const a = document.createElement("a");
       a.href = url;
-      a.download = `${(script?.title ?? "video").replace(/[^\p{L}\p{N}]+/gu, "-").toLowerCase()}.mp4`;
+      a.download = `${(doc?.title ?? "video").replace(/[^\p{L}\p{N}]+/gu, "-").toLowerCase()}.mp4`;
       a.click();
     }
     toast.success(
@@ -1090,7 +1091,7 @@ function Studio() {
                   Tout animer en parallèle
                 </button>
                 <button
-                  onClick={onExportEverything}
+                  onClick={() => onExportEverything()}
                   disabled={assembling || generatingAll}
                   className="btn-gold inline-flex items-center gap-2 rounded-lg px-4 py-2.5 text-xs font-bold uppercase tracking-widest disabled:opacity-50"
                 >
