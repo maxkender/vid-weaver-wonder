@@ -1,6 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import { CAPTION_FADE, smoothTimings, sophiaWindow, wordTimings } from "@/lib/karaoke-overlay";
+import {
+  CAPTION_ACTIVE_COLOR,
+  CAPTION_FADE,
+  smoothTimings,
+  sophiaWindow,
+  wordTimings,
+} from "@/lib/karaoke-overlay";
+
 import sophiaLogo from "@/assets/sophia-logo.png.asset.json";
 
 type Timing = { word: string; start: number; end: number };
@@ -17,7 +24,7 @@ type Props = {
 
 /** Word-by-word caption synced with the scene audio/video (TikTok style). */
 export function KaraokeCaption({ text, fallback, getMedia, words, showLogo = true }: Props) {
-  const [state, setState] = useState<{ word: string; pop: number } | null>(null);
+  const [state, setState] = useState<{ word: string; pop: number; active: number } | null>(null);
   const [logoPop, setLogoPop] = useState<number | null>(null);
   const frame = useRef<number | null>(null);
   const exact = useMemo(
@@ -26,7 +33,8 @@ export function KaraokeCaption({ text, fallback, getMedia, words, showLogo = tru
   );
 
   useEffect(() => {
-    let cached: { duration: number; timings: Timing[] } | null = null;
+    type Group = Timing & { words: Timing[] };
+    let cached: { duration: number; timings: Group[] } | null = null;
 
     const tick = () => {
       const media = getMedia();
@@ -55,7 +63,9 @@ export function KaraokeCaption({ text, fallback, getMedia, words, showLogo = tru
         else {
           // Fondu doux à l'apparition (pas de zoom).
           const pop = Math.min(1, Math.max(0, (t - cur.start) / CAPTION_FADE));
-          setState({ word: cur.word, pop });
+          // Karaoké : index du mot en cours de prononciation.
+          const active = cur.words.findIndex((w) => t >= w.start && t < w.end);
+          setState({ word: cur.word, pop, active });
         }
       }
       frame.current = requestAnimationFrame(tick);
@@ -105,8 +115,22 @@ export function KaraokeCaption({ text, fallback, getMedia, words, showLogo = tru
           }}
 
         >
-          {state.word.replace(/[«»"]/g, "").toLowerCase()}
+          {state.word
+            .replace(/[«»"]/g, "")
+            .toLowerCase()
+            .split(" ")
+            .filter(Boolean)
+            .map((w, i, arr) => (
+              <span
+                key={`${w}-${i}`}
+                style={i === state.active ? { color: CAPTION_ACTIVE_COLOR } : undefined}
+              >
+                {w}
+                {i < arr.length - 1 ? " " : ""}
+              </span>
+            ))}
         </span>
+
       </div>
     );
   }
