@@ -3,6 +3,8 @@ import { useServerFn } from "@tanstack/react-start";
 import { useCallback, useMemo, useRef, useState } from "react";
 import {
   Clapperboard,
+  Film,
+
   Download,
   Image as ImageIcon,
   Loader2,
@@ -128,6 +130,10 @@ function Studio() {
   const [previewVoice, setPreviewVoice] = useState(false);
   const voiceSamples = useRef<Record<string, string>>({});
   const sampleRef = useRef<HTMLAudioElement | null>(null);
+  const [assembling, setAssembling] = useState(false);
+  const [assembleStep, setAssembleStep] = useState("");
+  const [finalUrl, setFinalUrl] = useState<string | null>(null);
+
 
 
   const patch = useCallback((i: number, value: SceneState) => {
