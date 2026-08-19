@@ -422,8 +422,44 @@ function Studio() {
     }
   };
 
+  const [exporting, setExporting] = useState<number | null>(null);
 
-
+  /** Exporte une scène en MP4 avec la voix off et le texte incrusté. */
+  const onExportScene = async (scene: Scene) => {
+    const st = states[scene.index];
+    if (!st?.videoUrl) return;
+    setExporting(scene.index);
+    try {
+      const { assembleVideo } = await import("@/lib/assemble-video");
+      const { makeOverlayPng } = await import("@/lib/overlay-png");
+      const dims =
+        orientation === "horizontal"
+          ? { width: 1280, height: 720 }
+          : { width: 720, height: 1280 };
+      const blob = await assembleVideo(
+        [
+          {
+            videoUrl: st.videoUrl,
+            audio: st.audio,
+            overlay: await makeOverlayPng(scene.overlay, dims.width, dims.height),
+            duration: st.audio ? await audioDuration(st.audio) : undefined,
+          },
+        ],
+        dims,
+      );
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `scene-${scene.index + 1}.mp4`;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 10000);
+    } catch (e) {
+      console.error(e);
+      toast.error(e instanceof Error ? e.message : "Échec de l'export");
+    } finally {
+      setExporting(null);
+    }
+  };
 
 
   const fullNarration = useMemo(
