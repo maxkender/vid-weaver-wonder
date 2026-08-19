@@ -83,20 +83,21 @@ export function KaraokeCaption({ text, fallback, getMedia, words, showLogo = tru
     );
 
   if (state) {
-    const eased = 1 - Math.pow(1 - state.pop, 3);
-    const scale = 0.84 + 0.16 * eased + 0.05 * Math.sin(Math.PI * state.pop);
     return (
-      <div className="pointer-events-none absolute inset-0 flex items-center justify-center px-6">
+      <div
+        className="pointer-events-none absolute inset-0 flex items-center justify-center px-6"
+        style={{ containerType: "inline-size" }}
+      >
         {logoNode}
         <span
-          className="caption-overlay select-none text-center text-4xl uppercase leading-none tracking-tight text-white"
+          className="caption-overlay select-none text-center uppercase leading-none tracking-tight text-white"
           style={{
             fontFamily: '"Anton", "Arial Narrow", Impact, sans-serif',
-            transform: `scale(${scale.toFixed(3)})`,
-            transition: "none",
-            WebkitTextStroke: "3px #000",
+            // Même taille relative que dans l'export MP4 (12,5 % de la largeur).
+            fontSize: "12.5cqw",
+            WebkitTextStroke: "0.55cqw #000",
             paintOrder: "stroke fill",
-            textShadow: "0 4px 18px rgba(0,0,0,0.55)",
+            textShadow: "0 0.5cqw 2.2cqw rgba(0,0,0,0.55)",
           }}
         >
           {state.word.replace(/[«»"]/g, "").toUpperCase()}
@@ -104,6 +105,7 @@ export function KaraokeCaption({ text, fallback, getMedia, words, showLogo = tru
       </div>
     );
   }
+
 
   return (
     <>
