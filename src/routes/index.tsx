@@ -946,14 +946,29 @@ function Studio() {
                         </a>
                       )}
                       {st.videoUrl && (
-                        <a
-                          href={st.videoUrl}
-                          download={`scene-${scene.index + 1}.mp4`}
-                          className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-xs uppercase tracking-widest hover:border-primary"
-                        >
-                          <Download className="h-3.5 w-3.5" /> MP4
-                        </a>
+                        <>
+                          <a
+                            href={st.videoUrl}
+                            download={`scene-${scene.index + 1}-brut.mp4`}
+                            className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-xs uppercase tracking-widest hover:border-primary"
+                          >
+                            <Download className="h-3.5 w-3.5" /> MP4 brut
+                          </a>
+                          <button
+                            onClick={() => onExportScene(scene)}
+                            disabled={exporting === scene.index}
+                            className="btn-gold inline-flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-bold uppercase tracking-widest disabled:opacity-50"
+                          >
+                            {exporting === scene.index ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                              <Download className="h-3.5 w-3.5" />
+                            )}
+                            MP4 + voix + texte
+                          </button>
+                        </>
                       )}
+
                     </div>
 
                     {st.audio && (
