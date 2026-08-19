@@ -72,21 +72,30 @@ export async function assembleVideo(
 
     const out = `part${i}.mp4`;
     const target = scene.duration && scene.duration > 0.5 ? scene.duration : undefined;
-    // Le plan est figé sur sa dernière image (tpad) puis coupé à la durée de la voix off,
-    // pour que la vidéo fasse toujours exactement la longueur de l'audio.
-    const vf = `scale=${width}:${height}:force_original_aspect_ratio=decrease,pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2:black,setsar=1,fps=24${
-      target ? `,tpad=stop_mode=clone:stop_duration=${target.toFixed(2)}` : ""
-    }`;
+    // Le plan est figé sur sa dernière image (tpad) : la coupe finale est ensuite
+    // pilotée par la voix off (-shortest), pour que la vidéo se termine EXACTEMENT
+    // quand la voix se tait (pas de trou, pas de plan qui traîne).
+    const padDur = (target ?? 20) + 5;
+    const vf = `scale=${width}:${height}:force_original_aspect_ratio=decrease,pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2:black,setsar=1,fps=24,tpad=stop_mode=clone:stop_duration=${padDur.toFixed(
+      2,
+    )}`;
 
     const args = ["-i", vName];
+    const hasVoice = Boolean(scene.audio);
     if (scene.audio) {
       await ffmpeg.writeFile(`voice${i}.mp3`, await fetchFile(scene.audio));
       args.push("-i", `voice${i}.mp3`);
     } else {
-      // Piste silencieuse : toutes les parties doivent avoir exactement les mêmes
-      // flux pour que la concaténation en copie fonctionne.
+      // Pas de voix : piste silencieuse de la durée du plan (flux identiques
+      // pour que la concaténation en copie fonctionne).
       args.push("-f", "lavfi", "-i", "anullsrc=channel_layout=stereo:sample_rate=44100");
     }
+
+    // On enlève le silence de fin de la voix puis on laisse une petite respiration
+    // de 0,25 s : la fin du plan colle au dernier mot prononcé.
+    const af = hasVoice
+      ? `[1:a]silenceremove=stop_periods=-1:stop_duration=0.3:stop_threshold=-45dB,apad=pad_dur=0.25,aresample=44100,aformat=sample_fmts=fltp:channel_layouts=stereo[a]`
+      : `[1:a]atrim=0:${(target ?? 8).toFixed(2)},aresample=44100,aformat=sample_fmts=fltp:channel_layouts=stereo[a]`;
 
     const seq = scene.karaokeSeq ?? null;
     const overlayFiles: string[] = [];
@@ -110,11 +119,11 @@ export async function assembleVideo(
       );
       args.push(
         "-filter_complex",
-        `[0:v]${vf}[base];[2:v]fps=24,scale=${width}:${height},format=rgba[txt];[base][txt]overlay=0:0:shortest=0[v]`,
+        `[0:v]${vf}[base];[2:v]fps=24,scale=${width}:${height},format=rgba[txt];[base][txt]overlay=0:0:shortest=0[v];${af}`,
         "-map",
         "[v]",
         "-map",
-        "1:a:0",
+        "[a]",
       );
     } else if (scene.overlay) {
       const name = `ov${i}.png`;
@@ -123,14 +132,21 @@ export async function assembleVideo(
       args.push("-i", name);
       args.push(
         "-filter_complex",
-        `[0:v]${vf}[base];[2:v]scale=${width}:${height}[txt];[base][txt]overlay=0:0[v]`,
+        `[0:v]${vf}[base];[2:v]scale=${width}:${height}[txt];[base][txt]overlay=0:0[v];${af}`,
         "-map",
         "[v]",
         "-map",
-        "1:a:0",
+        "[a]",
       );
     } else {
-      args.push("-map", "0:v:0", "-map", "1:a:0", "-vf", vf);
+      args.push(
+        "-filter_complex",
+        `[0:v]${vf}[v];${af}`,
+        "-map",
+        "[v]",
+        "-map",
+        "[a]",
+      );
     }
 
     args.push(
@@ -149,9 +165,10 @@ export async function assembleVideo(
       "-ac",
       "2",
     );
-    if (target) args.push("-t", target.toFixed(2));
-    else args.push("-shortest");
+    // La voix pilote la durée finale du plan.
+    args.push("-shortest", "-fflags", "+shortest", "-max_interleave_delta", "0");
     args.push("-y", out);
+
 
     await run(ffmpeg, args, `Scène ${i + 1}`);
     await ffmpeg.deleteFile(vName);
