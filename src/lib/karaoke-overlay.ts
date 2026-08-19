@@ -55,7 +55,11 @@ async function renderPng(
   canvas.height = height;
   const ctx = canvas.getContext("2d");
   if (!ctx) return null;
-  if (word) drawWord(ctx, word, width, height);
+  if (word) {
+    await ensureFont(Math.round(width * 0.13));
+    drawWord(ctx, word, width, height);
+  }
+
   return await new Promise<Blob | null>((r) => canvas.toBlob((b) => r(b), "image/png"));
 }
 
