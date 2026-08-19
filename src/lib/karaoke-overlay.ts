@@ -110,6 +110,7 @@ async function renderPng(
   word: string | null,
   scale = 1,
   logo?: { img: CanvasImageSource; progress: number } | null,
+  alpha = 1,
 ): Promise<Blob | null> {
   const canvas = document.createElement("canvas");
   canvas.width = width;
@@ -118,8 +119,8 @@ async function renderPng(
   if (!ctx) return null;
   if (logo) drawLogo(ctx, logo.img, width, height, logo.progress);
   if (word) {
-    await ensureFont(Math.round(width * 0.125));
-    drawWord(ctx, word, width, height, scale);
+    await ensureFont(Math.round(width * CAPTION_SIZE_RATIO));
+    drawWord(ctx, word, width, height, scale, alpha);
   }
 
   return await new Promise<Blob | null>((r) => canvas.toBlob((b) => r(b), "image/png"));
