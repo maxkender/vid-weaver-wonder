@@ -378,10 +378,15 @@ export async function makeKaraokeSequence(
   const blank = await renderPng(width, height, null);
   if (!blank) return null;
 
-  // Cache : une image par (mot, palier de logo) → rendu léger en mémoire.
+  // Cache : une image par (phrase, mot actif, palier de logo, fondu).
   const cache = new Map<string, Blob>();
-  const get = async (word: string | null, logoStep = -1, fadeStep = FADE_STEPS - 1) => {
-    const key = `${word ?? ""}#${logoStep}#${fadeStep}`;
+  const get = async (
+    word: string | null,
+    logoStep = -1,
+    fadeStep = FADE_STEPS - 1,
+    activeIndex = -1,
+  ) => {
+    const key = `${word ?? ""}#${activeIndex}#${logoStep}#${fadeStep}`;
     let b = cache.get(key);
     if (!b) {
       const lg =
@@ -392,7 +397,7 @@ export async function makeKaraokeSequence(
             }
           : null;
       const alpha = (fadeStep + 1) / FADE_STEPS;
-      b = (await renderPng(width, height, word, 1, lg, alpha)) ?? blank;
+      b = (await renderPng(width, height, word, 1, lg, alpha, activeIndex)) ?? blank;
       cache.set(key, b);
     }
     return b;
@@ -410,13 +415,16 @@ export async function makeKaraokeSequence(
       continue;
     }
     const cur = timings[idx]!;
-    // Fondu court à l'apparition du mot → transition douce, sans à-coups.
+    // Fondu court à l'apparition du groupe → transition douce, sans à-coups.
     const fadeStep = Math.min(
       FADE_STEPS - 1,
       Math.max(0, Math.round(((t - cur.start) / CAPTION_FADE) * (FADE_STEPS - 1))),
     );
-    frames.push(await get(cur.word, logoStep, fadeStep));
+    // Karaoké : le mot en cours de prononciation s'allume.
+    const active = cur.words.findIndex((w3) => t >= w3.start && t < w3.end);
+    frames.push(await get(cur.word, logoStep, fadeStep, active));
   }
+
   return { fps, frames };
 }
 
