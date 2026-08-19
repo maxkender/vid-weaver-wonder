@@ -247,6 +247,35 @@ function Studio() {
     }
   };
 
+  const onPreviewVoice = async () => {
+    setPreviewVoice(true);
+    try {
+      let src = voiceSamples.current[voice];
+      if (!src) {
+        const { audioDataUrl } = (await runVoice({
+          data: {
+            text: "Et si je te racontais un fait que presque personne ne connaît ? Écoute bien.",
+            voice,
+          },
+        })) as { audioDataUrl: string };
+        src = audioDataUrl;
+        voiceSamples.current[voice] = audioDataUrl;
+      }
+      const el = sampleRef.current;
+      if (el) {
+        el.src = src;
+        el.currentTime = 0;
+        await el.play();
+      }
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Échec de l'aperçu de voix");
+    } finally {
+      setPreviewVoice(false);
+    }
+  };
+
+
+
   const fullNarration = useMemo(
     () =>
       script
