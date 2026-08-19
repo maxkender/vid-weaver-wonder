@@ -110,8 +110,16 @@ export async function generateSpeechDataUrl(text: string, voice: string): Promis
       model: "openai/gpt-4o-mini-tts",
       voice,
       input: text,
-      instructions:
-        "Narration française pour une vidéo courte : ton naturel, percutant, rythmé, comme un conteur qui capte l'attention.",
+      response_format: "mp3",
+      speed: 1.0,
+      instructions: [
+        "Langue : français de France, accent neutre et parfaitement naturel.",
+        "Rôle : narrateur de documentaire moderne pour une vidéo courte verticale.",
+        "Ton : posé mais captivant, chaleureux, complice, jamais robotique ni publicitaire.",
+        "Débit : moyen-rapide, avec de vraies respirations et de courtes pauses après chaque phrase.",
+        "Intonation : descends en fin de phrase, appuie légèrement les mots clés et les révélations, garde une montée de tension sur la dernière phrase.",
+        "Ne lis pas la ponctuation, n'exagère pas, ne chante pas.",
+      ].join(" "),
     }),
   });
   if (!res.ok) throw new Error(await readError(res));
