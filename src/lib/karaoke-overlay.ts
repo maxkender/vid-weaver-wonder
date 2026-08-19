@@ -13,6 +13,16 @@ async function ensureFont(size: number) {
 /** Taille de police relative des sous-titres (2× plus petit qu'avant). */
 export const CAPTION_SIZE_RATIO = 0.062;
 
+/** Couleur du mot en cours de prononciation (style CapCut). */
+export const CAPTION_ACTIVE_COLOR = "#ffd233";
+
+const cleanWord = (w: string) =>
+  w.replace(/[«»"]/g, "").replace(/\s+/g, " ").trim().toLowerCase();
+
+/**
+ * Dessine la phrase sur une seule ligne, avec le mot prononcé mis en couleur
+ * (karaoké mot à mot façon CapCut, sans zoom).
+ */
 function drawWord(
   ctx: CanvasRenderingContext2D,
   word: string,
@@ -20,8 +30,11 @@ function drawWord(
   height: number,
   scale = 1,
   alpha = 1,
+  activeIndex = -1,
 ) {
-  const clean = word.replace(/[«»"]/g, "").replace(/\s+/g, " ").trim().toLowerCase();
+  const words = cleanWord(word).split(" ").filter(Boolean);
+  if (!words.length) return;
+  const clean = words.join(" ");
   let fontSize = Math.round(width * CAPTION_SIZE_RATIO);
   const maxWidth = width * 0.86;
   const font = (s: number) => `400 ${s}px "Anton", "Arial Narrow", Impact, sans-serif`;
@@ -35,41 +48,43 @@ function drawWord(
 
   const cx = width / 2;
   const cy = height * 0.5;
-  const lines = [clean];
-  const lh = fontSize * 1.08;
 
   ctx.save();
   ctx.globalAlpha = Math.max(0, Math.min(1, alpha));
   ctx.translate(cx, cy);
   ctx.scale(scale, scale);
   ctx.font = font(fontSize);
-  ctx.textAlign = "center";
+  ctx.textAlign = "left";
   ctx.textBaseline = "middle";
 
-  const offset = -((lines.length - 1) * lh) / 2;
-  lines.forEach((line, i) => {
-    const y = offset + i * lh;
+  const space = ctx.measureText(" ").width;
+  const widths = words.map((w) => ctx.measureText(w).width);
+  const total = widths.reduce((a, b) => a + b, 0) + space * (words.length - 1);
+  let x = -total / 2;
 
-    // Ombre portée douce, séparée du contour pour un rendu net.
-    ctx.save();
-    ctx.shadowColor = "rgba(0,0,0,0.55)";
-    ctx.shadowBlur = fontSize * 0.42;
-    ctx.shadowOffsetY = fontSize * 0.08;
-    ctx.fillStyle = "rgba(0,0,0,0.9)";
-    ctx.fillText(line, 0, y);
-    ctx.restore();
+  // Ombre portée douce (une seule passe sur la phrase entière).
+  ctx.save();
+  ctx.shadowColor = "rgba(0,0,0,0.55)";
+  ctx.shadowBlur = fontSize * 0.42;
+  ctx.shadowOffsetY = fontSize * 0.08;
+  ctx.fillStyle = "rgba(0,0,0,0.9)";
+  ctx.fillText(clean, x, 0);
+  ctx.restore();
 
-    // Contour noir épais (style TikTok) puis remplissage blanc.
-    ctx.lineJoin = "round";
-    ctx.miterLimit = 2;
-    ctx.lineWidth = Math.max(8, fontSize * 0.16);
-    ctx.strokeStyle = "#000000";
-    ctx.strokeText(line, 0, y);
-    ctx.fillStyle = "#ffffff";
-    ctx.fillText(line, 0, y);
+  ctx.lineJoin = "round";
+  ctx.miterLimit = 2;
+  ctx.lineWidth = Math.max(8, fontSize * 0.16);
+  ctx.strokeStyle = "#000000";
+
+  words.forEach((w, i) => {
+    ctx.strokeText(w, x, 0);
+    ctx.fillStyle = i === activeIndex ? CAPTION_ACTIVE_COLOR : "#ffffff";
+    ctx.fillText(w, x, 0);
+    x += widths[i]! + space;
   });
   ctx.restore();
 }
+
 
 /** Charge (et mémorise) le logo Sophia pour l'incruster dans les frames. */
 const logoCache = new Map<string, HTMLImageElement>();
