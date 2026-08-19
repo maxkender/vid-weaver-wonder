@@ -1,16 +1,27 @@
 import { FFmpeg } from "@ffmpeg/ffmpeg";
 import { fetchFile, toBlobURL } from "@ffmpeg/util";
 
+export type KaraokeSeqInput = { fps: number; frames: Blob[] };
+
 export type AssembleScene = {
   videoUrl: string;
   audio?: string | undefined;
   /** PNG transparent (texte incrusté) superposé sur toute la durée du plan. */
   overlay?: Blob | null | undefined;
-  /** Sous-titres karaoké : séquence d'images à cadence fixe. */
-  karaokeSeq?: { fps: number; frames: Blob[] } | null | undefined;
+  /**
+   * Sous-titres karaoké : séquence d'images à cadence fixe.
+   * Peut être une fonction pour ne construire les images qu'au moment du plan
+   * (évite de garder toutes les scènes en mémoire → crash de l'onglet).
+   */
+  karaokeSeq?:
+    | KaraokeSeqInput
+    | null
+    | undefined
+    | (() => Promise<KaraokeSeqInput | null>);
   /** Durée cible du plan (= durée de la voix off), en secondes. */
   duration?: number | undefined;
 };
+
 
 const CORE_URL = "https://unpkg.com/@ffmpeg/core@0.12.10/dist/umd";
 
@@ -39,17 +50,34 @@ function lastErrors() {
   return (errs.length ? errs : logLines).slice(-8).join(" | ");
 }
 
+/** Repart d'une instance propre : une instance en échec (mémoire saturée) reste inutilisable. */
+export function resetFFmpeg() {
+  try {
+    ffmpegInstance?.terminate();
+  } catch {
+    /* ignore */
+  }
+  ffmpegInstance = null;
+}
+
 async function run(ffmpeg: FFmpeg, args: string[], label: string) {
   logLines.length = 0;
-  const code = await ffmpeg.exec(args);
-  if (code !== 0) throw new Error(`${label} : ${lastErrors() || `ffmpeg code ${code}`}`);
+  let code: number;
+  try {
+    code = await ffmpeg.exec(args);
+  } catch (e) {
+    throw new Error(`${label} : ${lastErrors() || (e as Error)?.message || "échec ffmpeg"}`);
+  }
+  if (code !== 0) {
+    throw new Error(`${label} : ${lastErrors() || `ffmpeg code ${code}`}`);
+  }
 }
 
 /**
  * Assemble every scene (video + optional voiceover) into a single MP4,
  * fully in the browser with ffmpeg.wasm. Optionally mixes a background music track.
  */
-export async function assembleVideo(
+async function assembleVideoInner(
   scenes: AssembleScene[],
   opts: {
     width: number;
@@ -97,7 +125,10 @@ export async function assembleVideo(
       ? `[1:a]silenceremove=stop_periods=-1:stop_duration=0.3:stop_threshold=-45dB,apad=pad_dur=0.25,aresample=44100,aformat=sample_fmts=fltp:channel_layouts=stereo[a]`
       : `[1:a]atrim=0:${(target ?? 8).toFixed(2)},aresample=44100,aformat=sample_fmts=fltp:channel_layouts=stereo[a]`;
 
-    const seq = scene.karaokeSeq ?? null;
+    const rawSeq = scene.karaokeSeq;
+    const seq: KaraokeSeqInput | null =
+      typeof rawSeq === "function" ? await rawSeq() : (rawSeq ?? null);
+
     const overlayFiles: string[] = [];
 
     if (seq && seq.frames.length) {
@@ -174,6 +205,8 @@ export async function assembleVideo(
     await ffmpeg.deleteFile(vName);
     if (scene.audio) await ffmpeg.deleteFile(`voice${i}.mp3`);
     for (const f of overlayFiles) await ffmpeg.deleteFile(f);
+    // Libère les PNG karaoké de la mémoire JS dès que le plan est encodé.
+    if (seq) seq.frames.length = 0;
 
     parts.push(out);
   }
@@ -263,4 +296,20 @@ export async function assembleVideo(
 
   onProgress?.("Terminé", 1);
   return new Blob([data.slice().buffer as ArrayBuffer], { type: "video/mp4" });
+}
+
+/**
+ * Enveloppe : en cas d'échec (mémoire saturée notamment), l'instance ffmpeg est
+ * détruite pour que la tentative suivante reparte propre au lieu de replanter.
+ */
+export async function assembleVideo(
+  scenes: AssembleScene[],
+  opts: Parameters<typeof assembleVideoInner>[1],
+): Promise<Blob> {
+  try {
+    return await assembleVideoInner(scenes, opts);
+  } catch (e) {
+    resetFFmpeg();
+    throw e;
+  }
 }

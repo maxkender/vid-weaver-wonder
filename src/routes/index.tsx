@@ -500,27 +500,31 @@ function Studio() {
     const withDurations = await Promise.all(
       ordered.map(async ({ scene, st }) => {
         const duration = st.audio ? await audioDuration(st.audio) : undefined;
-        const karaokeSeq = duration
-          ? await makeKaraokeSequence(
-              scene.narration,
-              dims.width,
-              dims.height,
-              duration,
-              8,
-              st.words ?? null,
-            )
-          : null;
         return {
           videoUrl: st.videoUrl,
           audio: st.audio,
-          karaokeSeq,
-          overlay: karaokeSeq
+          // Les images de sous-titres sont fabriquées juste avant l'encodage du
+          // plan (et libérées après) : sinon toutes les scènes tiennent en
+          // mémoire en même temps et l'onglet plante pendant l'export.
+          karaokeSeq: duration
+            ? () =>
+                makeKaraokeSequence(
+                  scene.narration,
+                  dims.width,
+                  dims.height,
+                  duration,
+                  8,
+                  st.words ?? null,
+                )
+            : null,
+          overlay: duration
             ? null
             : await makeOverlayPng(scene.overlay, dims.width, dims.height),
           duration,
         };
       }),
     );
+
 
     const track = await randomTrack(style);
     if (track) setAssembleStep(`Musique : ${track.name}`);
