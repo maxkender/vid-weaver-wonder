@@ -1,5 +1,7 @@
 import { FFmpeg } from "@ffmpeg/ffmpeg";
-import { fetchFile, toBlobURL } from "@ffmpeg/util";
+import { fetchFile } from "@ffmpeg/util";
+import coreURL from "@ffmpeg/core?url";
+import wasmURL from "@ffmpeg/core/wasm?url";
 
 export type KaraokeSeqInput = { fps: number; frames: Blob[] };
 
@@ -23,8 +25,6 @@ export type AssembleScene = {
 };
 
 
-const CORE_URL = "https://unpkg.com/@ffmpeg/core@0.12.10/dist/umd";
-
 let ffmpegInstance: FFmpeg | null = null;
 const logLines: string[] = [];
 
@@ -35,10 +35,13 @@ async function getFFmpeg() {
     logLines.push(message);
     if (logLines.length > 400) logLines.shift();
   });
-  await ffmpeg.load({
-    coreURL: await toBlobURL(`${CORE_URL}/ffmpeg-core.js`, "text/javascript"),
-    wasmURL: await toBlobURL(`${CORE_URL}/ffmpeg-core.wasm`, "application/wasm"),
-  });
+  try {
+    await ffmpeg.load({ coreURL, wasmURL });
+  } catch (error) {
+    ffmpeg.terminate();
+    const detail = error instanceof Error ? error.message : String(error);
+    throw new Error(`Impossible de charger le moteur d’export vidéo : ${detail}`);
+  }
   ffmpegInstance = ffmpeg;
   return ffmpeg;
 }
