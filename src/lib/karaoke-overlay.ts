@@ -240,10 +240,12 @@ export async function makeKaraokeSequence(
   exactTimings?: { word: string; start: number; end: number }[] | null,
   logo?: { url: string; start: number; end: number } | null,
 ): Promise<KaraokeSequence | null> {
-  const timings =
+  const timings = smoothTimings(
     exactTimings && exactTimings.length
-      ? exactTimings.filter((t) => t.end > t.start && t.start < duration + 0.5)
-      : wordTimings(text, duration);
+      ? exactTimings.filter((t) => t.end > t.start)
+      : wordTimings(text, duration),
+    duration,
+  );
   if (!timings.length) return null;
 
   const logoImg = logo ? await loadLogo(logo.url) : null;
