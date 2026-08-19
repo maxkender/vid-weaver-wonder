@@ -528,6 +528,11 @@ function Studio() {
 
     const track = await randomTrack(style);
     if (track) setAssembleStep(`Musique : ${track.name}`);
+    else
+      toast.warning(
+        "Aucune musique dans la banque : ajoute des MP3 dans « Musiques » pour qu'elles soient mixées.",
+      );
+
     const blob = await assembleVideo(withDurations, {
       ...dims,
       music: track?.blob,
