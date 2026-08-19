@@ -593,7 +593,7 @@ function Studio() {
                   dims.width,
                   dims.height,
                   duration,
-                  15,
+                  20,
                   st.words ?? null,
                   settings.sophiaLogo
                     ? (() => {
@@ -751,7 +751,7 @@ function Studio() {
             dims.width,
             dims.height,
             duration,
-            15,
+            20,
             st.words ?? null,
             logoWin ? { url: sophiaLogo.url, ...logoWin } : null,
           )
