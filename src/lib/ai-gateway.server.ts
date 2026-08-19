@@ -100,3 +100,21 @@ export async function getVideoJob(id: string): Promise<VideoJob> {
 export async function fetchVideoContent(id: string): Promise<Response> {
   return fetch(`${GATEWAY}/videos/${id}/content`, { headers: gatewayHeaders(false) });
 }
+
+/** Génère une voix off (TTS) et renvoie une data URL audio/mpeg. */
+export async function generateSpeechDataUrl(text: string, voice: string): Promise<string> {
+  const res = await fetch(`${GATEWAY}/audio/speech`, {
+    method: "POST",
+    headers: gatewayHeaders(),
+    body: JSON.stringify({
+      model: "openai/gpt-4o-mini-tts",
+      voice,
+      input: text,
+      instructions:
+        "Narration française pour une vidéo courte : ton naturel, percutant, rythmé, comme un conteur qui capte l'attention.",
+    }),
+  });
+  if (!res.ok) throw new Error(await readError(res));
+  const buf = Buffer.from(await res.arrayBuffer());
+  return `data:audio/mpeg;base64,${buf.toString("base64")}`;
+}
