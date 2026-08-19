@@ -4,6 +4,8 @@ import { fetchFile, toBlobURL } from "@ffmpeg/util";
 export type AssembleScene = {
   videoUrl: string;
   audio?: string | undefined;
+  /** Durée cible du plan (= durée de la voix off), en secondes. */
+  duration?: number | undefined;
 };
 
 const CORE_URL = "https://unpkg.com/@ffmpeg/core@0.12.10/dist/umd";
