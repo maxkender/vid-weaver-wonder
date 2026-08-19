@@ -37,9 +37,11 @@ function drawWord(
   const cy = height * 0.5;
 
   ctx.save();
+  ctx.globalAlpha = Math.max(0, Math.min(1, alpha));
   ctx.translate(cx, cy);
   ctx.scale(scale, scale);
   ctx.font = font(fontSize);
+  ctx.lineWidth = Math.max(4, fontSize * 0.16);
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
 
