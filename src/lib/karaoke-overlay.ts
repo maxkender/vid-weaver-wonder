@@ -206,6 +206,27 @@ function popScale(progress: number) {
 
 // Paliers d'animation du logo Sophia (le mot, lui, est toujours à l'échelle 1).
 const LOGO_STEPS = 6;
+/** Durée du fondu d'apparition d'un mot (secondes). */
+export const CAPTION_FADE = 0.1;
+const FADE_STEPS = 4;
+
+/**
+ * Rend les timings continus : chaque mot reste affiché jusqu'au suivant
+ * (plus de clignotements ni de mots qui « sautent » plus vite que la voix).
+ */
+export function smoothTimings(
+  timings: { word: string; start: number; end: number }[],
+  duration: number,
+) {
+  const sorted = [...timings]
+    .filter((t) => t.word && t.start >= 0 && t.start < duration + 0.5)
+    .sort((a, b) => a.start - b.start);
+  return sorted.map((t, i) => {
+    const next = sorted[i + 1];
+    const end = next ? next.start : Math.min(duration, Math.max(t.end, t.start + 0.35));
+    return { word: t.word, start: t.start, end: Math.max(end, t.start + 0.08) };
+  });
+}
 
 /**
  * Séquence d'images (une par frame, cadence fixe) prête à être incrustée par FFmpeg.
