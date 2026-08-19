@@ -348,7 +348,10 @@ function Studio() {
   const onSuggest = async () => {
     setSuggesting(true);
     try {
-      const res = (await runSuggest({ data: { avoid: pastTopics.current.slice(-8), style } })) as {
+      const res = (await runSuggest({
+        data: { avoid: pastTopics.current.slice(-8), style, category: topicCategory },
+      })) as {
+
         topic: string;
         angle: string;
       };
