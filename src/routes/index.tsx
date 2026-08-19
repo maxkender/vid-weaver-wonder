@@ -13,6 +13,8 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { Toaster } from "@/components/ui/sonner";
+import { KaraokeCaption } from "@/components/karaoke-caption";
+
 
 import {
   generateSceneImage,
@@ -120,6 +122,11 @@ function Studio() {
   const [states, setStates] = useState<Record<number, SceneState>>({});
   const busyRef = useRef(false);
   const audioRefs = useRef<Record<number, HTMLAudioElement | null>>({});
+  const videoRefs = useRef<Record<number, HTMLVideoElement | null>>({});
+  const [previewVoice, setPreviewVoice] = useState(false);
+  const voiceSamples = useRef<Record<string, string>>({});
+  const sampleRef = useRef<HTMLAudioElement | null>(null);
+
 
   const patch = useCallback((i: number, value: SceneState) => {
     setStates((prev) => ({ ...prev, [i]: { ...prev[i], ...value } }));
