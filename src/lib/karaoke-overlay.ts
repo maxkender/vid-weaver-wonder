@@ -254,7 +254,17 @@ export function smoothTimings(
       ? sorted
       : sorted.map((t) => ({ word: t.word, start: t.start * factor, end: t.end * factor }));
 
-  // 2. Regroupement en courtes phrases lisibles.
+  // 2. Calibrage sur la vitesse réelle de la voix (mots/seconde).
+  const spokenSpan = Math.max(0.5, Math.min(duration, span * factor));
+  const wps = scaled.length / spokenSpan;
+  // Voix lente (~2 mots/s) → groupes courts ; voix rapide (~4,5 mots/s) → groupes plus longs.
+  const targetGroup = Math.max(0.55, Math.min(1.0, 2.2 / Math.max(1.4, wps)));
+  const minHold = Math.max(0.34, Math.min(MIN_CAPTION_HOLD, targetGroup * 0.72));
+  const maxWords = wps >= 4 ? 4 : wps >= 3 ? 3 : 2;
+  // Une seule ligne : limite de caractères pour rester lisible sans retour à la ligne.
+  const MAX_GROUP_CHARS = 22;
+
+  // 3. Regroupement en courtes phrases lisibles (une ligne max).
   const groups: { word: string; start: number; end: number }[] = [];
   for (let i = 0; i < scaled.length; i++) {
     const t = scaled[i]!;
@@ -266,12 +276,13 @@ export function smoothTimings(
     if (
       prev &&
       !prevEndsSentence &&
-      prevWords < MAX_GROUP_WORDS &&
+      prevWords < maxWords &&
+      prev.word.length + 1 + t.word.length <= MAX_GROUP_CHARS &&
       // on complète tant que le groupe est trop court pour être lu confortablement
-      (prev.end - prev.start < TARGET_GROUP_DURATION ||
-        visibleEnd - t.start < MIN_CAPTION_HOLD) &&
-      visibleEnd - prev.start <= 1.9
+      (prev.end - prev.start < targetGroup || visibleEnd - t.start < minHold) &&
+      visibleEnd - prev.start <= 1.8
     ) {
+
       prev.word = `${prev.word} ${t.word}`;
       prev.end = visibleEnd;
       continue;
