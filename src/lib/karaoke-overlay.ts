@@ -216,9 +216,16 @@ const LOGO_STEPS = 6;
 export const CAPTION_FADE = 0.1;
 const FADE_STEPS = 4;
 
+/** Durée minimale d'affichage d'un groupe de mots (secondes). */
+export const MIN_CAPTION_HOLD = 0.24;
+/** Nombre maximal de mots affichés ensemble quand ils sont très rapides. */
+const MAX_GROUP_WORDS = 3;
+
 /**
- * Rend les timings continus : chaque mot reste affiché jusqu'au suivant
- * (plus de clignotements ni de mots qui « sautent » plus vite que la voix).
+ * Rend les timings continus, calés sur la voix :
+ *  1. recalage proportionnel sur la durée réelle de l'audio (fin de l'alignement ≠ fin du fichier) ;
+ *  2. regroupement des mots trop courts (les monosyllabes ne clignotent plus) ;
+ *  3. chaque groupe reste affiché jusqu'au suivant.
  */
 export function smoothTimings(
   timings: { word: string; start: number; end: number }[],
@@ -227,12 +234,44 @@ export function smoothTimings(
   const sorted = [...timings]
     .filter((t) => t.word && t.start >= 0 && t.start < duration + 0.5)
     .sort((a, b) => a.start - b.start);
-  return sorted.map((t, i) => {
-    const next = sorted[i + 1];
-    const end = next ? next.start : Math.min(duration, Math.max(t.end, t.start + 0.35));
-    return { word: t.word, start: t.start, end: Math.max(end, t.start + 0.08) };
+  if (!sorted.length) return [];
+
+  // 1. Recalage : si l'alignement s'arrête nettement avant/après la fin réelle,
+  // on étire (ou compresse) proportionnellement pour éviter le décalage cumulé.
+  const last = sorted[sorted.length - 1]!;
+  const span = Math.max(last.end, last.start + 0.1);
+  const factor = span > 0.5 && duration > 0.5 ? Math.min(1.35, Math.max(0.75, duration / span)) : 1;
+  const scaled =
+    factor === 1
+      ? sorted
+      : sorted.map((t) => ({ word: t.word, start: t.start * factor, end: t.end * factor }));
+
+  // 2. Regroupement des mots trop brefs.
+  const groups: { word: string; start: number; end: number }[] = [];
+  for (const t of scaled) {
+    const prev = groups[groups.length - 1];
+    const next = scaled[scaled.indexOf(t) + 1];
+    const visible = (next ? next.start : t.end) - t.start;
+    if (
+      prev &&
+      prev.end - prev.start < MIN_CAPTION_HOLD &&
+      prev.word.split(" ").length < MAX_GROUP_WORDS
+    ) {
+      prev.word = `${prev.word} ${t.word}`;
+      prev.end = Math.max(prev.end, t.start + Math.max(visible, 0.05));
+      continue;
+    }
+    groups.push({ word: t.word, start: t.start, end: t.start + Math.max(visible, 0.05) });
+  }
+
+  // 3. Continuité : un groupe reste jusqu'au suivant.
+  return groups.map((g, i) => {
+    const next = groups[i + 1];
+    const end = next ? next.start : Math.min(duration, Math.max(g.end, g.start + 0.35));
+    return { word: g.word, start: g.start, end: Math.max(end, g.start + MIN_CAPTION_HOLD * 0.6) };
   });
 }
+
 
 /**
  * Séquence d'images (une par frame, cadence fixe) prête à être incrustée par FFmpeg.
