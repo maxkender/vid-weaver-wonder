@@ -10,15 +10,19 @@ async function ensureFont(size: number) {
   }
 }
 
+/** Taille de police relative des sous-titres (2× plus petit qu'avant). */
+export const CAPTION_SIZE_RATIO = 0.062;
+
 function drawWord(
   ctx: CanvasRenderingContext2D,
   word: string,
   width: number,
   height: number,
   scale = 1,
+  alpha = 1,
 ) {
-  const clean = word.replace(/[«»"]/g, "").toUpperCase();
-  let fontSize = Math.round(width * 0.125);
+  const clean = word.replace(/[«»"]/g, "").toLowerCase();
+  let fontSize = Math.round(width * CAPTION_SIZE_RATIO);
   const maxWidth = width * 0.82;
   const font = (s: number) => `400 ${s}px "Anton", "Arial Narrow", Impact, sans-serif`;
   ctx.font = font(fontSize);
