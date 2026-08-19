@@ -447,27 +447,28 @@ function Studio() {
     try {
       const { assembleVideo } = await import("@/lib/assemble-video");
       const { makeOverlayPng } = await import("@/lib/overlay-png");
-      const { makeKaraokeFrames } = await import("@/lib/karaoke-overlay");
+      const { makeKaraokeSequence } = await import("@/lib/karaoke-overlay");
       const dims =
         orientation === "horizontal"
           ? { width: 1280, height: 720 }
           : { width: 720, height: 1280 };
       const duration = st.audio ? await audioDuration(st.audio) : undefined;
-      const karaoke = duration
-        ? await makeKaraokeFrames(scene.narration, dims.width, dims.height, duration)
-        : [];
+      const karaokeSeq = duration
+        ? await makeKaraokeSequence(scene.narration, dims.width, dims.height, duration)
+        : null;
       const blob = await assembleVideo(
         [
           {
             videoUrl: st.videoUrl,
             audio: st.audio,
-            karaoke,
-            overlay: karaoke.length
+            karaokeSeq,
+            overlay: karaokeSeq
               ? null
               : await makeOverlayPng(scene.overlay, dims.width, dims.height),
             duration,
           },
         ],
+
         dims,
       );
       const url = URL.createObjectURL(blob);
