@@ -12,8 +12,6 @@ export type AssembleScene = {
   duration?: number | undefined;
 };
 
-
-
 const CORE_URL = "https://unpkg.com/@ffmpeg/core@0.12.10/dist/umd";
 
 let ffmpegInstance: FFmpeg | null = null;
@@ -96,12 +94,20 @@ export async function assembleVideo(
     if (seq && seq.frames.length) {
       // Une séquence d'images à cadence fixe : FFmpeg la lit comme une vidéo,
       // c'est bien plus robuste (et léger) qu'un overlay par mot.
+      // Les images commencent à l'index 0 -> -start_number 0 est obligatoire.
       for (let k = 0; k < seq.frames.length; k++) {
         const name = `kw${i}_${String(k).padStart(4, "0")}.png`;
         await ffmpeg.writeFile(name, new Uint8Array(await seq.frames[k]!.arrayBuffer()));
         overlayFiles.push(name);
       }
-      args.push("-framerate", String(seq.fps), "-i", `kw${i}_%04d.png`);
+      args.push(
+        "-framerate",
+        String(seq.fps),
+        "-start_number",
+        "0",
+        "-i",
+        `kw${i}_%04d.png`,
+      );
       args.push(
         "-filter_complex",
         `[0:v]${vf}[base];[2:v]fps=24,scale=${width}:${height},format=rgba[txt];[base][txt]overlay=0:0:shortest=0[v]`,
@@ -111,11 +117,10 @@ export async function assembleVideo(
         "1:a:0",
       );
     } else if (scene.overlay) {
-
       const name = `ov${i}.png`;
       await ffmpeg.writeFile(name, new Uint8Array(await scene.overlay.arrayBuffer()));
-      args.push("-i", name);
       overlayFiles.push(name);
+      args.push("-i", name);
       args.push(
         "-filter_complex",
         `[0:v]${vf}[base];[2:v]scale=${width}:${height}[txt];[base][txt]overlay=0:0[v]`,
@@ -152,7 +157,6 @@ export async function assembleVideo(
     await ffmpeg.deleteFile(vName);
     if (scene.audio) await ffmpeg.deleteFile(`voice${i}.mp3`);
     for (const f of overlayFiles) await ffmpeg.deleteFile(f);
-    
 
     parts.push(out);
   }
