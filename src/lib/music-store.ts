@@ -64,7 +64,11 @@ export async function deleteTrack(id: string): Promise<void> {
 /** Pioche une musique au hasard parmi celles du style demandé. */
 export async function randomTrack(style: string): Promise<MusicTrack | null> {
   const all = await listTracks();
+  // On pioche dans le style demandé, sinon dans toute la banque : mieux vaut
+  // une musique que pas de musique du tout.
   const pool = all.filter((t) => t.style === style);
-  if (pool.length === 0) return null;
-  return pool[Math.floor(Math.random() * pool.length)]!;
+  const source = pool.length > 0 ? pool : all;
+  if (source.length === 0) return null;
+  return source[Math.floor(Math.random() * source.length)]!;
 }
+
