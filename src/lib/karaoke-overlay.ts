@@ -238,7 +238,7 @@ export async function makeKaraokeSequence(
         logoStep >= 0 && logoImg
           ? {
               img: logoImg as CanvasImageSource,
-              progress: popScale(logoStep / (LOGO_STEPS - 1)),
+              progress: logoStep / (LOGO_STEPS - 1),
             }
           : null;
       b = (await renderPng(width, height, word, 1, lg)) ?? blank;
