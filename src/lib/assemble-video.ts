@@ -4,9 +4,12 @@ import { fetchFile, toBlobURL } from "@ffmpeg/util";
 export type AssembleScene = {
   videoUrl: string;
   audio?: string | undefined;
+  /** PNG transparent (texte incrusté) superposé sur toute la durée du plan. */
+  overlay?: Blob | null | undefined;
   /** Durée cible du plan (= durée de la voix off), en secondes. */
   duration?: number | undefined;
 };
+
 
 const CORE_URL = "https://unpkg.com/@ffmpeg/core@0.12.10/dist/umd";
 
@@ -81,13 +84,27 @@ export async function assembleVideo(
       // flux pour que la concaténation en copie fonctionne.
       args.push("-f", "lavfi", "-i", "anullsrc=channel_layout=stereo:sample_rate=44100");
     }
+
+    const hasOverlay = Boolean(scene.overlay);
+    if (scene.overlay) {
+      await ffmpeg.writeFile(`ov${i}.png`, new Uint8Array(await scene.overlay.arrayBuffer()));
+      args.push("-i", `ov${i}.png`);
+    }
+
+    if (hasOverlay) {
+      args.push(
+        "-filter_complex",
+        `[0:v]${vf}[base];[2:v]scale=${width}:${height}[txt];[base][txt]overlay=0:0[v]`,
+        "-map",
+        "[v]",
+        "-map",
+        "1:a:0",
+      );
+    } else {
+      args.push("-map", "0:v:0", "-map", "1:a:0", "-vf", vf);
+    }
+
     args.push(
-      "-map",
-      "0:v:0",
-      "-map",
-      "1:a:0",
-      "-vf",
-      vf,
       "-c:v",
       "libx264",
       "-preset",
@@ -110,6 +127,8 @@ export async function assembleVideo(
     await run(ffmpeg, args, `Scène ${i + 1}`);
     await ffmpeg.deleteFile(vName);
     if (scene.audio) await ffmpeg.deleteFile(`voice${i}.mp3`);
+    if (scene.overlay) await ffmpeg.deleteFile(`ov${i}.png`);
+
     parts.push(out);
   }
 

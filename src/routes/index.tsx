@@ -378,14 +378,21 @@ function Studio() {
     try {
       const { assembleVideo } = await import("@/lib/assemble-video");
       const { randomTrack } = await import("@/lib/music-store");
+      const { makeOverlayPng } = await import("@/lib/overlay-png");
       const dims =
         orientation === "horizontal"
           ? { width: 1280, height: 720 }
           : { width: 720, height: 1280 };
+      const ordered = (script?.scenes ?? [])
+        .map((s) => ({ scene: s, st: states[s.index] }))
+        .filter((x): x is { scene: Scene; st: SceneState & { videoUrl: string } } =>
+          Boolean(x.st?.videoUrl),
+        );
       const withDurations = await Promise.all(
-        readyScenes.map(async (st) => ({
+        ordered.map(async ({ scene, st }) => ({
           videoUrl: st.videoUrl,
           audio: st.audio,
+          overlay: await makeOverlayPng(scene.overlay, dims.width, dims.height),
           duration: st.audio ? await audioDuration(st.audio) : undefined,
         })),
       );
@@ -399,6 +406,7 @@ function Studio() {
           onProgress: (step) => setAssembleStep(step),
         },
       );
+
       setFinalUrl((prev) => {
         if (prev) URL.revokeObjectURL(prev);
         return URL.createObjectURL(blob);
@@ -414,8 +422,44 @@ function Studio() {
     }
   };
 
+  const [exporting, setExporting] = useState<number | null>(null);
 
-
+  /** Exporte une scène en MP4 avec la voix off et le texte incrusté. */
+  const onExportScene = async (scene: Scene) => {
+    const st = states[scene.index];
+    if (!st?.videoUrl) return;
+    setExporting(scene.index);
+    try {
+      const { assembleVideo } = await import("@/lib/assemble-video");
+      const { makeOverlayPng } = await import("@/lib/overlay-png");
+      const dims =
+        orientation === "horizontal"
+          ? { width: 1280, height: 720 }
+          : { width: 720, height: 1280 };
+      const blob = await assembleVideo(
+        [
+          {
+            videoUrl: st.videoUrl,
+            audio: st.audio,
+            overlay: await makeOverlayPng(scene.overlay, dims.width, dims.height),
+            duration: st.audio ? await audioDuration(st.audio) : undefined,
+          },
+        ],
+        dims,
+      );
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `scene-${scene.index + 1}.mp4`;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 10000);
+    } catch (e) {
+      console.error(e);
+      toast.error(e instanceof Error ? e.message : "Échec de l'export");
+    } finally {
+      setExporting(null);
+    }
+  };
 
 
   const fullNarration = useMemo(
@@ -902,14 +946,29 @@ function Studio() {
                         </a>
                       )}
                       {st.videoUrl && (
-                        <a
-                          href={st.videoUrl}
-                          download={`scene-${scene.index + 1}.mp4`}
-                          className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-xs uppercase tracking-widest hover:border-primary"
-                        >
-                          <Download className="h-3.5 w-3.5" /> MP4
-                        </a>
+                        <>
+                          <a
+                            href={st.videoUrl}
+                            download={`scene-${scene.index + 1}-brut.mp4`}
+                            className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-xs uppercase tracking-widest hover:border-primary"
+                          >
+                            <Download className="h-3.5 w-3.5" /> MP4 brut
+                          </a>
+                          <button
+                            onClick={() => onExportScene(scene)}
+                            disabled={exporting === scene.index}
+                            className="btn-gold inline-flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-bold uppercase tracking-widest disabled:opacity-50"
+                          >
+                            {exporting === scene.index ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                              <Download className="h-3.5 w-3.5" />
+                            )}
+                            MP4 + voix + texte
+                          </button>
+                        </>
                       )}
+
                     </div>
 
                     {st.audio && (
