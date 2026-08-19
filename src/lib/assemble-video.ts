@@ -34,8 +34,10 @@ async function getFFmpeg() {
 }
 
 function lastErrors() {
-  const errs = logLines.filter((l) => /error|invalid|no such|failed|unable/i.test(l));
-  return (errs.length ? errs : logLines).slice(-4).join(" | ");
+  const errs = logLines.filter((l) =>
+    /error|invalid|no such|failed|unable|abort|memory|exit code/i.test(l),
+  );
+  return (errs.length ? errs : logLines).slice(-8).join(" | ");
 }
 
 async function run(ffmpeg: FFmpeg, args: string[], label: string) {
@@ -89,23 +91,36 @@ export async function assembleVideo(
 
     const karaoke = scene.karaoke ?? [];
     const overlayFiles: string[] = [];
+    let karaokeList: string | undefined;
 
     if (karaoke.length) {
-      // Un PNG par mot, affiché sur son intervalle de temps (karaoké gravé).
+      // Les PNG sont lus comme une seule piste vidéo séquentielle. Ajouter chaque mot
+      // comme une entrée/filter FFmpeg séparée faisait exploser la mémoire de wasm.
       for (let k = 0; k < karaoke.length; k++) {
         const name = `kw${i}_${k}.png`;
         await ffmpeg.writeFile(name, new Uint8Array(await karaoke[k]!.blob.arrayBuffer()));
-        args.push("-i", name);
         overlayFiles.push(name);
       }
-      let chain = `[0:v]${vf}[v0]`;
-      karaoke.forEach((f, k) => {
-        const input = k + 2;
-        chain += `;[${input}:v]scale=${width}:${height}[t${k}];[v${k}][t${k}]overlay=0:0:enable='between(t,${f.start.toFixed(
-          2,
-        )},${f.end.toFixed(2)})'[v${k + 1}]`;
+      karaokeList = `karaoke${i}.ffconcat`;
+      const entries = karaoke.map((frame, k) => {
+        const span = Math.max(0.04, frame.end - frame.start);
+        return `file '${overlayFiles[k]}'\nduration ${span.toFixed(4)}`;
       });
-      args.push("-filter_complex", chain, "-map", `[v${karaoke.length}]`, "-map", "1:a:0");
+      // Le concat demuxer exige de répéter la dernière image pour conserver sa durée.
+      entries.push(`file '${overlayFiles[overlayFiles.length - 1]}'`);
+      await ffmpeg.writeFile(
+        karaokeList,
+        new TextEncoder().encode(`ffconcat version 1.0\n${entries.join("\n")}\n`),
+      );
+      args.push("-f", "concat", "-safe", "0", "-i", karaokeList);
+      args.push(
+        "-filter_complex",
+        `[0:v]${vf}[base];[2:v]fps=24,scale=${width}:${height},format=rgba[txt];[base][txt]overlay=0:0:shortest=1[v]`,
+        "-map",
+        "[v]",
+        "-map",
+        "1:a:0",
+      );
     } else if (scene.overlay) {
       const name = `ov${i}.png`;
       await ffmpeg.writeFile(name, new Uint8Array(await scene.overlay.arrayBuffer()));
@@ -147,6 +162,7 @@ export async function assembleVideo(
     await ffmpeg.deleteFile(vName);
     if (scene.audio) await ffmpeg.deleteFile(`voice${i}.mp3`);
     for (const f of overlayFiles) await ffmpeg.deleteFile(f);
+    if (karaokeList) await ffmpeg.deleteFile(karaokeList);
 
     parts.push(out);
   }
