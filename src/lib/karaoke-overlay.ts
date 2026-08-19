@@ -281,3 +281,22 @@ export async function makeKaraokeFrames(
   }
   return frames;
 }
+
+/**
+ * Fenêtre d'apparition du logo Sophia : dès que la voix prononce « Sophia »,
+ * le logo pop et reste ~2,5 s (ou jusqu'à la fin du plan).
+ */
+export function sophiaWindow(
+  text: string,
+  duration: number,
+  exactTimings?: { word: string; start: number; end: number }[] | null,
+): { start: number; end: number } | null {
+  const norm = (s: string) =>
+    s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  if (!/sophia/.test(norm(text ?? ""))) return null;
+  const timings =
+    exactTimings && exactTimings.length ? exactTimings : wordTimings(text, duration);
+  const hit = timings.find((t) => norm(t.word).includes("sophia"));
+  const start = hit ? Math.max(0, hit.start - 0.1) : Math.max(0, duration * 0.55);
+  return { start, end: Math.min(duration, start + 2.8) };
+}
