@@ -6,11 +6,12 @@ export type AssembleScene = {
   audio?: string | undefined;
   /** PNG transparent (texte incrusté) superposé sur toute la durée du plan. */
   overlay?: Blob | null | undefined;
-  /** Sous-titres karaoké : un PNG par mot, affiché entre start et end. */
-  karaoke?: { blob: Blob; start: number; end: number }[] | undefined;
+  /** Sous-titres karaoké : séquence d'images à cadence fixe. */
+  karaokeSeq?: { fps: number; frames: Blob[] } | null | undefined;
   /** Durée cible du plan (= durée de la voix off), en secondes. */
   duration?: number | undefined;
 };
+
 
 
 const CORE_URL = "https://unpkg.com/@ffmpeg/core@0.12.10/dist/umd";
