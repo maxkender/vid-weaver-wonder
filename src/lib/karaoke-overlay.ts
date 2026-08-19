@@ -56,15 +56,17 @@ export function wordTimings(text: string, duration: number) {
   const words = (text ?? "").trim().split(/\s+/).filter(Boolean);
   if (!words.length || !(duration > 0.3)) return [] as { word: string; start: number; end: number }[];
 
-  // Petit temps mort avant le premier mot : la voix ne démarre jamais à 0,00 s.
-  const lead = Math.min(0.25, duration * 0.05);
-  const usable = duration - lead;
+  // Temps mort avant le premier mot et petite marge de fin pour ne jamais
+  // dépasser la voix off réelle.
+  const lead = Math.min(0.35, duration * 0.08);
+  const tail = Math.min(0.2, duration * 0.04);
+  const usable = Math.max(0.1, duration - lead - tail);
 
   const weights = words.map((w) => {
     const letters = w.replace(/[^\p{L}\p{N}]/gu, "").length;
-    let weight = Math.max(2, letters) + 1.6; // coût fixe d'attaque du mot
-    if (/[,;:]$/.test(w)) weight += 2.2;
-    if (/[.!?…]$/.test(w)) weight += 4;
+    let weight = Math.max(2, letters) + 2; // coût fixe d'attaque du mot
+    if (/[,;:]$/.test(w)) weight += 3;
+    if (/[.!?…]$/.test(w)) weight += 5.5;
     return weight;
   });
   const total = weights.reduce((a, b) => a + b, 0);
@@ -73,7 +75,7 @@ export function wordTimings(text: string, duration: number) {
   let t = lead;
   for (let i = 0; i < words.length; i++) {
     const span = (weights[i]! / total) * usable;
-    out.push({ word: words[i]!, start: t, end: Math.min(duration, t + span) });
+    out.push({ word: words[i]!, start: t, end: Math.min(duration - tail, t + span) });
     t += span;
   }
   return out;
