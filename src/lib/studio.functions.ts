@@ -51,11 +51,14 @@ export const generateSceneImage = createServerFn({ method: "POST" })
       .object({
         imagePrompt: z.string().min(3).max(2000),
         visual: visualEnum.default("papercraft"),
+        square: z.boolean().default(false),
       })
       .parse(input),
   )
   .handler(async ({ data }) => {
-    const dataUrl = await generateImageDataUrl(coverPrompt(data.imagePrompt, data.visual));
+    const dataUrl = await generateImageDataUrl(
+      coverPrompt(data.imagePrompt, data.visual, data.square),
+    );
     return { dataUrl };
   });
 
@@ -66,20 +69,22 @@ export const startSceneVideo = createServerFn({ method: "POST" })
         videoPrompt: z.string().min(3).max(2000),
         imageDataUrl: z.string().startsWith("data:image/").optional(),
         seconds: z.enum(["4", "6", "8"]).default("8"),
-        orientation: z.enum(["vertical", "horizontal"]).default("vertical"),
+        orientation: z.enum(["vertical", "horizontal", "square"]).default("vertical"),
         visual: visualEnum.default("papercraft"),
       })
       .parse(input),
   )
   .handler(async ({ data }) => {
+    const square = data.orientation === "square";
     const job = await createVideoJob({
-      prompt: motionPrompt(data.videoPrompt, data.visual),
+      prompt: motionPrompt(data.videoPrompt, data.visual, square),
       seconds: data.seconds,
-      size: data.orientation === "vertical" ? "720x1280" : "1280x720",
+      size: data.orientation === "horizontal" ? "1280x720" : "720x1280",
       ...(data.imageDataUrl ? { inputReference: data.imageDataUrl } : {}),
     });
     return { id: job.id, status: job.status };
   });
+
 
 export const pollSceneVideo = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => z.object({ id: z.string().min(3) }).parse(input))
