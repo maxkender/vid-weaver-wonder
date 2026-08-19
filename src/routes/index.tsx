@@ -131,8 +131,9 @@ function Studio() {
     patch(scene.index, { imageLoading: true });
     try {
       const { dataUrl } = (await runImage({
-        data: { imagePrompt: scene.imagePrompt, visual },
+        data: { imagePrompt: scene.imagePrompt, visual, square: orientation === "square" },
       })) as { dataUrl: string };
+
       patch(scene.index, { image: dataUrl, imageLoading: false });
     } catch (e) {
       patch(scene.index, { imageLoading: false });
