@@ -10,33 +10,43 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ApiVideoContentIdRouteImport } from './routes/api/video-content.$id'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiVideoContentIdRoute = ApiVideoContentIdRouteImport.update({
+  id: '/api/video-content/$id',
+  path: '/api/video-content/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/api/video-content/$id': typeof ApiVideoContentIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/api/video-content/$id': typeof ApiVideoContentIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/api/video-content/$id': typeof ApiVideoContentIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths: '/' | '/api/video-content/$id'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to: '/' | '/api/video-content/$id'
+  id: '__root__' | '/' | '/api/video-content/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ApiVideoContentIdRoute: typeof ApiVideoContentIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +58,19 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/video-content/$id': {
+      id: '/api/video-content/$id'
+      path: '/api/video-content/$id'
+      fullPath: '/api/video-content/$id'
+      preLoaderRoute: typeof ApiVideoContentIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ApiVideoContentIdRoute: ApiVideoContentIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
