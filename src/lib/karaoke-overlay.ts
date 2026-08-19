@@ -23,45 +23,69 @@ function drawWord(
 ) {
   const clean = word.replace(/[«»"]/g, "").toLowerCase();
   let fontSize = Math.round(width * CAPTION_SIZE_RATIO);
-  const maxWidth = width * 0.82;
+  const maxWidth = width * 0.78;
   const font = (s: number) => `400 ${s}px "Anton", "Arial Narrow", Impact, sans-serif`;
   ctx.font = font(fontSize);
-  while (ctx.measureText(clean).width > maxWidth && fontSize > 20) {
-    fontSize -= 4;
-    ctx.font = font(fontSize);
+
+  // Découpe en lignes (max 2) pour les groupes de mots.
+  const wrap = (size: number) => {
+    ctx.font = font(size);
+    const parts = clean.split(" ").filter(Boolean);
+    const lines: string[] = [];
+    let cur = "";
+    for (const p of parts) {
+      const test = cur ? `${cur} ${p}` : p;
+      if (cur && ctx.measureText(test).width > maxWidth) {
+        lines.push(cur);
+        cur = p;
+      } else cur = test;
+    }
+    if (cur) lines.push(cur);
+    return lines;
+  };
+
+  let lines = wrap(fontSize);
+  while (
+    fontSize > 20 &&
+    (lines.length > 2 || lines.some((l) => ctx.measureText(l).width > maxWidth))
+  ) {
+    fontSize -= 3;
+    lines = wrap(fontSize);
   }
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
 
   const cx = width / 2;
   const cy = height * 0.5;
+  const lh = fontSize * 1.08;
 
   ctx.save();
   ctx.globalAlpha = Math.max(0, Math.min(1, alpha));
   ctx.translate(cx, cy);
   ctx.scale(scale, scale);
   ctx.font = font(fontSize);
-  ctx.lineWidth = Math.max(4, fontSize * 0.16);
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
 
-  // Ombre portée douce, séparée du contour pour un rendu net.
-  ctx.save();
-  ctx.shadowColor = "rgba(0,0,0,0.55)";
-  ctx.shadowBlur = fontSize * 0.42;
-  ctx.shadowOffsetY = fontSize * 0.08;
-  ctx.fillStyle = "rgba(0,0,0,0.9)";
-  ctx.fillText(clean, 0, 0);
-  ctx.restore();
+  const offset = -((lines.length - 1) * lh) / 2;
+  lines.forEach((line, i) => {
+    const y = offset + i * lh;
+    // Ombre portée douce, séparée du contour pour un rendu net.
+    ctx.save();
+    ctx.shadowColor = "rgba(0,0,0,0.55)";
+    ctx.shadowBlur = fontSize * 0.42;
+    ctx.shadowOffsetY = fontSize * 0.08;
+    ctx.fillStyle = "rgba(0,0,0,0.9)";
+    ctx.fillText(line, 0, y);
+    ctx.restore();
 
-  // Contour noir épais (style TikTok) puis remplissage blanc.
-  ctx.lineJoin = "round";
-  ctx.miterLimit = 2;
-  ctx.lineWidth = Math.max(8, fontSize * 0.16);
-  ctx.strokeStyle = "#000000";
-  ctx.strokeText(clean, 0, 0);
-  ctx.fillStyle = "#ffffff";
-  ctx.fillText(clean, 0, 0);
+    // Contour noir épais (style TikTok) puis remplissage blanc.
+    ctx.lineJoin = "round";
+    ctx.miterLimit = 2;
+    ctx.lineWidth = Math.max(8, fontSize * 0.16);
+    ctx.strokeStyle = "#000000";
+    ctx.strokeText(line, 0, y);
+    ctx.fillStyle = "#ffffff";
+    ctx.fillText(line, 0, y);
+  });
   ctx.restore();
 }
 
