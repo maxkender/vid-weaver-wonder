@@ -279,6 +279,9 @@ function Studio() {
 
   /** Image de référence (1er plan généré) pour garder les mêmes personnages. */
   const referenceImage = useRef<string | null>(null);
+  /** Image du plan précédent : continuité d'une scène à l'autre. */
+  const previousImage = useRef<string | null>(null);
+
 
   useEffect(() => {
     const current = readHistory();
