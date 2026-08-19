@@ -18,7 +18,9 @@ import {
   generateScript,
   pollSceneVideo,
   startSceneVideo,
+  suggestTopic,
 } from "@/lib/studio.functions";
+
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -97,7 +99,12 @@ function Studio() {
   const runPoll = useServerFn(pollSceneVideo);
 
   const [topic, setTopic] = useState("");
+  const [angle, setAngle] = useState("");
+  const [suggesting, setSuggesting] = useState(false);
+  const pastTopics = useRef<string[]>([]);
+  const runSuggest = useServerFn(suggestTopic);
   const kind: Kind = "faits";
+
   const [sceneCount, setSceneCount] = useState(5);
   const [style, setStyle] = useState<NarrationStyle>("revelation");
   const [visual, setVisual] = useState<VisualStyle>("papercraft");
@@ -110,6 +117,27 @@ function Studio() {
   const patch = useCallback((i: number, value: SceneState) => {
     setStates((prev) => ({ ...prev, [i]: { ...prev[i], ...value } }));
   }, []);
+
+  const onSuggest = async () => {
+    setSuggesting(true);
+    try {
+      const res = (await runSuggest({ data: { avoid: pastTopics.current.slice(-8) } })) as {
+        topic: string;
+        angle: string;
+      };
+      if (res.topic) {
+        pastTopics.current.push(res.topic);
+        setTopic(res.topic);
+        setAngle(res.angle);
+        toast.success("Sujet proposé");
+      }
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Échec de la proposition");
+    } finally {
+      setSuggesting(false);
+    }
+  };
+
 
   const onScript = async () => {
     setLoadingScript(true);
@@ -231,6 +259,22 @@ function Studio() {
               placeholder="Ex : pourquoi les octopodes ont trois cœurs"
               className="mt-2 w-full resize-none rounded-lg border border-input bg-background/60 p-3 text-sm outline-none focus:ring-2 focus:ring-ring"
             />
+            <div className="mt-2 flex items-center gap-3">
+              <button
+                onClick={onSuggest}
+                disabled={suggesting}
+                className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-xs uppercase tracking-widest hover:border-primary disabled:opacity-50"
+              >
+                {suggesting ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Sparkles className="h-3.5 w-3.5" />
+                )}
+                Proposer un sujet par IA
+              </button>
+              {angle && <span className="text-xs text-muted-foreground">{angle}</span>}
+            </div>
+
 
             <label className="mt-6 block text-xs uppercase tracking-widest text-muted-foreground">
               Style de narration

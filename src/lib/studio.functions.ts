@@ -97,3 +97,28 @@ export const pollSceneVideo = createServerFn({ method: "POST" })
       error: job.error?.message ?? null,
     };
   });
+
+export const suggestTopic = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        avoid: z.array(z.string().max(300)).max(20).default([]),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data }) => {
+    const res = await chatJSON<{ topic: string; angle: string }>(
+      "google/gemini-3.7-flash",
+      [
+        "Tu proposes des sujets de vidéos courtes de culture générale en français.",
+        "Le sujet doit être fascinant, précis, peu connu du grand public, vérifiable, et facile à raconter en 60 secondes.",
+        "Évite les sujets ultra rebattus (pyramides, Titanic, Mozart enfant prodige, Grande Muraille visible de l'espace).",
+        "Évite les marques, œuvres protégées et personnages de fiction récents.",
+        'Réponds uniquement en JSON: {"topic": string (une phrase de 8 à 20 mots), "angle": string (une phrase expliquant l\'angle surprenant)}',
+      ].join("\n"),
+      data.avoid.length
+        ? `Propose un sujet différent de ceux-ci : ${data.avoid.join(" | ")}`
+        : "Propose un sujet.",
+    );
+    return { topic: res.topic?.trim() ?? "", angle: res.angle?.trim() ?? "" };
+  });
