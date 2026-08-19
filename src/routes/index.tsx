@@ -378,14 +378,21 @@ function Studio() {
     try {
       const { assembleVideo } = await import("@/lib/assemble-video");
       const { randomTrack } = await import("@/lib/music-store");
+      const { makeOverlayPng } = await import("@/lib/overlay-png");
       const dims =
         orientation === "horizontal"
           ? { width: 1280, height: 720 }
           : { width: 720, height: 1280 };
+      const ordered = (script?.scenes ?? [])
+        .map((s) => ({ scene: s, st: states[s.index] }))
+        .filter((x): x is { scene: Scene; st: SceneState & { videoUrl: string } } =>
+          Boolean(x.st?.videoUrl),
+        );
       const withDurations = await Promise.all(
-        readyScenes.map(async (st) => ({
+        ordered.map(async ({ scene, st }) => ({
           videoUrl: st.videoUrl,
           audio: st.audio,
+          overlay: await makeOverlayPng(scene.overlay, dims.width, dims.height),
           duration: st.audio ? await audioDuration(st.audio) : undefined,
         })),
       );
@@ -399,6 +406,7 @@ function Studio() {
           onProgress: (step) => setAssembleStep(step),
         },
       );
+
       setFinalUrl((prev) => {
         if (prev) URL.revokeObjectURL(prev);
         return URL.createObjectURL(blob);
