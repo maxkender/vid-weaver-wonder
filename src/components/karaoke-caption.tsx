@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import {
-  CAPTION_ACTIVE_COLOR,
   CAPTION_FADE,
   smoothTimings,
   sophiaWindow,
@@ -24,7 +23,7 @@ type Props = {
 
 /** Word-by-word caption synced with the scene audio/video (TikTok style). */
 export function KaraokeCaption({ text, fallback, getMedia, words, showLogo = true }: Props) {
-  const [state, setState] = useState<{ word: string; pop: number; active: number } | null>(null);
+  const [state, setState] = useState<{ word: string; pop: number } | null>(null);
   const [logoPop, setLogoPop] = useState<number | null>(null);
   const frame = useRef<number | null>(null);
   const exact = useMemo(
@@ -63,9 +62,7 @@ export function KaraokeCaption({ text, fallback, getMedia, words, showLogo = tru
         else {
           // Fondu doux à l'apparition (pas de zoom).
           const pop = Math.min(1, Math.max(0, (t - cur.start) / CAPTION_FADE));
-          // Karaoké : index du mot en cours de prononciation.
-          const active = cur.words.findIndex((w) => t >= w.start && t < w.end);
-          setState({ word: cur.word, pop, active });
+          setState({ word: cur.word, pop });
         }
       }
       frame.current = requestAnimationFrame(tick);
@@ -113,28 +110,12 @@ export function KaraokeCaption({ text, fallback, getMedia, words, showLogo = tru
             textShadow: "0 0.28cqw 1.1cqw rgba(0,0,0,0.55)",
             opacity: state.pop,
           }}
-
         >
-          {state.word
-            .replace(/[«»"]/g, "")
-            .toLowerCase()
-            .split(" ")
-            .filter(Boolean)
-            .map((w, i, arr) => (
-              <span
-                key={`${w}-${i}`}
-                style={i === state.active ? { color: CAPTION_ACTIVE_COLOR } : undefined}
-              >
-                {w}
-                {i < arr.length - 1 ? " " : ""}
-              </span>
-            ))}
+          {state.word.replace(/[«»"]/g, "").toLowerCase()}
         </span>
-
       </div>
     );
   }
-
 
   return (
     <>
