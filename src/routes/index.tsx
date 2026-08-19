@@ -21,7 +21,9 @@ import {
 import { toast } from "sonner";
 import { Toaster } from "@/components/ui/sonner";
 import { KaraokeCaption } from "@/components/karaoke-caption";
+import { MusicLibrary } from "@/components/music-library";
 import { audioDuration, estimateSpeechSeconds } from "@/lib/duration";
+
 
 
 import {
