@@ -1,16 +1,27 @@
 import { FFmpeg } from "@ffmpeg/ffmpeg";
 import { fetchFile, toBlobURL } from "@ffmpeg/util";
 
+export type KaraokeSeqInput = { fps: number; frames: Blob[] };
+
 export type AssembleScene = {
   videoUrl: string;
   audio?: string | undefined;
   /** PNG transparent (texte incrusté) superposé sur toute la durée du plan. */
   overlay?: Blob | null | undefined;
-  /** Sous-titres karaoké : séquence d'images à cadence fixe. */
-  karaokeSeq?: { fps: number; frames: Blob[] } | null | undefined;
+  /**
+   * Sous-titres karaoké : séquence d'images à cadence fixe.
+   * Peut être une fonction pour ne construire les images qu'au moment du plan
+   * (évite de garder toutes les scènes en mémoire → crash de l'onglet).
+   */
+  karaokeSeq?:
+    | KaraokeSeqInput
+    | null
+    | undefined
+    | (() => Promise<KaraokeSeqInput | null>);
   /** Durée cible du plan (= durée de la voix off), en secondes. */
   duration?: number | undefined;
 };
+
 
 const CORE_URL = "https://unpkg.com/@ffmpeg/core@0.12.10/dist/umd";
 
