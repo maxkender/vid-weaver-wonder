@@ -361,7 +361,7 @@ function Studio() {
   };
 
 
-  const onScript = async () => {
+  const onScript = async (): Promise<Script | undefined> => {
     setLoadingScript(true);
     try {
       const result = (await runScript({
@@ -382,8 +382,10 @@ function Studio() {
       setProjectId(id);
       saveHistory(id, result);
       toast.success("Script généré");
+      return result;
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Échec de la génération du script");
+      return undefined;
     } finally {
       setLoadingScript(false);
     }
@@ -547,7 +549,10 @@ function Studio() {
   const buildFinalVideo = async (
     snapshot: Record<number, SceneState | undefined>,
     autoDownload: boolean,
+    scriptOverride?: Script,
   ) => {
+    const doc = scriptOverride ?? script;
+
     const { assembleVideo } = await import("@/lib/assemble-video");
     const { randomTrack } = await import("@/lib/music-store");
     const { makeOverlayPng } = await import("@/lib/overlay-png");
@@ -558,7 +563,7 @@ function Studio() {
       orientation === "horizontal"
         ? { width: settings.hd ? 1920 : 1280, height: settings.hd ? 1080 : 720 }
         : { width: settings.hd ? 1080 : 720, height: settings.hd ? 1920 : 1280 };
-    const ordered = (script?.scenes ?? [])
+    const ordered = (doc?.scenes ?? [])
       .map((s) => ({ scene: s, st: snapshot[s.index] }))
       .filter((x): x is { scene: Scene; st: SceneState & { videoUrl: string } } =>
         Boolean(x.st?.videoUrl),
@@ -635,7 +640,7 @@ function Studio() {
     if (autoDownload) {
       const a = document.createElement("a");
       a.href = url;
-      a.download = `${(script?.title ?? "video").replace(/[^\p{L}\p{N}]+/gu, "-").toLowerCase()}.mp4`;
+      a.download = `${(doc?.title ?? "video").replace(/[^\p{L}\p{N}]+/gu, "-").toLowerCase()}.mp4`;
       a.click();
     }
     toast.success(
@@ -658,13 +663,14 @@ function Studio() {
   };
 
   /** Tout d'un coup : images + vidéos + voix off manquantes, puis export MP4. */
-  const onExportEverything = async () => {
-    if (!script) return;
+  const onExportEverything = async (scriptOverride?: Script) => {
+    const doc = scriptOverride ?? script;
+    if (!doc) return;
     setAssembling(true);
     try {
       setAssembleStep("Génération des scènes manquantes…");
       const results = await Promise.all(
-        script.scenes.map(async (scene) => {
+        doc.scenes.map(async (scene) => {
           const st = states[scene.index] ?? {};
           const image = st.image ?? (await onImage(scene));
           const videoUrl = st.videoUrl ?? (await onVideo(scene, image));
@@ -687,7 +693,7 @@ function Studio() {
       );
       const snapshot: Record<number, SceneState | undefined> = { ...states };
       for (const [i, st] of results) snapshot[i] = st as SceneState;
-      await buildFinalVideo(snapshot, true);
+      await buildFinalVideo(snapshot, true, doc);
     } catch (e) {
       console.error(e);
       toast.error(e instanceof Error ? e.message : "Échec de l'export complet");
@@ -695,6 +701,25 @@ function Studio() {
       setAssembling(false);
     }
   };
+
+  /** Un seul clic depuis le sujet : script → images → vidéos → voix → MP4. */
+  const [autoRunning, setAutoRunning] = useState(false);
+  const onAutoAll = async () => {
+    if (!topic.trim()) {
+      toast.error("Écris d'abord le sujet de la vidéo");
+      return;
+    }
+    setAutoRunning(true);
+    try {
+      setAssembleStep("Écriture du script…");
+      const fresh = await onScript();
+      if (!fresh) return;
+      await onExportEverything(fresh);
+    } finally {
+      setAutoRunning(false);
+    }
+  };
+
 
 
 
@@ -1015,7 +1040,24 @@ function Studio() {
 
 
             <button
-              onClick={onScript}
+              onClick={onAutoAll}
+              disabled={autoRunning || loadingScript || assembling}
+              className="btn-gold inline-flex items-center justify-center gap-2 rounded-lg px-5 py-3 text-sm font-bold uppercase tracking-wider disabled:opacity-60"
+            >
+              {autoRunning ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Sparkles className="h-4 w-4" />
+              )}
+              Générer toute la vidéo et exporter
+            </button>
+            {autoRunning && assembleStep && (
+              <p className="-mt-1 text-center text-xs text-muted-foreground">{assembleStep}</p>
+            )}
+
+            <button
+              onClick={() => void onScript()}
+
               disabled={loadingScript}
               className="btn-gold inline-flex items-center justify-center gap-2 rounded-lg px-5 py-3 text-sm font-bold uppercase tracking-wider disabled:opacity-60"
             >
@@ -1067,7 +1109,7 @@ function Studio() {
                   Tout animer en parallèle
                 </button>
                 <button
-                  onClick={onExportEverything}
+                  onClick={() => onExportEverything()}
                   disabled={assembling || generatingAll}
                   className="btn-gold inline-flex items-center gap-2 rounded-lg px-4 py-2.5 text-xs font-bold uppercase tracking-widest disabled:opacity-50"
                 >
