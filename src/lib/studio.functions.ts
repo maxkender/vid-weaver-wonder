@@ -12,8 +12,11 @@ import {
   motionPrompt,
   scriptSystemPrompt,
   scriptUserPrompt,
+  SOPHIA_OUTRO,
   type Script,
 } from "./prompts.server";
+
+const visualEnum = z.enum(["papercraft", "cinematique", "documentaire", "retro"]);
 
 export const generateScript = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) =>
@@ -21,29 +24,38 @@ export const generateScript = createServerFn({ method: "POST" })
       .object({
         topic: z.string().max(300).default(""),
         kind: z.enum(["faits", "culture", "pub"]),
-        sceneCount: z.number().int().min(3).max(6).default(4),
+        style: z
+          .enum(["question", "revelation", "storytelling", "listicle"])
+          .default("revelation"),
+        sceneCount: z.number().int().min(3).max(8).default(5),
       })
       .parse(input),
   )
   .handler(async ({ data }) => {
     const script = await chatJSON<Script>(
       "google/gemini-3.7-flash",
-      scriptSystemPrompt(data.kind, data.sceneCount),
+      scriptSystemPrompt(data.kind, data.sceneCount, data.style),
       scriptUserPrompt(data.kind, data.topic),
     );
     script.scenes = (script.scenes ?? []).slice(0, data.sceneCount).map((s, i) => ({
       ...s,
       index: i,
     }));
+    script.cta = SOPHIA_OUTRO;
     return script;
   });
 
 export const generateSceneImage = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) =>
-    z.object({ imagePrompt: z.string().min(3).max(2000) }).parse(input),
+    z
+      .object({
+        imagePrompt: z.string().min(3).max(2000),
+        visual: visualEnum.default("papercraft"),
+      })
+      .parse(input),
   )
   .handler(async ({ data }) => {
-    const dataUrl = await generateImageDataUrl(coverPrompt(data.imagePrompt));
+    const dataUrl = await generateImageDataUrl(coverPrompt(data.imagePrompt, data.visual));
     return { dataUrl };
   });
 
@@ -55,12 +67,13 @@ export const startSceneVideo = createServerFn({ method: "POST" })
         imageDataUrl: z.string().startsWith("data:image/").optional(),
         seconds: z.enum(["4", "6", "8"]).default("8"),
         orientation: z.enum(["vertical", "horizontal"]).default("vertical"),
+        visual: visualEnum.default("papercraft"),
       })
       .parse(input),
   )
   .handler(async ({ data }) => {
     const job = await createVideoJob({
-      prompt: motionPrompt(data.videoPrompt),
+      prompt: motionPrompt(data.videoPrompt, data.visual),
       seconds: data.seconds,
       size: data.orientation === "vertical" ? "720x1280" : "1280x720",
       ...(data.imageDataUrl ? { inputReference: data.imageDataUrl } : {}),
