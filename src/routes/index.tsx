@@ -275,6 +275,43 @@ function Studio() {
       setPreviewVoice(false);
     }
   };
+  const readyScenes = useMemo(
+    () =>
+      (script?.scenes ?? [])
+        .map((s) => states[s.index])
+        .filter((st): st is SceneState & { videoUrl: string } => Boolean(st?.videoUrl)),
+    [script, states],
+  );
+
+  const onAssemble = async () => {
+    if (readyScenes.length === 0) return;
+    setAssembling(true);
+    setAssembleStep("Préparation…");
+    try {
+      const { assembleVideo } = await import("@/lib/assemble-video");
+      const dims =
+        orientation === "horizontal"
+          ? { width: 1280, height: 720 }
+          : { width: 720, height: 1280 };
+      const blob = await assembleVideo(
+        readyScenes.map((st) => ({ videoUrl: st.videoUrl, audio: st.audio })),
+        {
+          ...dims,
+          onProgress: (step) => setAssembleStep(step),
+        },
+      );
+      setFinalUrl((prev) => {
+        if (prev) URL.revokeObjectURL(prev);
+        return URL.createObjectURL(blob);
+      });
+      toast.success("Vidéo finale assemblée");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Échec de l'assemblage");
+    } finally {
+      setAssembling(false);
+    }
+  };
+
 
 
 
