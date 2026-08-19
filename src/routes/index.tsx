@@ -71,11 +71,6 @@ type SceneState = {
   progress?: number | undefined;
 };
 
-const KINDS: { id: Kind; label: string; hint: string }[] = [
-  { id: "faits", label: "Faits fascinants", hint: "Le saviez-vous, format punchy" },
-  { id: "culture", label: "Culture générale", hint: "Histoire, science, espace…" },
-  { id: "pub", label: "Avec pub Sophia", hint: "Mention Sophia en plus de l'outro" },
-];
 
 const STYLES: { id: NarrationStyle; label: string; hint: string }[] = [
   {
@@ -102,7 +97,7 @@ function Studio() {
   const runPoll = useServerFn(pollSceneVideo);
 
   const [topic, setTopic] = useState("");
-  const [kind, setKind] = useState<Kind>("faits");
+  const kind: Kind = "faits";
   const [sceneCount, setSceneCount] = useState(5);
   const [style, setStyle] = useState<NarrationStyle>("revelation");
   const [visual, setVisual] = useState<VisualStyle>("papercraft");
@@ -235,22 +230,6 @@ function Studio() {
               placeholder="Ex : pourquoi les octopodes ont trois cœurs"
               className="mt-2 w-full resize-none rounded-lg border border-input bg-background/60 p-3 text-sm outline-none focus:ring-2 focus:ring-ring"
             />
-            <div className="mt-4 flex flex-wrap gap-2">
-              {KINDS.map((k) => (
-                <button
-                  key={k.id}
-                  onClick={() => setKind(k.id)}
-                  className={`rounded-full border px-4 py-2 text-left text-sm transition-colors ${
-                    kind === k.id
-                      ? "border-primary bg-primary/15 text-foreground"
-                      : "border-border bg-secondary/40 text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  <span className="block font-semibold">{k.label}</span>
-                  <span className="block text-xs opacity-70">{k.hint}</span>
-                </button>
-              ))}
-            </div>
 
             <label className="mt-6 block text-xs uppercase tracking-widest text-muted-foreground">
               Style de narration
