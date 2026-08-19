@@ -16,9 +16,8 @@ export async function generateElevenSpeechDataUrl(
   const apiKey = process.env["ELEVENLABS_API_KEY"];
   if (!apiKey) throw new Error("ElevenLabs n'est pas connecté à ce projet.");
 
-  const res = await fetch(
-    `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}?output_format=mp3_44100_192`,
-    {
+  const call = (format: string) =>
+    fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}?output_format=${format}`, {
       method: "POST",
       headers: { "xi-api-key": apiKey, "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -33,9 +32,12 @@ export async function generateElevenSpeechDataUrl(
           speed: 0.98,
         },
       }),
-    },
-  );
+    });
 
+  // 192 kbps nécessite l'offre Creator : on retombe sur 128 puis 96 si refusé.
+  let res = await call("mp3_44100_128");
+  if (res.status === 403) res = await call("mp3_44100_96");
+  if (res.status === 403) res = await call("mp3_22050_32");
 
   if (!res.ok) {
     const body = await res.text().catch(() => "");
@@ -44,4 +46,5 @@ export async function generateElevenSpeechDataUrl(
 
   const buf = Buffer.from(await res.arrayBuffer());
   return `data:audio/mpeg;base64,${buf.toString("base64")}`;
+
 }
