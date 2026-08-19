@@ -8,6 +8,8 @@ import {
   Loader2,
   Play,
   Mic,
+  Volume2,
+
   Sparkles,
   Wand2,
 } from "lucide-react";
@@ -418,6 +420,20 @@ function Studio() {
                   </option>
                 ))}
               </select>
+              <button
+                onClick={onPreviewVoice}
+                disabled={previewVoice}
+                className="mt-2 inline-flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-xs uppercase tracking-widest hover:border-primary disabled:opacity-50"
+              >
+                {previewVoice ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Volume2 className="h-3.5 w-3.5" />
+                )}
+                Écouter un exemple
+              </button>
+              <audio ref={sampleRef} className="hidden" />
+
             </div>
 
             <button
@@ -481,7 +497,11 @@ function Studio() {
                     {st.videoUrl ? (
                       <video
                         key={st.videoUrl}
+                        ref={(el) => {
+                          videoRefs.current[scene.index] = el;
+                        }}
                         src={st.videoUrl}
+
                         controls
                         loop
                         playsInline
