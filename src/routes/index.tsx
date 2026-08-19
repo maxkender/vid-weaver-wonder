@@ -333,7 +333,7 @@ function Studio() {
     setLoadingScript(true);
     try {
       const result = (await runScript({
-        data: { topic, kind, sceneCount, style },
+        data: { topic, kind, sceneCount, style, targetSeconds },
       })) as Script;
       setScript(result);
       setStates({});
