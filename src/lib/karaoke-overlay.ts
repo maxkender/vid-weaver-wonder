@@ -132,6 +132,7 @@ async function renderPng(
   scale = 1,
   logo?: { img: CanvasImageSource; progress: number } | null,
   alpha = 1,
+  activeIndex = -1,
 ): Promise<Blob | null> {
   const canvas = document.createElement("canvas");
   canvas.width = width;
@@ -141,11 +142,12 @@ async function renderPng(
   if (logo) drawLogo(ctx, logo.img, width, height, logo.progress);
   if (word) {
     await ensureFont(Math.round(width * CAPTION_SIZE_RATIO));
-    drawWord(ctx, word, width, height, scale, alpha);
+    drawWord(ctx, word, width, height, scale, alpha, activeIndex);
   }
 
   return await new Promise<Blob | null>((r) => canvas.toBlob((b) => r(b), "image/png"));
 }
+
 
 /** Marge latérale de la fenêtre carrée (fraction de la largeur, de chaque côté). */
 export const SQUARE_MARGIN_RATIO = 0.06;
