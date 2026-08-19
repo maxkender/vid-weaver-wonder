@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import { sophiaWindow, wordTimings } from "@/lib/karaoke-overlay";
+import { CAPTION_FADE, smoothTimings, sophiaWindow, wordTimings } from "@/lib/karaoke-overlay";
 import sophiaLogo from "@/assets/sophia-logo.png.asset.json";
 
 type Timing = { word: string; start: number; end: number };
