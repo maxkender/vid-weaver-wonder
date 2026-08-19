@@ -375,6 +375,7 @@ function Studio() {
     setAssembleStep("Préparation…");
     try {
       const { assembleVideo } = await import("@/lib/assemble-video");
+      const { randomTrack } = await import("@/lib/music-store");
       const dims =
         orientation === "horizontal"
           ? { width: 1280, height: 720 }
@@ -386,10 +387,13 @@ function Studio() {
           duration: st.audio ? await audioDuration(st.audio) : undefined,
         })),
       );
+      const track = await randomTrack(style);
+      if (track) setAssembleStep(`Musique : ${track.name}`);
       const blob = await assembleVideo(
         withDurations,
         {
           ...dims,
+          music: track?.blob,
           onProgress: (step) => setAssembleStep(step),
         },
       );
@@ -397,13 +401,17 @@ function Studio() {
         if (prev) URL.revokeObjectURL(prev);
         return URL.createObjectURL(blob);
       });
-      toast.success("Vidéo finale assemblée");
+      toast.success(
+        track ? `Vidéo assemblée (musique : ${track.name})` : "Vidéo finale assemblée",
+      );
     } catch (e) {
+      console.error(e);
       toast.error(e instanceof Error ? e.message : "Échec de l'assemblage");
     } finally {
       setAssembling(false);
     }
   };
+
 
 
 
