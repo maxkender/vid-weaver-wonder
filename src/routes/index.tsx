@@ -38,7 +38,10 @@ import {
   listVoices,
   startSceneVideo,
   suggestTopic,
+
 } from "@/lib/studio.functions";
+import { TOPIC_CATEGORIES, type TopicCategory } from "@/lib/topic-categories";
+
 
 
 export const Route = createFileRoute("/")({
@@ -206,6 +209,8 @@ function Studio() {
   const [topic, setTopic] = useState("");
   const [angle, setAngle] = useState("");
   const [suggesting, setSuggesting] = useState(false);
+  const [topicCategory, setTopicCategory] = useState<TopicCategory>("aleatoire");
+
   const pastTopics = useRef<string[]>([]);
   const runSuggest = useServerFn(suggestTopic);
   const kind: Kind = "faits";
@@ -343,7 +348,10 @@ function Studio() {
   const onSuggest = async () => {
     setSuggesting(true);
     try {
-      const res = (await runSuggest({ data: { avoid: pastTopics.current.slice(-8), style } })) as {
+      const res = (await runSuggest({
+        data: { avoid: pastTopics.current.slice(-8), style, category: topicCategory },
+      })) as {
+
         topic: string;
         angle: string;
       };
@@ -887,7 +895,18 @@ function Studio() {
               placeholder="Ex : pourquoi les octopodes ont trois cœurs"
               className="mt-2 w-full resize-none rounded-lg border border-input bg-background/60 p-3 text-sm outline-none focus:ring-2 focus:ring-ring"
             />
-            <div className="mt-2 flex items-center gap-3">
+            <div className="mt-2 flex flex-wrap items-center gap-3">
+              <select
+                value={topicCategory}
+                onChange={(e) => setTopicCategory(e.target.value as TopicCategory)}
+                className="rounded-lg border border-input bg-background/60 px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-ring"
+              >
+                {TOPIC_CATEGORIES.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.label}
+                  </option>
+                ))}
+              </select>
               <button
                 onClick={onSuggest}
                 disabled={suggesting}
@@ -902,6 +921,7 @@ function Studio() {
               </button>
               {angle && <span className="text-xs text-muted-foreground">{angle}</span>}
             </div>
+
 
 
             <label className="mt-6 block text-xs uppercase tracking-widest text-muted-foreground">

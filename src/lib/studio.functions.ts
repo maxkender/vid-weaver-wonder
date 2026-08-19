@@ -18,6 +18,8 @@ import {
   type Script,
 } from "./prompts.server";
 import { estimateSpeechSeconds } from "./duration";
+import { TOPIC_CATEGORIES, TOPIC_CATEGORY_IDS } from "./topic-categories";
+
 
 const visualEnum = z.enum(["papercraft", "cinematique", "documentaire", "retro"]);
 
@@ -177,6 +179,7 @@ export const suggestTopic = createServerFn({ method: "POST" })
         style: z
           .enum(["question", "revelation", "storytelling", "listicle"])
           .default("revelation"),
+        category: z.enum(TOPIC_CATEGORY_IDS).default("aleatoire"),
       })
       .parse(input),
   )
@@ -196,7 +199,9 @@ export const suggestTopic = createServerFn({ method: "POST" })
       "une invention ou une découverte due au hasard",
       "un mystère non résolu ou une théorie célèbre, expliqué avec des faits",
     ];
-    const domain = DOMAINS[Math.floor(Math.random() * DOMAINS.length)]!;
+    const chosen = TOPIC_CATEGORIES.find((c) => c.id === data.category)?.brief;
+    const domain = chosen || DOMAINS[Math.floor(Math.random() * DOMAINS.length)]!;
+
     const res = await chatJSON<{ topic: string; angle: string }>(
       "google/gemini-3.7-flash",
       [
