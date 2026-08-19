@@ -43,6 +43,8 @@ export const Route = createFileRoute("/")({
 });
 
 type Kind = "faits" | "culture" | "pub";
+type NarrationStyle = "question" | "revelation" | "storytelling" | "listicle";
+type VisualStyle = "papercraft" | "cinematique" | "documentaire" | "retro";
 
 type Scene = {
   index: number;
@@ -72,7 +74,25 @@ type SceneState = {
 const KINDS: { id: Kind; label: string; hint: string }[] = [
   { id: "faits", label: "Faits fascinants", hint: "Le saviez-vous, format punchy" },
   { id: "culture", label: "Culture générale", hint: "Histoire, science, espace…" },
-  { id: "pub", label: "Avec pub Sophia", hint: "Segment sponsorisé intégré" },
+  { id: "pub", label: "Avec pub Sophia", hint: "Mention Sophia en plus de l'outro" },
+];
+
+const STYLES: { id: NarrationStyle; label: string; hint: string }[] = [
+  {
+    id: "question",
+    label: "Grande question",
+    hint: "« Mais savez-vous vraiment pourquoi… ? »",
+  },
+  { id: "revelation", label: "Révélation", hint: "Indices, puis retournement final" },
+  { id: "storytelling", label: "Récit immersif", hint: "On raconte la scène vécue" },
+  { id: "listicle", label: "Énumération", hint: "Une idée choc par scène" },
+];
+
+const VISUALS: { id: VisualStyle; label: string }[] = [
+  { id: "papercraft", label: "Papier découpé" },
+  { id: "cinematique", label: "Cinématique" },
+  { id: "documentaire", label: "Documentaire" },
+  { id: "retro", label: "Rétro 70s" },
 ];
 
 function Studio() {
@@ -83,7 +103,9 @@ function Studio() {
 
   const [topic, setTopic] = useState("");
   const [kind, setKind] = useState<Kind>("faits");
-  const [sceneCount, setSceneCount] = useState(4);
+  const [sceneCount, setSceneCount] = useState(5);
+  const [style, setStyle] = useState<NarrationStyle>("revelation");
+  const [visual, setVisual] = useState<VisualStyle>("papercraft");
   const [orientation, setOrientation] = useState<"vertical" | "horizontal">("vertical");
   const [script, setScript] = useState<Script | null>(null);
   const [loadingScript, setLoadingScript] = useState(false);
@@ -98,7 +120,7 @@ function Studio() {
     setLoadingScript(true);
     try {
       const result = (await runScript({
-        data: { topic, kind, sceneCount },
+        data: { topic, kind, sceneCount, style },
       })) as Script;
       setScript(result);
       setStates({});
@@ -114,7 +136,7 @@ function Studio() {
     patch(scene.index, { imageLoading: true });
     try {
       const { dataUrl } = (await runImage({
-        data: { imagePrompt: scene.imagePrompt },
+        data: { imagePrompt: scene.imagePrompt, visual },
       })) as { dataUrl: string };
       patch(scene.index, { image: dataUrl, imageLoading: false });
     } catch (e) {
@@ -138,6 +160,7 @@ function Studio() {
           ...(state?.image ? { imageDataUrl: state.image } : {}),
           seconds: "8" as const,
           orientation,
+          visual,
         },
       })) as { id: string };
       patch(scene.index, { videoId: id });
@@ -228,6 +251,45 @@ function Studio() {
                 </button>
               ))}
             </div>
+
+            <label className="mt-6 block text-xs uppercase tracking-widest text-muted-foreground">
+              Style de narration
+            </label>
+            <div className="mt-2 grid gap-2 sm:grid-cols-2">
+              {STYLES.map((s) => (
+                <button
+                  key={s.id}
+                  onClick={() => setStyle(s.id)}
+                  className={`rounded-lg border px-4 py-2 text-left text-sm transition-colors ${
+                    style === s.id
+                      ? "border-primary bg-primary/15 text-foreground"
+                      : "border-border bg-secondary/40 text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <span className="block font-semibold">{s.label}</span>
+                  <span className="block text-xs opacity-70">{s.hint}</span>
+                </button>
+              ))}
+            </div>
+
+            <label className="mt-6 block text-xs uppercase tracking-widest text-muted-foreground">
+              Direction artistique
+            </label>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {VISUALS.map((v) => (
+                <button
+                  key={v.id}
+                  onClick={() => setVisual(v.id)}
+                  className={`rounded-full border px-4 py-2 text-sm transition-colors ${
+                    visual === v.id
+                      ? "border-primary bg-primary/15 text-foreground"
+                      : "border-border bg-secondary/40 text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {v.label}
+                </button>
+              ))}
+            </div>
           </div>
 
           <div className="flex flex-col gap-4">
@@ -238,7 +300,7 @@ function Studio() {
               <input
                 type="range"
                 min={3}
-                max={6}
+                max={8}
                 value={sceneCount}
                 onChange={(e) => setSceneCount(Number(e.target.value))}
                 className="mt-3 w-full accent-[oklch(0.79_0.16_72)]"
@@ -280,7 +342,12 @@ function Studio() {
           <div className="surface-card p-6 sm:p-8">
             <h2 className="text-3xl">{script.title}</h2>
             <p className="mt-2 text-lg text-primary">{script.hook}</p>
-            <p className="mt-4 text-sm text-muted-foreground">{script.cta}</p>
+            <div className="mt-5 rounded-lg border border-border bg-secondary/40 p-4">
+              <span className="text-xs uppercase tracking-widest text-muted-foreground">
+                Outro Sophia (fixe sur toutes les vidéos)
+              </span>
+              <p className="mt-2 text-sm">{script.cta}</p>
+            </div>
             <div className="mt-4 flex flex-wrap gap-2">
               {(script.hashtags ?? []).map((h) => (
                 <span
