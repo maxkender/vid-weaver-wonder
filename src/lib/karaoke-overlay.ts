@@ -197,7 +197,8 @@ function popScale(progress: number) {
   return 0.82 + 0.18 * (1 - Math.pow(1 - p, 3)) + 0.05 * Math.sin(Math.PI * p);
 }
 
-const SCALE_STEPS = 6;
+// Défilement sans zoom : le mot apparaît à sa taille finale (pas d'animation d'échelle).
+const SCALE_STEPS = 1;
 
 /**
  * Séquence d'images (une par frame, cadence fixe) prête à être incrustée par FFmpeg.
