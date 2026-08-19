@@ -857,9 +857,21 @@ function Studio() {
                   Tout animer en parallèle
                 </button>
                 <button
+                  onClick={onExportEverything}
+                  disabled={assembling || generatingAll}
+                  className="btn-gold inline-flex items-center gap-2 rounded-lg px-4 py-2.5 text-xs font-bold uppercase tracking-widest disabled:opacity-50"
+                >
+                  {assembling ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Download className="h-3.5 w-3.5" />
+                  )}
+                  Tout générer &amp; exporter (MP4 + voix + texte)
+                </button>
+                <button
                   onClick={onAssemble}
                   disabled={assembling || readyScenes.length === 0}
-                  className="btn-gold inline-flex items-center gap-2 rounded-lg px-4 py-2.5 text-xs font-bold uppercase tracking-widest disabled:opacity-50"
+                  className="inline-flex items-center gap-2 rounded-lg border border-border px-4 py-2.5 text-xs font-bold uppercase tracking-widest hover:border-primary disabled:opacity-50"
                 >
                   {assembling ? (
                     <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -868,6 +880,7 @@ function Studio() {
                   )}
                   Assembler la vidéo entière
                 </button>
+
                 <span className="text-xs uppercase tracking-widest text-muted-foreground">
                   {assembling
                     ? assembleStep
