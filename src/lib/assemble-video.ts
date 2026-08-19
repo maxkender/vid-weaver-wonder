@@ -146,7 +146,7 @@ export async function assembleVideo(
     await run(ffmpeg, args, `Scène ${i + 1}`);
     await ffmpeg.deleteFile(vName);
     if (scene.audio) await ffmpeg.deleteFile(`voice${i}.mp3`);
-    if (scene.overlay) await ffmpeg.deleteFile(`ov${i}.png`);
+    for (const f of overlayFiles) await ffmpeg.deleteFile(f);
 
     parts.push(out);
   }
