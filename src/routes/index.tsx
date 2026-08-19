@@ -341,16 +341,19 @@ function Studio() {
   const onVoice = async (scene: Scene) => {
     patch(scene.index, { audioLoading: true });
     try {
-      const { audioDataUrl } = (await runVoice({
+      const { audioDataUrl, words } = (await runVoice({
         data: { text: scene.narration, voice, engine },
-      })) as { audioDataUrl: string };
-      patch(scene.index, { audio: audioDataUrl, audioLoading: false });
+      })) as { audioDataUrl: string; words?: { word: string; start: number; end: number }[] };
+      patch(scene.index, { audio: audioDataUrl, words: words ?? [], audioLoading: false });
       toast.success(`Voix off scène ${scene.index + 1}`);
+      return audioDataUrl;
     } catch (e) {
       patch(scene.index, { audioLoading: false });
       toast.error(e instanceof Error ? e.message : "Échec de la voix off");
+      return undefined;
     }
   };
+
 
   const onPreviewVoice = async () => {
     setPreviewVoice(true);
