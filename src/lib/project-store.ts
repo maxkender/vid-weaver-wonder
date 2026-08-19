@@ -11,6 +11,7 @@ export type StoredProject = {
   id: string;
   updatedAt: number;
   scenes: Record<number, StoredSceneMedia>;
+  finalVideo?: Blob | undefined;
 };
 
 const DB_NAME = "studio-projects";
@@ -55,11 +56,52 @@ export async function saveProjectMedia(
     if (v.audio) entry.audio = v.audio;
     if (Object.keys(entry).length) clean[Number(k)] = entry;
   }
-  const project: StoredProject = { id, updatedAt: Date.now(), scenes: clean };
   try {
+    const previous = await tx<StoredProject | undefined>(
+      "readonly",
+      (s) => s.get(id) as IDBRequest<StoredProject | undefined>,
+    );
+    const project: StoredProject = {
+      id,
+      updatedAt: Date.now(),
+      scenes: clean,
+      ...(previous?.finalVideo ? { finalVideo: previous.finalVideo } : {}),
+    };
     await tx("readwrite", (s) => s.put(project) as unknown as IDBRequest<undefined>);
   } catch {
     /* quota / mode privé : on ignore */
+  }
+}
+
+/** Conserve aussi l'export final afin qu'il reste lisible après un rechargement. */
+export async function saveFinalVideo(id: string, finalVideo: Blob): Promise<void> {
+  try {
+    const previous = await tx<StoredProject | undefined>(
+      "readonly",
+      (s) => s.get(id) as IDBRequest<StoredProject | undefined>,
+    );
+    await tx("readwrite", (s) =>
+      s.put({
+        id,
+        updatedAt: Date.now(),
+        scenes: previous?.scenes ?? {},
+        finalVideo,
+      } satisfies StoredProject) as unknown as IDBRequest<undefined>,
+    );
+  } catch {
+    /* quota / mode privé : l'export reste téléchargeable pendant la session */
+  }
+}
+
+export async function loadFinalVideo(id: string): Promise<Blob | null> {
+  try {
+    const project = await tx<StoredProject | undefined>(
+      "readonly",
+      (s) => s.get(id) as IDBRequest<StoredProject | undefined>,
+    );
+    return project?.finalVideo ?? null;
+  } catch {
+    return null;
   }
 }
 
