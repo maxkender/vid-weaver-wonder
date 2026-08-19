@@ -4,6 +4,8 @@ import { fetchFile, toBlobURL } from "@ffmpeg/util";
 export type AssembleScene = {
   videoUrl: string;
   audio?: string | undefined;
+  /** Durée cible du plan (= durée de la voix off), en secondes. */
+  duration?: number | undefined;
 };
 
 const CORE_URL = "https://unpkg.com/@ffmpeg/core@0.12.10/dist/umd";
@@ -42,7 +44,12 @@ export async function assembleVideo(
     await ffmpeg.writeFile(vName, await fetchFile(scene.videoUrl));
 
     const out = `part${i}.mp4`;
-    const vf = `scale=${width}:${height}:force_original_aspect_ratio=decrease,pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2:black,setsar=1,fps=24`;
+    const target = scene.duration && scene.duration > 0.5 ? scene.duration : undefined;
+    // Le plan est figé sur sa dernière image (tpad) puis coupé à la durée de la voix off,
+    // pour que la vidéo fasse toujours exactement la longueur de l'audio.
+    const vf = `scale=${width}:${height}:force_original_aspect_ratio=decrease,pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2:black,setsar=1,fps=24${
+      target ? `,tpad=stop_mode=clone:stop_duration=${target.toFixed(2)}` : ""
+    }`;
 
     const args = ["-i", vName];
     if (scene.audio) {
@@ -66,10 +73,11 @@ export async function assembleVideo(
       "44100",
       "-ac",
       "2",
-      "-shortest",
-      "-y",
-      out,
     );
+    if (target) args.push("-t", target.toFixed(2));
+    else args.push("-shortest");
+    args.push("-y", out);
+
 
     await ffmpeg.exec(args);
     await ffmpeg.deleteFile(vName);

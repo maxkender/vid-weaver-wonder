@@ -16,6 +16,7 @@ import {
   SOPHIA_OUTRO,
   type Script,
 } from "./prompts.server";
+import { estimateSpeechSeconds } from "./duration";
 
 const visualEnum = z.enum(["papercraft", "cinematique", "documentaire", "retro"]);
 
@@ -79,7 +80,8 @@ export const startSceneVideo = createServerFn({ method: "POST" })
       .object({
         videoPrompt: z.string().min(3).max(2000),
         imageDataUrl: z.string().startsWith("data:image/").optional(),
-        seconds: z.enum(["4", "6", "8"]).default("8"),
+        seconds: z.enum(["4", "6", "8"]).optional(),
+        narration: z.string().max(4000).default(""),
         orientation: z.enum(["vertical", "horizontal", "square"]).default("vertical"),
         visual: visualEnum.default("papercraft"),
       })
@@ -87,14 +89,17 @@ export const startSceneVideo = createServerFn({ method: "POST" })
   )
   .handler(async ({ data }) => {
     const square = data.orientation === "square";
+    const est = estimateSpeechSeconds(data.narration);
+    const seconds = data.seconds ?? (est <= 4 ? "4" : est <= 6 ? "6" : "8");
     const job = await createVideoJob({
       prompt: motionPrompt(data.videoPrompt, data.visual, square),
-      seconds: data.seconds,
+      seconds,
       size: data.orientation === "horizontal" ? "1280x720" : "720x1280",
       ...(data.imageDataUrl ? { inputReference: data.imageDataUrl } : {}),
     });
     return { id: job.id, status: job.status };
   });
+
 
 
 export const pollSceneVideo = createServerFn({ method: "POST" })
