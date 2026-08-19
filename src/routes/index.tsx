@@ -199,13 +199,22 @@ function Studio() {
     const updated = readHistory().filter((h) => h.id !== id);
     writeHistory(updated);
     setHistory(updated);
+    void import("@/lib/project-store").then((m) => m.deleteProjectMedia(id));
   }, []);
-
-
 
   const patch = useCallback((i: number, value: SceneState) => {
     setStates((prev) => ({ ...prev, [i]: { ...prev[i], ...value } }));
   }, []);
+
+  // Persiste les médias (images / vidéos / voix) du projet courant pour l'historique.
+  useEffect(() => {
+    if (!projectId) return;
+    const t = setTimeout(() => {
+      void import("@/lib/project-store").then((m) => m.saveProjectMedia(projectId, states));
+    }, 600);
+    return () => clearTimeout(t);
+  }, [projectId, states]);
+
 
   const onSuggest = async () => {
     setSuggesting(true);
