@@ -1039,7 +1039,24 @@ function Studio() {
 
 
             <button
-              onClick={onScript}
+              onClick={onAutoAll}
+              disabled={autoRunning || loadingScript || assembling}
+              className="btn-gold inline-flex items-center justify-center gap-2 rounded-lg px-5 py-3 text-sm font-bold uppercase tracking-wider disabled:opacity-60"
+            >
+              {autoRunning ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Sparkles className="h-4 w-4" />
+              )}
+              Générer toute la vidéo et exporter
+            </button>
+            {autoRunning && assembleStep && (
+              <p className="-mt-1 text-center text-xs text-muted-foreground">{assembleStep}</p>
+            )}
+
+            <button
+              onClick={() => void onScript()}
+
               disabled={loadingScript}
               className="btn-gold inline-flex items-center justify-center gap-2 rounded-lg px-5 py-3 text-sm font-bold uppercase tracking-wider disabled:opacity-60"
             >
