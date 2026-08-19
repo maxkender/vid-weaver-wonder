@@ -21,40 +21,21 @@ function drawWord(
   scale = 1,
   alpha = 1,
 ) {
-  const clean = word.replace(/[«»"]/g, "").toLowerCase();
+  const clean = word.replace(/[«»"]/g, "").replace(/\s+/g, " ").trim().toLowerCase();
   let fontSize = Math.round(width * CAPTION_SIZE_RATIO);
-  const maxWidth = width * 0.78;
+  const maxWidth = width * 0.86;
   const font = (s: number) => `400 ${s}px "Anton", "Arial Narrow", Impact, sans-serif`;
   ctx.font = font(fontSize);
 
-  // Découpe en lignes (max 2) pour les groupes de mots.
-  const wrap = (size: number) => {
-    ctx.font = font(size);
-    const parts = clean.split(" ").filter(Boolean);
-    const lines: string[] = [];
-    let cur = "";
-    for (const p of parts) {
-      const test = cur ? `${cur} ${p}` : p;
-      if (cur && ctx.measureText(test).width > maxWidth) {
-        lines.push(cur);
-        cur = p;
-      } else cur = test;
-    }
-    if (cur) lines.push(cur);
-    return lines;
-  };
-
-  let lines = wrap(fontSize);
-  while (
-    fontSize > 20 &&
-    (lines.length > 2 || lines.some((l) => ctx.measureText(l).width > maxWidth))
-  ) {
-    fontSize -= 3;
-    lines = wrap(fontSize);
+  // Toujours une seule ligne : on réduit légèrement la police si nécessaire.
+  while (fontSize > 18 && ctx.measureText(clean).width > maxWidth) {
+    fontSize -= 2;
+    ctx.font = font(fontSize);
   }
 
   const cx = width / 2;
   const cy = height * 0.5;
+  const lines = [clean];
   const lh = fontSize * 1.08;
 
   ctx.save();
@@ -68,6 +49,7 @@ function drawWord(
   const offset = -((lines.length - 1) * lh) / 2;
   lines.forEach((line, i) => {
     const y = offset + i * lh;
+
     // Ombre portée douce, séparée du contour pour un rendu net.
     ctx.save();
     ctx.shadowColor = "rgba(0,0,0,0.55)";
