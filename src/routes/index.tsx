@@ -101,7 +101,7 @@ function Studio() {
   const [sceneCount, setSceneCount] = useState(5);
   const [style, setStyle] = useState<NarrationStyle>("revelation");
   const [visual, setVisual] = useState<VisualStyle>("papercraft");
-  const [orientation, setOrientation] = useState<"vertical" | "horizontal">("vertical");
+  const [orientation, setOrientation] = useState<"vertical" | "square" | "horizontal">("square");
   const [script, setScript] = useState<Script | null>(null);
   const [loadingScript, setLoadingScript] = useState(false);
   const [states, setStates] = useState<Record<number, SceneState>>({});
@@ -131,8 +131,9 @@ function Studio() {
     patch(scene.index, { imageLoading: true });
     try {
       const { dataUrl } = (await runImage({
-        data: { imagePrompt: scene.imagePrompt, visual },
+        data: { imagePrompt: scene.imagePrompt, visual, square: orientation === "square" },
       })) as { dataUrl: string };
+
       patch(scene.index, { image: dataUrl, imageLoading: false });
     } catch (e) {
       patch(scene.index, { imageLoading: false });
@@ -286,7 +287,7 @@ function Studio() {
               />
             </div>
             <div className="flex gap-2">
-              {(["vertical", "horizontal"] as const).map((o) => (
+              {(["vertical", "square", "horizontal"] as const).map((o) => (
                 <button
                   key={o}
                   onClick={() => setOrientation(o)}
@@ -296,10 +297,11 @@ function Studio() {
                       : "border-border bg-secondary/40 text-muted-foreground"
                   }`}
                 >
-                  {o === "vertical" ? "9:16" : "16:9"}
+                  {o === "vertical" ? "9:16" : o === "square" ? "1:1 dans 9:16" : "16:9"}
                 </button>
               ))}
             </div>
+
             <button
               onClick={onScript}
               disabled={loadingScript}
@@ -354,28 +356,33 @@ function Studio() {
               return (
                 <article key={scene.index} className="surface-card overflow-hidden">
                   <div
-                    className={`relative w-full bg-black/50 ${
-                      orientation === "vertical" ? "aspect-[9/16]" : "aspect-video"
+                    className={`relative w-full bg-black ${
+                      orientation === "horizontal" ? "aspect-video" : "aspect-[9/16]"
                     }`}
                   >
                     {st.videoUrl ? (
                       <video
+                        key={st.videoUrl}
                         src={st.videoUrl}
                         controls
+                        loop
                         playsInline
-                        className="h-full w-full object-cover"
+                        preload="metadata"
+                        {...(st.image ? { poster: st.image } : {})}
+                        className="h-full w-full object-contain"
                       />
                     ) : st.image ? (
                       <img
                         src={st.image}
                         alt={`Plan ${scene.index + 1} : ${scene.overlay}`}
-                        className="h-full w-full object-cover"
+                        className="h-full w-full object-contain"
                       />
                     ) : (
                       <div className="flex h-full w-full items-center justify-center text-muted-foreground">
                         <Clapperboard className="h-10 w-10 opacity-40" />
                       </div>
                     )}
+
 
                     <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-5">
                       <p className="caption-overlay text-2xl leading-tight text-white">

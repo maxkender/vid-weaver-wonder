@@ -14,13 +14,16 @@ export const Route = createFileRoute("/api/video-content/$id")({
         if (!res.ok || !res.body) {
           return new Response("Vidéo indisponible", { status: res.status || 502 });
         }
-        return new Response(res.body, {
-          headers: {
-            "content-type": "video/mp4",
-            "cache-control": "private, max-age=600",
-          },
+        const headers = new Headers({
+          "content-type": "video/mp4",
+          "cache-control": "private, max-age=600",
+          "accept-ranges": "bytes",
         });
+        const len = res.headers.get("content-length");
+        if (len) headers.set("content-length", len);
+        return new Response(res.body, { headers });
       },
+
     },
   },
 });

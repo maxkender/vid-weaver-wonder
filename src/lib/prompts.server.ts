@@ -99,14 +99,30 @@ const QUALITY: Record<VisualStyle, string> = {
   retro: "detailed, analog film look",
 };
 
-export function coverPrompt(imagePrompt: string, visual: VisualStyle = "papercraft") {
-  return `Vertical 9:16 key frame. ${VISUAL_BRIEF[visual]}. ${QUALITY[visual]}. Absolutely no text, no letters, no watermark, no logo. Scene: ${imagePrompt}`;
+const SQUARE_FRAME =
+  "Framing: the whole scene is composed inside a perfect centered square (1:1) that touches the left and right edges; above and below that square the frame is pure solid black, completely empty, like a square clip letterboxed in a vertical canvas. Nothing of the scene spills into the black bands.";
+
+export function coverPrompt(
+  imagePrompt: string,
+  visual: VisualStyle = "papercraft",
+  square = false,
+) {
+  return `Vertical 9:16 key frame. ${VISUAL_BRIEF[visual]}. ${QUALITY[visual]}. ${
+    square ? SQUARE_FRAME + " " : ""
+  }Absolutely no text, no letters, no watermark, no logo. Scene: ${imagePrompt}`;
 }
 
-export function motionPrompt(videoPrompt: string, visual: VisualStyle = "papercraft") {
+export function motionPrompt(
+  videoPrompt: string,
+  visual: VisualStyle = "papercraft",
+  square = false,
+) {
   return `${videoPrompt}. Vertical short-form video. ${VISUAL_BRIEF[visual]}. ${QUALITY[visual]}. ${
+    square ? SQUARE_FRAME + " The black bands stay perfectly static. " : ""
+  }${
     visual === "papercraft"
       ? "Stop-motion paper animation: the paper cut-outs move in small discrete steps, slight handmade jitter, layers sliding over each other, static or very slow push-in camera."
       : "Subtle smooth camera movement."
   } Consistent art direction, no on-screen text, no subtitles, no watermark.`;
 }
+
