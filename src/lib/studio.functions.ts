@@ -153,11 +153,17 @@ export const generateSceneVoice = createServerFn({ method: "POST" })
     z
       .object({
         text: z.string().min(2).max(4000),
-        voice: z.string().min(2).max(30).default("ballad"),
+        voice: z.string().min(2).max(60).default("ballad"),
+        engine: z.enum(["lovable", "elevenlabs"]).default("lovable"),
       })
       .parse(input),
   )
   .handler(async ({ data }) => {
+    if (data.engine === "elevenlabs") {
+      const { generateElevenSpeechDataUrl } = await import("./elevenlabs.server");
+      const audioDataUrl = await generateElevenSpeechDataUrl(data.text, data.voice);
+      return { audioDataUrl };
+    }
     const audioDataUrl = await generateSpeechDataUrl(data.text, data.voice);
     return { audioDataUrl };
   });
