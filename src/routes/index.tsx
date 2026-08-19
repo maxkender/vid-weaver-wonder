@@ -61,12 +61,12 @@ type Script = {
 };
 
 type SceneState = {
-  image?: string;
-  imageLoading?: boolean;
-  videoId?: string;
-  videoUrl?: string;
-  videoLoading?: boolean;
-  progress?: number;
+  image?: string | undefined;
+  imageLoading?: boolean | undefined;
+  videoId?: string | undefined;
+  videoUrl?: string | undefined;
+  videoLoading?: boolean | undefined;
+  progress?: number | undefined;
 };
 
 const KINDS: { id: Kind; label: string; hint: string }[] = [
