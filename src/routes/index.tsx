@@ -641,7 +641,9 @@ function Studio() {
     try {
       const { assembleVideo } = await import("@/lib/assemble-video");
       const { makeOverlayPng } = await import("@/lib/overlay-png");
-      const { makeKaraokeSequence } = await import("@/lib/karaoke-overlay");
+      const { makeKaraokeSequence, makeRoundedSquareMask } = await import(
+        "@/lib/karaoke-overlay"
+      );
       const dims =
         orientation === "horizontal"
           ? { width: 1280, height: 720 }
@@ -653,10 +655,14 @@ function Studio() {
             dims.width,
             dims.height,
             duration,
-            8,
+            15,
             st.words ?? null,
           )
         : null;
+      const mask =
+        visual === "papercraft" && orientation !== "horizontal"
+          ? await makeRoundedSquareMask(dims.width, dims.height)
+          : null;
 
       const blob = await assembleVideo(
         [
@@ -664,12 +670,14 @@ function Studio() {
             videoUrl: st.videoUrl,
             audio: st.audio,
             karaokeSeq,
+            mask,
             overlay: karaokeSeq
               ? null
               : await makeOverlayPng(scene.overlay, dims.width, dims.height),
             duration,
           },
         ],
+
 
         dims,
       );
