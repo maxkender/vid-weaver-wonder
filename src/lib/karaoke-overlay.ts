@@ -260,8 +260,8 @@ export async function makeKaraokeSequence(
 
   // Cache : une image par (mot, palier de logo) → rendu léger en mémoire.
   const cache = new Map<string, Blob>();
-  const get = async (word: string | null, logoStep = -1) => {
-    const key = `${word ?? ""}#${logoStep}`;
+  const get = async (word: string | null, logoStep = -1, fadeStep = FADE_STEPS - 1) => {
+    const key = `${word ?? ""}#${logoStep}#${fadeStep}`;
     let b = cache.get(key);
     if (!b) {
       const lg =
@@ -271,7 +271,8 @@ export async function makeKaraokeSequence(
               progress: logoStep / (LOGO_STEPS - 1),
             }
           : null;
-      b = (await renderPng(width, height, word, 1, lg)) ?? blank;
+      const alpha = (fadeStep + 1) / FADE_STEPS;
+      b = (await renderPng(width, height, word, 1, lg, alpha)) ?? blank;
       cache.set(key, b);
     }
     return b;
@@ -288,7 +289,13 @@ export async function makeKaraokeSequence(
       frames.push(logoStep >= 0 ? await get(null, logoStep) : blank);
       continue;
     }
-    frames.push(await get(timings[idx]!.word, logoStep));
+    const cur = timings[idx]!;
+    // Fondu court à l'apparition du mot → transition douce, sans à-coups.
+    const fadeStep = Math.min(
+      FADE_STEPS - 1,
+      Math.max(0, Math.round(((t - cur.start) / CAPTION_FADE) * (FADE_STEPS - 1))),
+    );
+    frames.push(await get(cur.word, logoStep, fadeStep));
   }
   return { fps, frames };
 }
