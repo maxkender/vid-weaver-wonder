@@ -316,8 +316,10 @@ function Studio() {
     } catch (e) {
       patch(scene.index, { videoLoading: false });
       toast.error(e instanceof Error ? e.message : "Échec de la vidéo");
+      return undefined;
     }
   };
+
 
   const [generatingAll, setGeneratingAll] = useState(false);
 
