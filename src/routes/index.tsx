@@ -88,7 +88,10 @@ type SceneState = {
   progress?: number | undefined;
   audio?: string | undefined;
   audioLoading?: boolean | undefined;
+  /** Alignement exact mot par mot renvoyé par la voix off (ElevenLabs). */
+  words?: { word: string; start: number; end: number }[] | undefined;
 };
+
 
 
 
