@@ -16,6 +16,7 @@ import {
   SOPHIA_OUTRO,
   type Script,
 } from "./prompts.server";
+import { estimateSpeechSeconds } from "./duration";
 
 const visualEnum = z.enum(["papercraft", "cinematique", "documentaire", "retro"]);
 
