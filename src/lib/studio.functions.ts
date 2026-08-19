@@ -18,6 +18,8 @@ import {
   type Script,
 } from "./prompts.server";
 import { estimateSpeechSeconds } from "./duration";
+import { TOPIC_CATEGORIES, TOPIC_CATEGORY_IDS } from "./topic-categories";
+
 
 const visualEnum = z.enum(["papercraft", "cinematique", "documentaire", "retro"]);
 
