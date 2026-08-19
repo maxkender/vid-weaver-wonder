@@ -125,3 +125,29 @@ export async function generateElevenSpeechWithTimings(
     return { audioDataUrl, words: [] };
   }
 }
+
+/** Toutes les voix disponibles sur le compte ElevenLabs connecté. */
+export async function listElevenVoices(): Promise<{ id: string; label: string }[]> {
+  const apiKey = apiKeyOrThrow();
+  const res = await fetch("https://api.elevenlabs.io/v2/voices?page_size=100", {
+    headers: { "xi-api-key": apiKey },
+  });
+  if (!res.ok) throw new Error(`ElevenLabs voices ${res.status}: ${await res.text()}`);
+  const json = (await res.json()) as {
+    voices?: {
+      voice_id: string;
+      name: string;
+      labels?: Record<string, string>;
+      category?: string;
+    }[];
+  };
+  return (json.voices ?? []).map((v) => {
+    const bits = [v.labels?.["language"], v.labels?.["accent"], v.labels?.["description"], v.labels?.["use_case"]]
+      .filter(Boolean)
+      .join(", ");
+    return {
+      id: v.voice_id,
+      label: bits ? `${v.name} — ${bits}` : v.name,
+    };
+  });
+}

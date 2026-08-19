@@ -167,3 +167,13 @@ export const generateSceneVoice = createServerFn({ method: "POST" })
     return { audioDataUrl, words: [] as { word: string; start: number; end: number }[] };
   });
 
+
+/** Liste les voix du compte ElevenLabs connecté (pas seulement une sélection). */
+export const listVoices = createServerFn({ method: "GET" }).handler(async () => {
+  try {
+    const { listElevenVoices } = await import("./elevenlabs.server");
+    return { voices: await listElevenVoices() };
+  } catch {
+    return { voices: [] as { id: string; label: string }[] };
+  }
+});
