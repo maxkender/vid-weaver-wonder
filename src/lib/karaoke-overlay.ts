@@ -127,7 +127,6 @@ async function renderPng(
   scale = 1,
   logo?: { img: CanvasImageSource; progress: number } | null,
   alpha = 1,
-  activeIndex = -1,
 ): Promise<Blob | null> {
   const canvas = document.createElement("canvas");
   canvas.width = width;
@@ -137,7 +136,7 @@ async function renderPng(
   if (logo) drawLogo(ctx, logo.img, width, height, logo.progress);
   if (word) {
     await ensureFont(Math.round(width * CAPTION_SIZE_RATIO));
-    drawWord(ctx, word, width, height, scale, alpha, activeIndex);
+    drawWord(ctx, word, width, height, scale, alpha);
   }
 
   return await new Promise<Blob | null>((r) => canvas.toBlob((b) => r(b), "image/png"));
@@ -373,15 +372,14 @@ export async function makeKaraokeSequence(
   const blank = await renderPng(width, height, null);
   if (!blank) return null;
 
-  // Cache : une image par (phrase, mot actif, palier de logo, fondu).
+  // Cache : une image par (phrase, palier de logo, fondu).
   const cache = new Map<string, Blob>();
   const get = async (
     word: string | null,
     logoStep = -1,
     fadeStep = FADE_STEPS - 1,
-    activeIndex = -1,
   ) => {
-    const key = `${word ?? ""}#${activeIndex}#${logoStep}#${fadeStep}`;
+    const key = `${word ?? ""}#${logoStep}#${fadeStep}`;
     let b = cache.get(key);
     if (!b) {
       const lg =
@@ -392,7 +390,7 @@ export async function makeKaraokeSequence(
             }
           : null;
       const alpha = (fadeStep + 1) / FADE_STEPS;
-      b = (await renderPng(width, height, word, 1, lg, alpha, activeIndex)) ?? blank;
+      b = (await renderPng(width, height, word, 1, lg, alpha)) ?? blank;
       cache.set(key, b);
     }
     return b;
@@ -415,9 +413,7 @@ export async function makeKaraokeSequence(
       FADE_STEPS - 1,
       Math.max(0, Math.round(((t - cur.start) / CAPTION_FADE) * (FADE_STEPS - 1))),
     );
-    // Karaoké : le mot en cours de prononciation s'allume.
-    const active = cur.words.findIndex((w3) => t >= w3.start && t < w3.end);
-    frames.push(await get(cur.word, logoStep, fadeStep, active));
+    frames.push(await get(cur.word, logoStep, fadeStep));
   }
 
   return { fps, frames };
