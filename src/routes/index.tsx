@@ -619,6 +619,13 @@ function Studio() {
 
             </div>
 
+            <MusicLibrary
+              styles={STYLES.map((s) => ({ id: s.id, label: s.label }))}
+              activeStyle={style}
+            />
+
+
+
             <button
               onClick={onScript}
               disabled={loadingScript}
