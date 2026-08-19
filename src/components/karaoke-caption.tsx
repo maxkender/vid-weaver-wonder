@@ -53,7 +53,8 @@ export function KaraokeCaption({ text, fallback, getMedia, words, showLogo = tru
         const cur = timings.find((w) => t >= w.start && t < w.end) ?? null;
         if (!cur) setState(null);
         else {
-          const pop = Math.min(1, Math.max(0, (t - cur.start) / 0.13));
+          // Fondu doux à l'apparition (pas de zoom).
+          const pop = Math.min(1, Math.max(0, (t - cur.start) / CAPTION_FADE));
           setState({ word: cur.word, pop });
         }
       }
