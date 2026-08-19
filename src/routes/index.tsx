@@ -205,7 +205,13 @@ function Studio() {
   const runSuggest = useServerFn(suggestTopic);
   const kind: Kind = "faits";
 
-  const [sceneCount, setSceneCount] = useState(5);
+  // On choisit la DURÉE de la vidéo ; le nombre de plans en découle.
+  const [targetSeconds, setTargetSeconds] = useState(35);
+  const sceneCount = useMemo(
+    () => Math.min(8, Math.max(3, Math.round((targetSeconds - 7) / 6))),
+    [targetSeconds],
+  );
+
   const [style, setStyle] = useState<NarrationStyle>("revelation");
   const [visual, setVisual] = useState<VisualStyle>("papercraft");
   const [engine, setEngine] = useState<VoiceEngine>("elevenlabs");
