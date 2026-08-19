@@ -214,7 +214,7 @@ function popScale(progress: number) {
 const LOGO_STEPS = 6;
 /** Durée du fondu d'apparition d'un mot (secondes). */
 export const CAPTION_FADE = 0.1;
-const FADE_STEPS = 4;
+const FADE_STEPS = 6;
 
 /** Durée minimale d'affichage d'un groupe de mots (secondes). */
 export const MIN_CAPTION_HOLD = 0.24;
