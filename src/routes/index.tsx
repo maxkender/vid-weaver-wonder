@@ -478,12 +478,14 @@ function Studio() {
                       </div>
                     )}
 
+                    <KaraokeCaption
+                      text={scene.narration}
+                      fallback={scene.overlay}
+                      getMedia={() =>
+                        audioRefs.current[scene.index] ?? videoRefs.current[scene.index] ?? null
+                      }
+                    />
 
-                    <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-5">
-                      <p className="caption-overlay text-2xl leading-tight text-white">
-                        {scene.overlay}
-                      </p>
-                    </div>
 
                     {(st.imageLoading || st.videoLoading) && (
                       <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/60">
