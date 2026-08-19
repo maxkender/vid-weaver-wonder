@@ -22,9 +22,18 @@ export type Script = {
   hashtags: string[];
 };
 
-/** Outro imposée, identique sur toutes les vidéos. */
+/** Outro par défaut (fallback si l'IA n'en génère pas). */
 export const SOPHIA_OUTRO =
-  "Ce fait est tiré de l'application Sophia, qui améliore ta culture générale gratuitement avec des cours simples et intéressants. Check l'appli si tu veux un parcours personnalisé et pas te perdre dans un océan de culture.";
+  "Ce fait vient de l'application Sophia : des cours simples et gratuits pour booster ta culture générale. Télécharge Sophia, c'est gratuit.";
+
+/** Consignes de CTA : outro adaptée au sujet, orientée téléchargement de l'app. */
+export const CTA_BRIEF = [
+  "RÈGLE CTA : la dernière scène est TOUJOURS un appel à l'action pour l'application Sophia, mais il doit être RÉÉCRIT et ADAPTÉ au sujet de la vidéo (jamais copié-collé d'une vidéo à l'autre).",
+  "Le CTA fait 18 à 30 mots, ton oral et naturel, et suit cette logique : rebond sur le fait qu'on vient de raconter → Sophia (app gratuite de culture générale, cours simples) → invitation claire à TÉLÉCHARGER l'appli maintenant.",
+  "Exemple de forme (à ne pas recopier) : « Des histoires comme ça, Sophia t'en apprend une par jour, gratuitement, en cours de deux minutes. Télécharge l'appli, c'est cadeau. »",
+  "Le CTA doit donner envie de télécharger : bénéfice concret, zéro ton publicitaire agressif, zéro emoji.",
+].join("\n");
+
 
 const KIND_BRIEF: Record<VideoKind, string> = {
   faits:
