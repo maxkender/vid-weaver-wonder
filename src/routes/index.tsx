@@ -97,7 +97,12 @@ function Studio() {
   const runPoll = useServerFn(pollSceneVideo);
 
   const [topic, setTopic] = useState("");
+  const [angle, setAngle] = useState("");
+  const [suggesting, setSuggesting] = useState(false);
+  const pastTopics = useRef<string[]>([]);
+  const runSuggest = useServerFn(suggestTopic);
   const kind: Kind = "faits";
+
   const [sceneCount, setSceneCount] = useState(5);
   const [style, setStyle] = useState<NarrationStyle>("revelation");
   const [visual, setVisual] = useState<VisualStyle>("papercraft");
