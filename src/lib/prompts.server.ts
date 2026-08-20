@@ -126,6 +126,8 @@ export function scriptSystemPrompt(
     "imagePrompt décrit UNE composition simple et lisible : 1 à 3 éléments maximum, une silhouette claire au premier plan, un décor minimal.",
     "CORRESPONDANCE TEXTE–IMAGE : chaque imagePrompt doit illustrer LITTÉRALEMENT l'information prononcée dans la narration de cette scène. Reprends les personnes, objets, lieu et action réellement cités ; n'ajoute aucun symbole abstrait ou décor sans rapport.",
     "PROGRESSION VISUELLE : traite les scènes comme un storyboard continu. Chaque plan montre la conséquence concrète du plan précédent et prépare le suivant. Change le cadrage, pas arbitrairement le lieu, l'époque, les costumes ou les personnages.",
+    "PLAN DU RETOURNEMENT : la scène du retournement change visiblement de registre — cadrage plus serré (gros plan sur l'objet ou le visage qui révèle la vérité), lumière plus contrastée, décor plus dépouillé — tout en gardant les mêmes personnages, costumes et palette. La scène d'explication revient à un plan plus large et calme qui montre clairement la cause décrite dans la narration.",
+
     "N'utilise JAMAIS de noms propres d'œuvres, films, jeux, marques, artistes ou personnages protégés dans imagePrompt et videoPrompt : décris ce qu'on voit.",
     "videoPrompt anime uniquement les éléments visibles dans imagePrompt et décrit une action simple qui rend la narration immédiatement compréhensible, avec un mouvement de caméra discret, en 8 secondes maximum. Aucun nouvel objet, personnage ou événement.",
     CTA_BRIEF,
