@@ -17,6 +17,7 @@ import {
   History,
   Settings,
   Pencil,
+  Star,
   Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -227,6 +228,7 @@ function Studio() {
   const [engine, setEngine] = useState<VoiceEngine>("elevenlabs");
   const [voice, setVoice] = useState(defaultVoice("elevenlabs"));
   const [accountVoices, setAccountVoices] = useState<{ id: string; label: string }[]>([]);
+  const [favoriteVoices, setFavoriteVoices] = useState<string[]>([]);
 
   const runListVoices = useServerFn(listVoices);
   useEffect(() => {
@@ -234,6 +236,15 @@ function Studio() {
       .then((r) => setAccountVoices((r as { voices: { id: string; label: string }[] }).voices))
       .catch(() => setAccountVoices([]));
   }, [runListVoices]);
+
+  useEffect(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem("studio-favorite-voices") ?? "[]") as unknown;
+      if (Array.isArray(saved)) setFavoriteVoices(saved.filter((id): id is string => typeof id === "string"));
+    } catch {
+      setFavoriteVoices([]);
+    }
+  }, []);
 
   const [settings, setSettings] = useState<StudioSettings>(defaultSettings());
   useEffect(() => setSettings(loadSettings()), []);
@@ -264,6 +275,14 @@ function Studio() {
       .join(" | ");
     return [chars, script.palette ?? ""].filter(Boolean).join(" || ");
   }, [script]);
+
+  const bibleFor = (doc: Script | null) => {
+    if (!doc) return "";
+    const chars = (doc.characters ?? [])
+      .map((c) => `${c.name}: ${c.description}`)
+      .join(" | ");
+    return [chars, doc.palette ?? ""].filter(Boolean).join(" || ");
+  };
 
   const visualOpts = useMemo(
     () => ({
@@ -405,16 +424,16 @@ function Studio() {
   };
 
   /** Résumé narratif : ce qui vient d'être raconté et ce qui suit. */
-  const storyContext = (scene: Scene) => {
-    if (!script) return undefined;
-    const all = script.scenes;
+  const storyContext = (scene: Scene, doc: Script | null = script) => {
+    if (!doc) return undefined;
+    const all = doc.scenes;
     const before = all
       .filter((s) => s.index < scene.index)
       .slice(-3)
       .map((s) => `shot ${s.index + 1}: ${s.imagePrompt}`);
     const next = all.find((s) => s.index === scene.index + 1);
     const parts = [
-      `full story: ${script.title ?? topic}`,
+      `full story: ${doc.title ?? topic}`,
       before.length ? `previous shots — ${before.join(" | ")}` : "this is the opening shot",
       `current shot ${scene.index + 1} of ${all.length}`,
       next ? `next shot will be: ${next.imagePrompt}` : "this is the final shot",
@@ -422,20 +441,21 @@ function Studio() {
     return parts.join(". ").slice(0, 3500);
   };
 
-  const onImage = async (scene: Scene) => {
+  const onImage = async (scene: Scene, doc: Script | null = script) => {
     patch(scene.index, { imageLoading: true });
     try {
       const consistent = settings.useReferenceImage && scene.index > 0;
       const ref = consistent ? referenceImage.current : null;
       // Continuité : on montre aussi le plan précédent au modèle.
       const prev = consistent ? (previousImage.current ?? null) : null;
-      const story = storyContext(scene);
+      const story = storyContext(scene, doc);
+      const sceneVisualOpts = { ...visualOpts, bible: bibleFor(doc) };
       const { dataUrl } = (await runImage({
         data: {
           imagePrompt: scene.imagePrompt,
           visual,
           square: orientation === "square",
-          ...visualOpts,
+          ...sceneVisualOpts,
           ...(story ? { story } : {}),
           ...(ref ? { referenceImage: ref } : {}),
           ...(prev && prev !== ref ? { previousImage: prev } : {}),
@@ -454,22 +474,42 @@ function Studio() {
   };
 
 
-  const onVideo = async (scene: Scene, imageOverride?: string) => {
+  const onVideo = async (
+    scene: Scene,
+    imageOverride?: string,
+    doc: Script | null = script,
+    voiceSeconds?: number,
+  ) => {
     // Économie de crédits : on ne relance pas un plan déjà généré.
     const done = states[scene.index]?.videoUrl;
     if (done && !imageOverride) return done;
     patch(scene.index, { videoLoading: true, progress: 0, videoUrl: undefined });
     try {
       const image = imageOverride ?? states[scene.index]?.image;
-      const story = storyContext(scene);
+      const story = storyContext(scene, doc);
+      const literalVideoPrompt = [
+        `Illustrate exactly this spoken narration: ${scene.narration}`,
+        `The reference image depicts: ${scene.imagePrompt}`,
+        "Keep every character, object, costume and location from the reference image unchanged",
+        scene.videoPrompt,
+      ].join(". ").slice(0, 1950);
+      const seconds = voiceSeconds
+        ? voiceSeconds <= 4
+          ? "4"
+          : voiceSeconds <= 6
+            ? "6"
+            : "8"
+        : undefined;
       const { id } = (await runVideo({
         data: {
-          videoPrompt: scene.videoPrompt,
+          videoPrompt: literalVideoPrompt,
           ...(image ? { imageDataUrl: image } : {}),
           narration: scene.narration,
+          ...(seconds ? { seconds } : {}),
           orientation,
           visual,
           ...visualOpts,
+          bible: bibleFor(doc),
           ...(story ? { story } : {}),
           motion: settings.visual[visual].motion,
           hd: settings.hd,
@@ -635,7 +675,7 @@ function Studio() {
                   dims.width,
                   dims.height,
                   duration,
-                  20,
+                  24,
                   st.words ?? null,
                   settings.sophiaLogo
                     ? (() => {
@@ -711,11 +751,18 @@ function Studio() {
     setAssembling(true);
     try {
       setAssembleStep("Génération des scènes manquantes…");
+      // Images obligatoirement en chaîne : le plan précédent est la référence
+      // visuelle du suivant. Les clips peuvent ensuite être générés en parallèle.
+      const prepared: { scene: Scene; st: SceneState; image?: string }[] = [];
+      for (const scene of doc.scenes) {
+        const st = states[scene.index] ?? {};
+        const image = st.image ?? (await onImage(scene, doc));
+        if (scene.index === 0 && image) referenceImage.current = image;
+        if (image) previousImage.current = image;
+        prepared.push({ scene, st, ...(image ? { image } : {}) });
+      }
       const results = await Promise.all(
-        doc.scenes.map(async (scene) => {
-          const st = states[scene.index] ?? {};
-          const image = st.image ?? (await onImage(scene));
-          const videoUrl = st.videoUrl ?? (await onVideo(scene, image));
+        prepared.map(async ({ scene, st, image }) => {
           let audio = st.audio;
           let words = st.words;
           if (!audio) {
@@ -730,6 +777,8 @@ function Studio() {
               patch(scene.index, { audio, words });
             }
           }
+          const voiceSeconds = audio ? await audioDuration(audio) : undefined;
+          const videoUrl = st.videoUrl ?? (await onVideo(scene, image, doc, voiceSeconds));
           return [scene.index, { ...st, image, videoUrl, audio, words }] as const;
         }),
       );
@@ -767,6 +816,23 @@ function Studio() {
 
   const [exporting, setExporting] = useState<number | null>(null);
 
+  const availableVoices = useMemo(() => {
+    const all = engine === "elevenlabs" && accountVoices.length ? accountVoices : voicesFor(engine);
+    return [...all].sort((a, b) => {
+      const favoriteDelta = Number(favoriteVoices.includes(b.id)) - Number(favoriteVoices.includes(a.id));
+      return favoriteDelta || a.label.localeCompare(b.label, "fr");
+    });
+  }, [accountVoices, engine, favoriteVoices]);
+
+  const toggleFavoriteVoice = () => {
+    const next = favoriteVoices.includes(voice)
+      ? favoriteVoices.filter((id) => id !== voice)
+      : [voice, ...favoriteVoices];
+    setFavoriteVoices(next);
+    localStorage.setItem("studio-favorite-voices", JSON.stringify(next));
+    toast.success(next.includes(voice) ? "Narrateur ajouté aux favoris" : "Narrateur retiré des favoris");
+  };
+
   /** Exporte une scène en MP4 avec la voix off et le texte incrusté. */
   const onExportScene = async (scene: Scene) => {
     const st = states[scene.index];
@@ -793,7 +859,7 @@ function Studio() {
             dims.width,
             dims.height,
             duration,
-            20,
+            24,
             st.words ?? null,
             logoWin ? { url: sophiaLogo.url, ...logoWin } : null,
           )
@@ -1035,7 +1101,7 @@ function Studio() {
             </div>
 
             <div>
-              <label className="text-xs uppercase tracking-widest text-muted-foreground">
+              <label htmlFor="narrator-voice" className="text-xs uppercase tracking-widest text-muted-foreground">
                 Voix off
               </label>
               <div className="mt-2 flex gap-2">
@@ -1056,20 +1122,33 @@ function Studio() {
                   </button>
                 ))}
               </div>
-              <select
-                value={voice}
-                onChange={(e) => setVoice(e.target.value)}
-                className="mt-2 w-full rounded-lg border border-input bg-background/60 p-2 text-sm outline-none focus:ring-2 focus:ring-ring"
-              >
-                {(engine === "elevenlabs" && accountVoices.length
-                  ? accountVoices
-                  : voicesFor(engine)
-                ).map((v) => (
-                  <option key={v.id} value={v.id}>
-                    {v.label}
-                  </option>
-                ))}
-              </select>
+              <div className="mt-2 flex gap-2">
+                <select
+                  id="narrator-voice"
+                  value={voice}
+                  onChange={(e) => setVoice(e.target.value)}
+                  className="min-w-0 flex-1 rounded-lg border border-input bg-background/60 p-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+                >
+                  {availableVoices.map((v) => (
+                    <option key={v.id} value={v.id}>
+                      {favoriteVoices.includes(v.id) ? `★ ${v.label}` : v.label}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  onClick={toggleFavoriteVoice}
+                  aria-label={favoriteVoices.includes(voice) ? "Retirer ce narrateur des favoris" : "Ajouter ce narrateur aux favoris"}
+                  title={favoriteVoices.includes(voice) ? "Retirer des favoris" : "Ajouter aux favoris"}
+                  className={`grid size-10 shrink-0 place-items-center rounded-lg border transition-colors ${
+                    favoriteVoices.includes(voice)
+                      ? "border-primary bg-primary/15 text-primary"
+                      : "border-border text-muted-foreground hover:border-primary hover:text-primary"
+                  }`}
+                >
+                  <Star className={`h-4 w-4 ${favoriteVoices.includes(voice) ? "fill-current" : ""}`} />
+                </button>
+              </div>
               <button
                 onClick={onPreviewVoice}
                 disabled={previewVoice}

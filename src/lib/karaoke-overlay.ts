@@ -252,16 +252,22 @@ const LEAD_IN = 0.05;
 export function smoothTimings(
   timings: { word: string; start: number; end: number }[],
   duration: number,
+  preserveExact = false,
 ) {
   const sorted = [...timings]
     .filter((t) => t.word && t.start >= 0 && t.start < duration + 0.5)
     .sort((a, b) => a.start - b.start);
   if (!sorted.length) return [];
 
-  // 1. Recalage proportionnel sur la durée réelle de l'audio.
+  // 1. Les timestamps ElevenLabs sont déjà calés sur l'audio : ne jamais les
+  // étirer pour remplir le silence final. Le recalage reste réservé au fallback estimé.
   const last = sorted[sorted.length - 1]!;
   const span = Math.max(last.end, last.start + 0.1);
-  const factor = span > 0.5 && duration > 0.5 ? Math.min(1.35, Math.max(0.75, duration / span)) : 1;
+  const factor = preserveExact
+    ? 1
+    : span > 0.5 && duration > 0.5
+      ? Math.min(1.35, Math.max(0.75, duration / span))
+      : 1;
   const scaled = sorted.map((t, i) => {
     const next = sorted[i + 1];
     const start = t.start * factor;
@@ -359,6 +365,7 @@ export async function makeKaraokeSequence(
       ? exactTimings.filter((t) => t.end > t.start)
       : wordTimings(text, duration),
     duration,
+    Boolean(exactTimings?.length),
   );
   if (!timings.length) return null;
 
