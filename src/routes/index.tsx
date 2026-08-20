@@ -321,6 +321,44 @@ function Studio() {
     });
   }, []);
 
+  /**
+   * Reprise après fermeture d'onglet ou plantage : un clip déjà commandé (donc
+   * déjà facturé) est récupéré au lieu d'être régénéré.
+   */
+  const resumed = useRef(false);
+  useEffect(() => {
+    if (resumed.current) return;
+    const pending = Object.entries(states).filter(
+      ([, st]) => st?.videoId && !st?.videoUrl,
+    );
+    if (!pending.length) return;
+    resumed.current = true;
+    void (async () => {
+      for (const [key, st] of pending) {
+        const index = Number(key);
+        const id = st!.videoId!;
+        for (let attempt = 0; attempt < 60; attempt++) {
+          const job = (await runPoll({ data: { id } }).catch(() => null)) as
+            | { status: string; progress: number; error: string | null }
+            | null;
+          if (!job) break;
+          if (job.status === "completed") {
+            patch(index, {
+              videoUrl: `/api/video-content/${id}`,
+              videoLoading: false,
+              progress: 100,
+            });
+            toast.success(`Scène ${index + 1} récupérée`);
+            break;
+          }
+          if (job.status === "failed") break;
+          patch(index, { videoLoading: true, progress: job.progress });
+          await new Promise((r) => setTimeout(r, 6000));
+        }
+      }
+    })();
+  }, [states, patch]);
+
   const saveHistory = useCallback((id: string, next: Script) => {
     const items = readHistory().filter((h) => h.id !== id);
     const updated = [
@@ -564,7 +602,12 @@ function Studio() {
         const image = existing ?? (await onImage(scene));
         if (scene.index === 0 && image) referenceImage.current = image;
         if (image) previousImage.current = image;
-        if (!states[scene.index]?.videoUrl) videoJobs.push(onVideo(scene, image));
+        if (states[scene.index]?.videoUrl) continue;
+        // La voix (peu coûteuse) est produite AVANT le clip : on commande alors
+        // la durée exacte (4/6/8 s) au lieu de payer 8 s systématiquement.
+        const audio = states[scene.index]?.audio ?? (await onVoice(scene));
+        const voiceSeconds = audio ? await audioDuration(audio) : undefined;
+        videoJobs.push(onVideo(scene, image, script, voiceSeconds));
       }
       await Promise.all(videoJobs);
       toast.success("Toutes les scènes sont prêtes");
