@@ -43,18 +43,18 @@ export const generateScript = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data }) => {
-    // Le CTA final ajoute une scène : on réserve ~7 s pour lui.
-    const narrationSeconds = Math.max(8, data.targetSeconds - 7);
-    // ~2,15 mots/seconde : la voix off ElevenLabs lit vite et les silences de
-    // tête/queue sont coupés, donc on écrit un peu plus long que l'estimation
-    // théorique pour atteindre réellement la durée demandée.
-    const totalWords = Math.round(narrationSeconds * 2.15);
+    // Le CTA final ajoute une scène : on réserve ~6 s pour lui.
+    const narrationSeconds = Math.max(8, data.targetSeconds - 6);
+    // ~2,6 mots/seconde : mesuré sur les exports réels (ElevenLabs lit vite et
+    // les silences de tête/queue sont coupés). En dessous, la vidéo finale est
+    // systématiquement trop courte de 10 à 15 secondes.
+    const totalWords = Math.round(narrationSeconds * 2.6);
 
     // Un plan dure 8 s max (~19 mots) : on ajoute des scènes si la durée
     // demandée ne tient pas dans le nombre de plans choisi.
     const sceneCount = Math.min(
-      14,
-      Math.max(data.sceneCount, Math.ceil(totalWords / 19)),
+      16,
+      Math.max(data.sceneCount, Math.ceil(totalWords / 18)),
     );
     const wordsPerScene = Math.min(
       22,
@@ -78,6 +78,7 @@ export const generateScript = createServerFn({ method: "POST" })
       ...s,
       index: i,
     }));
+
     // UN SEUL plan CTA : si l'IA a déjà écrit une (ou plusieurs) scènes de pub
     // à la fin, on les retire avant d'ajouter le CTA officiel.
     const isCta = (t: string) =>
@@ -88,6 +89,48 @@ export const generateScript = createServerFn({ method: "POST" })
     ) {
       script.scenes.pop();
     }
+
+    // RALLONGE AUTOMATIQUE : si le script rendu est trop court, la vidéo finale
+    // sera trop courte. On demande à l'IA de compléter l'histoire.
+    const countWords = (t: string) => t.trim().split(/\s+/).filter(Boolean).length;
+    const words = () =>
+      script.scenes.reduce((n, s) => n + countWords(s.narration ?? ""), 0);
+    if (words() < totalWords * 0.92 && script.scenes.length < 16) {
+      const missing = totalWords - words();
+      const extra = Math.max(1, Math.min(6, Math.ceil(missing / wordsPerScene)));
+      try {
+        const more = await chatJSON<{ scenes: Script["scenes"] }>(
+          "google/gemini-3.7-flash",
+          [
+            scriptSystemPrompt(
+              data.kind,
+              extra,
+              data.style,
+              wordsPerScene,
+              data.styleBrief,
+            ),
+            `Tu complètes un script existant : tu écris UNIQUEMENT ${extra} scènes SUPPLÉMENTAIRES qui s'intercalent avant la révélation finale, dans la même histoire, mêmes personnages, même bible visuelle. Aucune scène de pub. Réponds en JSON {"scenes":[...]} uniquement.`,
+          ].join("\n"),
+          [
+            `Histoire existante (JSON) : ${JSON.stringify({
+              title: script.title,
+              characters: script.characters,
+              palette: script.palette,
+              scenes: script.scenes.map((s) => s.narration),
+            })}`,
+            `Ajoute ${extra} scènes de détails concrets (époque exacte, lieu, noms, chiffres marquants) qui rendent l'histoire plus claire et plus longue d'environ ${missing} mots.`,
+          ].join("\n"),
+        );
+        const add = (more.scenes ?? []).filter((s) => (s.narration ?? "").trim());
+        if (add.length) {
+          const tail = script.scenes.slice(-1);
+          script.scenes = [...script.scenes.slice(0, -1), ...add, ...tail];
+        }
+      } catch {
+        // Rallonge best-effort : on garde le script d'origine en cas d'échec.
+      }
+    }
+
     // « Sophia » ne doit être prononcé qu'une seule fois : jamais dans les
     // scènes, une seule fois dans le CTA final.
     script.scenes = script.scenes.map((s, i) => ({
