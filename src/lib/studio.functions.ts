@@ -89,6 +89,48 @@ export const generateScript = createServerFn({ method: "POST" })
     ) {
       script.scenes.pop();
     }
+
+    // RALLONGE AUTOMATIQUE : si le script rendu est trop court, la vidéo finale
+    // sera trop courte. On demande à l'IA de compléter l'histoire.
+    const countWords = (t: string) => t.trim().split(/\s+/).filter(Boolean).length;
+    const words = () =>
+      script.scenes.reduce((n, s) => n + countWords(s.narration ?? ""), 0);
+    if (words() < totalWords * 0.92 && script.scenes.length < 16) {
+      const missing = totalWords - words();
+      const extra = Math.max(1, Math.min(6, Math.ceil(missing / wordsPerScene)));
+      try {
+        const more = await chatJSON<{ scenes: Script["scenes"] }>(
+          "google/gemini-3.7-flash",
+          [
+            scriptSystemPrompt(
+              data.kind,
+              extra,
+              data.style,
+              wordsPerScene,
+              data.styleBrief,
+            ),
+            `Tu complètes un script existant : tu écris UNIQUEMENT ${extra} scènes SUPPLÉMENTAIRES qui s'intercalent avant la révélation finale, dans la même histoire, mêmes personnages, même bible visuelle. Aucune scène de pub. Réponds en JSON {"scenes":[...]} uniquement.`,
+          ].join("\n"),
+          [
+            `Histoire existante (JSON) : ${JSON.stringify({
+              title: script.title,
+              characters: script.characters,
+              palette: script.palette,
+              scenes: script.scenes.map((s) => s.narration),
+            })}`,
+            `Ajoute ${extra} scènes de détails concrets (époque exacte, lieu, noms, chiffres marquants) qui rendent l'histoire plus claire et plus longue d'environ ${missing} mots.`,
+          ].join("\n"),
+        );
+        const add = (more.scenes ?? []).filter((s) => (s.narration ?? "").trim());
+        if (add.length) {
+          const tail = script.scenes.slice(-1);
+          script.scenes = [...script.scenes.slice(0, -1), ...add, ...tail];
+        }
+      } catch {
+        // Rallonge best-effort : on garde le script d'origine en cas d'échec.
+      }
+    }
+
     // « Sophia » ne doit être prononcé qu'une seule fois : jamais dans les
     // scènes, une seule fois dans le CTA final.
     script.scenes = script.scenes.map((s, i) => ({
