@@ -195,7 +195,7 @@ export const suggestTopic = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) =>
     z
       .object({
-        avoid: z.array(z.string().max(300)).max(20).default([]),
+        avoid: z.array(z.string().max(300)).max(60).default([]),
         style: z
           .enum(["question", "revelation", "storytelling", "listicle"])
           .default("revelation"),
@@ -218,9 +218,58 @@ export const suggestTopic = createServerFn({ method: "POST" })
       "la nourriture, le sport ou la musique : une histoire surprenante derrière quelque chose de banal",
       "une invention ou une découverte due au hasard",
       "un mystère non résolu ou une théorie célèbre, expliqué avec des faits",
+      "une arnaque, un mensonge ou un canular resté dans l'histoire",
+      "une loi, une règle ou une tradition absurde mais réelle",
+      "un jeu vidéo, une BD ou un dessin animé et la réalité derrière",
+      "la médecine et le corps : une découverte ou une pratique stupéfiante",
+      "l'argent, le commerce, une marque connue et son histoire cachée",
+      "une catastrophe naturelle ou un accident qui a changé le monde",
+      "un lieu abandonné, interdit ou impossible à visiter",
+      "la technologie du quotidien (téléphone, internet, GPS) et son origine étonnante",
+      "un fait sur la mer, les profondeurs ou un naufrage",
+      "un exploit humain fou (survie, record, voyage)",
     ];
+    // Deux axes de hasard : le domaine ET l'angle → deux clics ne peuvent quasi
+    // jamais retomber sur la même formulation.
+    const ANGLES = [
+      "un détail que presque personne ne remarque",
+      "une erreur ou un raté qui a tout changé",
+      "un chiffre qui paraît impossible mais qui est vrai",
+      "une croyance très répandue qui est fausse",
+      "une conséquence inattendue encore visible aujourd'hui",
+      "une coïncidence troublante",
+      "quelque chose d'interdit, de caché ou de longtemps gardé secret",
+      "le point de vue d'une personne ordinaire qui y était",
+      "une comparaison surprenante avec notre vie actuelle",
+      "un objet banal au cœur d'une grande histoire",
+    ];
+    const ERAS = [
+      "l'Antiquité",
+      "le Moyen Âge",
+      "l'époque moderne (XVIe-XVIIIe)",
+      "le XIXe siècle",
+      "le XXe siècle",
+      "les 30 dernières années",
+      "aujourd'hui",
+      "peu importe l'époque",
+    ];
+    const PLACES = [
+      "l'Europe",
+      "l'Afrique",
+      "l'Asie",
+      "les Amériques",
+      "l'Océanie ou les pôles",
+      "les océans",
+      "l'espace",
+      "peu importe le lieu",
+    ];
+    const pick = <T,>(arr: T[]) => arr[Math.floor(Math.random() * arr.length)]!;
     const chosen = TOPIC_CATEGORIES.find((c) => c.id === data.category)?.brief;
-    const domain = chosen || DOMAINS[Math.floor(Math.random() * DOMAINS.length)]!;
+    const domain = chosen || pick(DOMAINS);
+    const angle = pick(ANGLES);
+    const era = pick(ERAS);
+    const place = pick(PLACES);
+    const seed = Math.random().toString(36).slice(2, 10);
 
     const res = await chatJSON<{ topic: string; angle: string }>(
       "google/gemini-3.7-flash",
@@ -228,20 +277,27 @@ export const suggestTopic = createServerFn({ method: "POST" })
         "Tu proposes des sujets de vidéos courtes de culture générale en français.",
         TOPIC_BRIEF[data.style],
         `DOMAINE IMPOSÉ POUR CETTE PROPOSITION : ${domain}. Reste dans ce domaine.`,
+        `TYPE D'ANGLE IMPOSÉ : ${angle}.`,
+        `ÉPOQUE PRIVILÉGIÉE : ${era}. ZONE PRIVILÉGIÉE : ${place}.`,
+        `Graine d'aléatoire (ne la mentionne jamais) : ${seed}. Utilise-la pour t'éloigner du sujet le plus évident : ne propose PAS le premier exemple qui vient à l'esprit dans ce domaine, va chercher le deuxième ou le troisième.`,
         "Le sujet doit être fascinant, vérifiable, et facile à raconter en 60 secondes.",
         "Le sujet peut porter sur des choses très connues du grand public (films, monuments, animaux, pays) tant que l'angle est surprenant.",
         "VOCABULAIRE SIMPLE : formule le sujet avec des mots du quotidien, compréhensibles par tout le monde. Pas de jargon, pas de noms d'opérations militaires, de traités ou de termes techniques. Le sujet doit se comprendre en une seconde.",
         "Reste sur des faits simples : une seule idée, rien de trop pointu ni de trop spécialisé.",
-        "Évite les sujets ultra rebattus (pyramides, Titanic, Mozart enfant prodige, Grande Muraille visible de l'espace).",
+        "Évite les sujets ultra rebattus (pyramides, Titanic, Mozart enfant prodige, Grande Muraille visible de l'espace, Mur de Berlin, Cléopâtre, Einstein mauvais élève).",
         'Réponds uniquement en JSON: {"topic": string (une phrase de 8 à 20 mots), "angle": string (une phrase expliquant l\'angle surprenant)}',
       ].join("\n"),
       data.avoid.length
-        ? `Propose un sujet différent de ceux-ci : ${data.avoid.join(" | ")}`
+        ? `INTERDIT : ne propose ni ces sujets, ni un sujet qui parle du même événement, du même lieu ou du même personnage :\n- ${data.avoid.join(
+            "\n- ",
+          )}`
         : "Propose un sujet.",
+      1.15,
     );
 
     return { topic: res.topic?.trim() ?? "", angle: res.angle?.trim() ?? "" };
   });
+
 
 export const generateSceneVoice = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) =>

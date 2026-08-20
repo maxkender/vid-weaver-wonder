@@ -20,19 +20,26 @@ async function readError(res: Response) {
   return msg;
 }
 
-export async function chatJSON<T>(model: string, system: string, user: string): Promise<T> {
+export async function chatJSON<T>(
+  model: string,
+  system: string,
+  user: string,
+  temperature?: number,
+): Promise<T> {
   const res = await fetch(`${GATEWAY}/chat/completions`, {
     method: "POST",
     headers: gatewayHeaders(),
     body: JSON.stringify({
       model,
       response_format: { type: "json_object" },
+      ...(temperature === undefined ? {} : { temperature }),
       messages: [
         { role: "system", content: system },
         { role: "user", content: user },
       ],
     }),
   });
+
   if (!res.ok) throw new Error(await readError(res));
   const data = (await res.json()) as { choices: { message: { content: string } }[] };
   const raw = data.choices?.[0]?.message?.content ?? "{}";
