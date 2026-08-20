@@ -1219,6 +1219,14 @@ function Studio() {
                   </button>
                 ))}
               </div>
+              <input
+                type="search"
+                value={voiceQuery}
+                onChange={(e) => setVoiceQuery(e.target.value)}
+                placeholder="Chercher un narrateur (Nicolas, Guillaume, Adam…)"
+                aria-label="Chercher un narrateur par son nom"
+                className="mt-2 w-full rounded-lg border border-input bg-background/60 p-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+              />
               <div className="mt-2 flex gap-2">
                 <select
                   id="narrator-voice"
@@ -1226,12 +1234,16 @@ function Studio() {
                   onChange={(e) => setVoice(e.target.value)}
                   className="min-w-0 flex-1 rounded-lg border border-input bg-background/60 p-2 text-sm outline-none focus:ring-2 focus:ring-ring"
                 >
+                  {!availableVoices.some((v) => v.id === voice) && (
+                    <option value={voice}>Narrateur sélectionné</option>
+                  )}
                   {availableVoices.map((v) => (
                     <option key={v.id} value={v.id}>
                       {favoriteVoices.includes(v.id) ? `★ ${v.label}` : v.label}
                     </option>
                   ))}
                 </select>
+
                 <button
                   type="button"
                   onClick={toggleFavoriteVoice}
