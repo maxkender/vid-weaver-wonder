@@ -186,6 +186,9 @@ export async function listElevenVoices(): Promise<{ id: string; label: string }[
     else others.push(entry);
   }
 
-  return [...french, ...others];
+  const all = [...CURATED_FR, ...french, ...others];
+  const uniq = new Set<string>();
+  return all.filter((v) => (uniq.has(v.id) ? false : (uniq.add(v.id), true)));
+
 }
 
