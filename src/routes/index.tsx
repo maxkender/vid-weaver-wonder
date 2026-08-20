@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
+import { LANGUAGES, type LanguageId } from "@/lib/languages";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Clapperboard,
@@ -225,6 +226,7 @@ function Studio() {
   );
 
   const [style, setStyle] = useState<NarrationStyle>("revelation");
+  const [language, setLanguage] = useState<LanguageId>("fr");
   const [visual, setVisual] = useState<VisualStyle>("papercraft");
   const [engine, setEngine] = useState<VoiceEngine>("elevenlabs");
   const [voice, setVoice] = useState(defaultVoice("elevenlabs"));
@@ -422,7 +424,7 @@ function Studio() {
         .filter((t, i, a) => t && a.indexOf(t) === i)
         .slice(-40);
       const res = (await runSuggest({
-        data: { avoid, style, category: topicCategory },
+        data: { avoid, style, category: topicCategory, language },
       })) as {
 
         topic: string;
@@ -461,6 +463,7 @@ function Studio() {
           sceneCount,
           style,
           targetSeconds,
+          language,
           styleBrief: settings.narration[style].brief,
           wordsBias: settings.narration[style].wordsBias,
         },
@@ -644,7 +647,7 @@ function Studio() {
     patch(scene.index, { audioLoading: true });
     try {
       const { audioDataUrl, words } = (await runVoice({
-        data: { text: scene.narration, voice, engine },
+        data: { text: scene.narration, voice, engine, language },
       })) as { audioDataUrl: string; words?: { word: string; start: number; end: number }[] };
       patch(scene.index, { audio: audioDataUrl, words: words ?? [], audioLoading: false });
       toast.success(`Voix off scène ${scene.index + 1}`);
@@ -669,6 +672,7 @@ function Studio() {
             text: "Et si je te racontais un fait que presque personne ne connaît ? Écoute bien.",
             voice,
             engine,
+            language,
           },
         })) as { audioDataUrl: string };
         src = audioDataUrl;
@@ -860,7 +864,7 @@ function Studio() {
           let words = st.words;
           if (!audio) {
             const res = (await runVoice({
-              data: { text: scene.narration, voice, engine },
+              data: { text: scene.narration, voice, engine, language },
             }).catch(() => null)) as
               | { audioDataUrl: string; words?: { word: string; start: number; end: number }[] }
               | null;
