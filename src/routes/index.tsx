@@ -395,6 +395,18 @@ function Studio() {
     })();
   }, [states, patch]);
 
+  // Garde-fou : on prévient avant de fermer l'onglet pendant une génération payante.
+  const busy = generatingAll || autoRunning || assembling;
+  useEffect(() => {
+    if (!busy) return;
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, [busy]);
+
   // Persiste les médias (images / vidéos / voix) du projet courant pour l'historique.
   useEffect(() => {
     if (!projectId) return;
