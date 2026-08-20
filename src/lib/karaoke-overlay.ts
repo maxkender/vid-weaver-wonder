@@ -461,3 +461,34 @@ export function sophiaWindow(
   const start = hit ? Math.max(0, hit.start - 0.1) : Math.max(0, duration * 0.55);
   return { start, end: Math.min(duration, start + 2.8) };
 }
+
+/**
+ * Fenêtre utile de la voix off : du premier au dernier mot réellement prononcé.
+ * Sert à couper les silences (parfois plusieurs secondes) que la synthèse laisse
+ * au début et à la fin du plan, sans jamais décaler le karaoké.
+ */
+export function voiceWindow(
+  words: { word: string; start: number; end: number }[] | null | undefined,
+  duration: number,
+): { start: number; end: number } {
+  const valid = (words ?? []).filter((w) => w.word && w.end > w.start && w.start < duration + 1);
+  if (!valid.length) return { start: 0, end: duration };
+  const first = valid.reduce((a, b) => (b.start < a.start ? b : a));
+  const last = valid.reduce((a, b) => (b.end > a.end ? b : a));
+  const start = Math.max(0, Math.min(first.start - 0.08, duration - 0.5));
+  const end = Math.min(duration, Math.max(last.end + 0.3, start + 0.6));
+  return { start, end };
+}
+
+/** Décale les timings pour coller à l'audio rogné. */
+export function shiftTimings(
+  words: { word: string; start: number; end: number }[] | null | undefined,
+  offset: number,
+) {
+  if (!words?.length || !offset) return words ?? [];
+  return words.map((w) => ({
+    word: w.word,
+    start: Math.max(0, w.start - offset),
+    end: Math.max(0.05, w.end - offset),
+  }));
+}
