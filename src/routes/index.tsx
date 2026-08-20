@@ -395,18 +395,6 @@ function Studio() {
     })();
   }, [states, patch]);
 
-  // Garde-fou : on prévient avant de fermer l'onglet pendant une génération payante.
-  const busy = generatingAll || autoRunning || assembling;
-  useEffect(() => {
-    if (!busy) return;
-    const onBeforeUnload = (e: BeforeUnloadEvent) => {
-      e.preventDefault();
-      e.returnValue = "";
-    };
-    window.addEventListener("beforeunload", onBeforeUnload);
-    return () => window.removeEventListener("beforeunload", onBeforeUnload);
-  }, [busy]);
-
   // Persiste les médias (images / vidéos / voix) du projet courant pour l'historique.
   useEffect(() => {
     if (!projectId) return;
@@ -855,6 +843,19 @@ function Studio() {
 
   /** Un seul clic depuis le sujet : script → images → vidéos → voix → MP4. */
   const [autoRunning, setAutoRunning] = useState(false);
+
+  // Garde-fou : on prévient avant de fermer l'onglet pendant une génération payante.
+  const busy = generatingAll || autoRunning || assembling;
+  useEffect(() => {
+    if (!busy) return;
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, [busy]);
+
   const onAutoAll = async () => {
     if (!topic.trim()) {
       toast.error("Écris d'abord le sujet de la vidéo");
