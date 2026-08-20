@@ -45,33 +45,58 @@ export const generateScript = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     // Le CTA final ajoute une scène : on réserve ~7 s pour lui.
     const narrationSeconds = Math.max(8, data.targetSeconds - 7);
-    // ~2,5 mots/seconde en lecture naturelle.
+    // ~2,4 mots/seconde en lecture naturelle (voix off posée).
+    const totalWords = Math.round(narrationSeconds * 2.4);
+    // Un plan dure 8 s max (~19 mots) : on ajoute des scènes si la durée
+    // demandée ne tient pas dans le nombre de plans choisi.
+    const sceneCount = Math.min(
+      14,
+      Math.max(data.sceneCount, Math.ceil(totalWords / 19)),
+    );
     const wordsPerScene = Math.min(
-      28,
-      Math.max(8, Math.round((narrationSeconds * 2.5) / data.sceneCount) + data.wordsBias),
+      22,
+      Math.max(8, Math.round(totalWords / sceneCount) + data.wordsBias),
     );
     const script = await chatJSON<Script>(
       "google/gemini-3.7-flash",
       scriptSystemPrompt(
         data.kind,
-        data.sceneCount,
+        sceneCount,
         data.style,
         wordsPerScene,
         data.styleBrief,
+        totalWords,
       ),
       scriptUserPrompt(data.kind, data.topic),
     );
 
-    script.scenes = (script.scenes ?? []).slice(0, data.sceneCount).map((s, i) => ({
+
+    script.scenes = (script.scenes ?? []).slice(0, sceneCount).map((s, i) => ({
       ...s,
       index: i,
     }));
-    const cta = (script.cta ?? "").trim() || SOPHIA_OUTRO;
+    // « Sophia » ne doit être prononcé qu'une seule fois : jamais dans les
+    // scènes, une seule fois dans le CTA final.
+    script.scenes = script.scenes.map((s) => ({
+      ...s,
+      narration: (s.narration ?? "").replace(/\bSophia\b/gi, "l'appli"),
+    }));
+    let seenSophia = false;
+    const cta = ((script.cta ?? "").trim() || SOPHIA_OUTRO)
+      .replace(/\bSophia\b/gi, (m) => {
+        if (seenSophia) return "l'appli";
+        seenSophia = true;
+        return m;
+      })
+      .replace(/\s{2,}/g, " ")
+      .trim();
     script.cta = cta;
+
     // Le CTA Sophia devient une vraie scène finale (narration + visuel + vidéo)
     script.scenes.push({
       index: script.scenes.length,
       narration: cta,
+
       overlay: "Télécharge Sophia",
       imagePrompt:
         "a hand holding a simple smartphone showing a clean study app screen, small floating book and lightbulb shapes around it, calm background",
