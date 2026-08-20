@@ -357,9 +357,6 @@ function Studio() {
     void import("@/lib/project-store").then((m) => m.deleteProjectMedia(id));
   }, []);
 
-  const patch = useCallback((i: number, value: SceneState) => {
-    setStates((prev) => ({ ...prev, [i]: { ...prev[i], ...value } }));
-  }, []);
 
   /**
    * Reprise après fermeture d'onglet ou plantage : un clip déjà commandé (donc
