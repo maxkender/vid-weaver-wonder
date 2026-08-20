@@ -44,7 +44,11 @@ export function KaraokeCaption({ text, fallback, getMedia, words, showLogo = tru
         if (!cached || Math.abs(cached.duration - media.duration) > 0.05) {
           cached = {
             duration: media.duration,
-            timings: smoothTimings(exact ?? wordTimings(text, media.duration), media.duration),
+            timings: smoothTimings(
+              exact ?? wordTimings(text, media.duration),
+              media.duration,
+              Boolean(exact),
+            ),
           };
         }
         const timings = cached.timings;
