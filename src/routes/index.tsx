@@ -1087,7 +1087,7 @@ function Studio() {
             </div>
 
             <div>
-              <label className="text-xs uppercase tracking-widest text-muted-foreground">
+              <label htmlFor="narrator-voice" className="text-xs uppercase tracking-widest text-muted-foreground">
                 Voix off
               </label>
               <div className="mt-2 flex gap-2">
@@ -1110,6 +1110,7 @@ function Studio() {
               </div>
               <div className="mt-2 flex gap-2">
                 <select
+                  id="narrator-voice"
                   value={voice}
                   onChange={(e) => setVoice(e.target.value)}
                   className="min-w-0 flex-1 rounded-lg border border-input bg-background/60 p-2 text-sm outline-none focus:ring-2 focus:ring-ring"
