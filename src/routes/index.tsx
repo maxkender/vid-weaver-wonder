@@ -682,19 +682,28 @@ function Studio() {
 
     const { assembleVideo } = await import("@/lib/assemble-video");
     const { randomTrack } = await import("@/lib/music-store");
-    const { makeOverlayPng } = await import("@/lib/overlay-png");
     const { makeKaraokeSequence, makeRoundedSquareMask, sophiaWindow, voiceWindow, shiftTimings } =
       await import("@/lib/karaoke-overlay");
     const dims =
       orientation === "horizontal"
         ? { width: settings.hd ? 1920 : 1280, height: settings.hd ? 1080 : 720 }
         : { width: settings.hd ? 1080 : 720, height: settings.hd ? 1920 : 1280 };
-    const ordered = (doc?.scenes ?? [])
+    const all = (doc?.scenes ?? [])
       .map((s) => ({ scene: s, st: snapshot[s.index] }))
       .filter((x): x is { scene: Scene; st: SceneState & { videoUrl: string } } =>
         Boolean(x.st?.videoUrl),
       );
+    // Un plan sans voix off créerait un blanc silencieux (souvent en tête de
+    // vidéo) : on ne garde que les plans qui ont réellement une narration.
+    const voiced = all.filter((x) => Boolean(x.st.audio));
+    const ordered = voiced.length ? voiced : all;
+    if (voiced.length && voiced.length !== all.length) {
+      toast.warning(
+        `${all.length - voiced.length} plan(s) sans voix off ont été ignorés à l'export.`,
+      );
+    }
     if (!ordered.length) throw new Error("Aucune scène animée à assembler.");
+
 
     // Papier découpé : masque carré à coins arrondis, toujours présent.
     const mask = useSquareMask
@@ -735,10 +744,10 @@ function Studio() {
                     : null,
                 )
             : null,
-          overlay: duration
-            ? null
-            : await makeOverlayPng(scene.overlay, dims.width, dims.height),
+          // Jamais de gros titre en majuscules : pas d'overlay de secours.
+          overlay: null,
           duration,
+
         };
       }),
     );
