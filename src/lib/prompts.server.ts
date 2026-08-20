@@ -95,6 +95,17 @@ export function scriptSystemPrompt(
     "STORYTELLING CLAIR ET CONCIS : une seule idée par scène, phrases de 6 à 12 mots, sujet-verbe-complément, aucune subordonnée compliquée, aucun adjectif décoratif. Chaque phrase apporte une information nouvelle : si on peut la supprimer sans rien perdre, supprime-la.",
     "FIL LOGIQUE : le script doit se lire comme un seul paragraphe suivi. Chaque scène répond à la question posée par la précédente et en pose une nouvelle. Avant-dernière scène = la révélation qui explique tout, sans rien laisser d'inexpliqué.",
     "TEST D'INTELLIGIBILITÉ (obligatoire avant de répondre) : relis le script d'une traite comme si tu l'entendais pour la première fois. Chaque nom, lieu, époque et enjeu doit être introduit avant d'être utilisé ; aucune ellipse, aucun saut de logique, aucune scène qui suppose une connaissance préalable. Si une phrase peut être mal comprise, réécris-la plus simplement.",
+
+    "",
+    "RÈGLE N°2 BIS — ARCHITECTURE EN 5 TEMPS (structure obligatoire, à respecter dans l'ordre) :",
+    "1) ACCROCHE (scène 1) : l'affirmation choc. 2) MISE EN PLACE (scène 2) : qui, où, quand, et pourquoi c'est étrange. 3) MONTÉE (scènes du milieu) : les faits s'accumulent et le mystère s'épaissit. 4) RETOURNEMENT (une seule scène, aux deux tiers de la vidéo) : la vérité bascule, ce qu'on croyait était faux. 5) EXPLICATION puis CHUTE (scènes finales) : on explique calmement POURQUOI, et on referme l'histoire par une phrase qui donne du sens.",
+    "MARQUER LE RETOURNEMENT (très important) : la scène du retournement commence obligatoirement par un connecteur de rupture court et parlant — « Sauf que… », « Et puis, tout bascule. », « En réalité… », « Le problème, c'est que… », « Mais en 1912, on ouvre le tombeau. » — suivi immédiatement du fait qui contredit ce qu'on vient de croire. Cette scène est la plus courte et la plus sèche du script : phrases très brèves, aucune fioriture.",
+    "MARQUER LE PASSAGE À L'EXPLICATION : la scène qui suit le retournement commence par un connecteur d'explication — « Voilà pourquoi… », « L'explication est simple : », « Ce qu'on avait pris pour X, c'était en fait Y. » — puis livre la cause réelle en une ou deux phrases limpides, avec le mot juste. À la fin de cette scène, le spectateur doit pouvoir réexpliquer l'histoire à quelqu'un d'autre en une phrase.",
+    "CONNECTEURS OBLIGATOIRES : chaque scène à partir de la 2 démarre par un mot de liaison qui dit au spectateur où il en est dans l'histoire — mise en place (« À l'époque… », « Pendant des siècles… »), montée (« Puis… », « Pire encore… », « Et ce n'est pas tout : »), rupture (« Sauf que… »), explication (« Voilà pourquoi… »), chute (« Depuis… », « Aujourd'hui encore… »). Jamais deux scènes de suite avec le même connecteur.",
+    "CONTRASTE DE RYTHME : les scènes de montée et de retournement sont courtes et sèches ; les scènes d'explication peuvent être un peu plus longues et posées. C'est ce contraste qui rend la vidéo intrigante ET compréhensible.",
+    "INTERDIT : deux retournements, un retournement annoncé à l'avance (« vous allez voir », « attendez la suite »), ou une explication qui arrive avant le retournement.",
+    "DERNIÈRE SCÈNE AVANT LE CTA : une phrase de chute qui boucle sur le hook (elle reprend l'image ou l'idée de la scène 1, résolue). On doit sentir que l'histoire est finie.",
+
     "UN SEUL CTA : le CTA Sophia est écrit UNIQUEMENT dans le champ cta. Aucune scène du tableau scenes ne doit parler de l'appli, de téléchargement ou de cours gratuits.",
 
     "Rétention : chaque scène se termine sur une micro-tension (un détail inexpliqué, une contradiction, un « sauf que… ») qui oblige à regarder la suivante.",
@@ -115,6 +126,8 @@ export function scriptSystemPrompt(
     "imagePrompt décrit UNE composition simple et lisible : 1 à 3 éléments maximum, une silhouette claire au premier plan, un décor minimal.",
     "CORRESPONDANCE TEXTE–IMAGE : chaque imagePrompt doit illustrer LITTÉRALEMENT l'information prononcée dans la narration de cette scène. Reprends les personnes, objets, lieu et action réellement cités ; n'ajoute aucun symbole abstrait ou décor sans rapport.",
     "PROGRESSION VISUELLE : traite les scènes comme un storyboard continu. Chaque plan montre la conséquence concrète du plan précédent et prépare le suivant. Change le cadrage, pas arbitrairement le lieu, l'époque, les costumes ou les personnages.",
+    "PLAN DU RETOURNEMENT : la scène du retournement change visiblement de registre — cadrage plus serré (gros plan sur l'objet ou le visage qui révèle la vérité), lumière plus contrastée, décor plus dépouillé — tout en gardant les mêmes personnages, costumes et palette. La scène d'explication revient à un plan plus large et calme qui montre clairement la cause décrite dans la narration.",
+
     "N'utilise JAMAIS de noms propres d'œuvres, films, jeux, marques, artistes ou personnages protégés dans imagePrompt et videoPrompt : décris ce qu'on voit.",
     "videoPrompt anime uniquement les éléments visibles dans imagePrompt et décrit une action simple qui rend la narration immédiatement compréhensible, avec un mouvement de caméra discret, en 8 secondes maximum. Aucun nouvel objet, personnage ou événement.",
     CTA_BRIEF,
