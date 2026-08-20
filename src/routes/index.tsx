@@ -878,13 +878,44 @@ function Studio() {
 
   const [exporting, setExporting] = useState<number | null>(null);
 
+  const [voiceQuery, setVoiceQuery] = useState("");
+  const [remoteVoices, setRemoteVoices] = useState<{ id: string; label: string }[]>([]);
+  const runSearchVoices = useServerFn(searchVoices);
+
+  // Recherche dans la bibliothèque ElevenLabs (au-delà des voix déjà chargées).
+  useEffect(() => {
+    const q = voiceQuery.trim();
+    if (engine !== "elevenlabs" || q.length < 2) {
+      setRemoteVoices([]);
+      return;
+    }
+    let cancelled = false;
+    const t = setTimeout(async () => {
+      try {
+        const res = await runSearchVoices({ data: { query: q } });
+        if (!cancelled) setRemoteVoices(res.voices);
+      } catch {
+        /* recherche best-effort */
+      }
+    }, 350);
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
+  }, [voiceQuery, engine, runSearchVoices]);
+
   const availableVoices = useMemo(() => {
-    const all = engine === "elevenlabs" && accountVoices.length ? accountVoices : voicesFor(engine);
-    return [...all].sort((a, b) => {
+    const base = engine === "elevenlabs" && accountVoices.length ? accountVoices : voicesFor(engine);
+    const q = voiceQuery.trim().toLowerCase();
+    const filtered = q ? base.filter((v) => v.label.toLowerCase().includes(q)) : base;
+    const seen = new Set(filtered.map((v) => v.id));
+    const extra = remoteVoices.filter((v) => !seen.has(v.id));
+    return [...filtered, ...extra].sort((a, b) => {
       const favoriteDelta = Number(favoriteVoices.includes(b.id)) - Number(favoriteVoices.includes(a.id));
       return favoriteDelta || a.label.localeCompare(b.label, "fr");
     });
-  }, [accountVoices, engine, favoriteVoices]);
+  }, [accountVoices, engine, favoriteVoices, voiceQuery, remoteVoices]);
+
 
   const toggleFavoriteVoice = () => {
     const next = favoriteVoices.includes(voice)
