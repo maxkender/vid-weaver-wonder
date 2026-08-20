@@ -410,8 +410,19 @@ function Studio() {
   const onSuggest = async () => {
     setSuggesting(true);
     try {
+      // Historique des sujets déjà proposés, conservé entre les sessions :
+      // l'IA ne peut plus retomber sur les mêmes idées après un rechargement.
+      let seen: string[] = [];
+      try {
+        seen = JSON.parse(localStorage.getItem("sophia:past-topics") ?? "[]") as string[];
+      } catch {
+        seen = [];
+      }
+      const avoid = [...seen, ...pastTopics.current]
+        .filter((t, i, a) => t && a.indexOf(t) === i)
+        .slice(-40);
       const res = (await runSuggest({
-        data: { avoid: pastTopics.current.slice(-8), style, category: topicCategory },
+        data: { avoid, style, category: topicCategory },
       })) as {
 
         topic: string;
@@ -419,10 +430,19 @@ function Studio() {
       };
       if (res.topic) {
         pastTopics.current.push(res.topic);
+        try {
+          localStorage.setItem(
+            "sophia:past-topics",
+            JSON.stringify([...avoid, res.topic].slice(-60)),
+          );
+        } catch {
+          /* quota plein : sans gravité */
+        }
         setTopic(res.topic);
         setAngle(res.angle);
         toast.success("Sujet proposé");
       }
+
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Échec de la proposition");
     } finally {
