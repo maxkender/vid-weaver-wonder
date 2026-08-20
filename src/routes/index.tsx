@@ -709,12 +709,12 @@ function Studio() {
       orientation === "horizontal"
         ? { width: settings.hd ? 1920 : 1280, height: settings.hd ? 1080 : 720 }
         : { width: settings.hd ? 1080 : 720, height: settings.hd ? 1920 : 1280 };
+    // AUCUN plan n'est écarté : un plan sans clip animé est rendu à partir de
+    // son image fixe, pour que l'histoire (et la durée) restent complètes.
     const all = (doc?.scenes ?? [])
-      .map((s) => ({ scene: s, st: snapshot[s.index] }))
-      .filter((x): x is { scene: Scene; st: SceneState & { videoUrl: string } } =>
-        Boolean(x.st?.videoUrl),
-      );
-    if (!all.length) throw new Error("Aucune scène animée à assembler.");
+      .map((s) => ({ scene: s, st: (snapshot[s.index] ?? {}) as SceneState }))
+      .filter((x) => Boolean(x.st.videoUrl || x.st.image));
+    if (!all.length) throw new Error("Aucune scène à assembler.");
 
     // Un plan sans voix off produirait un blanc silencieux (typiquement le hook
     // du début) : on refabrique la voix manquante AVANT d'assembler, pour ne
@@ -732,6 +732,7 @@ function Studio() {
 
     }
     const ordered = all;
+
 
 
 
