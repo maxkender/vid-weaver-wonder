@@ -78,14 +78,26 @@ export const generateScript = createServerFn({ method: "POST" })
       ...s,
       index: i,
     }));
+    // UN SEUL plan CTA : si l'IA a déjà écrit une (ou plusieurs) scènes de pub
+    // à la fin, on les retire avant d'ajouter le CTA officiel.
+    const isCta = (t: string) =>
+      /\b(sophia|t[ée]l[ée]charge|l'appli|l'application)\b/i.test(t);
+    while (
+      script.scenes.length > 2 &&
+      isCta(script.scenes[script.scenes.length - 1]?.narration ?? "")
+    ) {
+      script.scenes.pop();
+    }
     // « Sophia » ne doit être prononcé qu'une seule fois : jamais dans les
     // scènes, une seule fois dans le CTA final.
-    script.scenes = script.scenes.map((s) => ({
+    script.scenes = script.scenes.map((s, i) => ({
       ...s,
+      index: i,
       narration: (s.narration ?? "").replace(/\bSophia\b/gi, "l'appli"),
     }));
     let seenSophia = false;
     const cta = ((script.cta ?? "").trim() || SOPHIA_OUTRO)
+
       .replace(/\bSophia\b/gi, (m) => {
         if (seenSophia) return "l'appli";
         seenSophia = true;
