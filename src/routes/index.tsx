@@ -693,16 +693,24 @@ function Studio() {
       .filter((x): x is { scene: Scene; st: SceneState & { videoUrl: string } } =>
         Boolean(x.st?.videoUrl),
       );
-    // Un plan sans voix off créerait un blanc silencieux (souvent en tête de
-    // vidéo) : on ne garde que les plans qui ont réellement une narration.
-    const voiced = all.filter((x) => Boolean(x.st.audio));
-    const ordered = voiced.length ? voiced : all;
-    if (voiced.length && voiced.length !== all.length) {
-      toast.warning(
-        `${all.length - voiced.length} plan(s) sans voix off ont été ignorés à l'export.`,
-      );
+    if (!all.length) throw new Error("Aucune scène animée à assembler.");
+
+    // Un plan sans voix off produirait un blanc silencieux (typiquement le hook
+    // du début) : on refabrique la voix manquante AVANT d'assembler, pour ne
+    // jamais perdre le début de l'histoire.
+    for (const item of all) {
+      if (item.st.audio) continue;
+      setAssembleStep(`Voix off manquante — scène ${item.scene.index + 1}…`);
+      const audio = await onVoice(item.scene);
+      if (!audio) {
+        throw new Error(
+          `La voix off de la scène ${item.scene.index + 1} n'a pas pu être générée : relance l'export.`,
+        );
+      }
+      item.st = { ...item.st, audio, words: states[item.scene.index]?.words ?? [] };
     }
-    if (!ordered.length) throw new Error("Aucune scène animée à assembler.");
+    const ordered = all;
+
 
 
     // Papier découpé : masque carré à coins arrondis, toujours présent.
