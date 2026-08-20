@@ -357,6 +357,44 @@ function Studio() {
     setStates((prev) => ({ ...prev, [i]: { ...prev[i], ...value } }));
   }, []);
 
+  /**
+   * Reprise après fermeture d'onglet ou plantage : un clip déjà commandé (donc
+   * déjà facturé) est récupéré au lieu d'être régénéré.
+   */
+  const resumed = useRef(false);
+  useEffect(() => {
+    if (resumed.current) return;
+    const pending = Object.entries(states).filter(
+      ([, st]) => st?.videoId && !st?.videoUrl,
+    );
+    if (!pending.length) return;
+    resumed.current = true;
+    void (async () => {
+      for (const [key, st] of pending) {
+        const index = Number(key);
+        const id = st!.videoId!;
+        for (let attempt = 0; attempt < 60; attempt++) {
+          const job = (await runPoll({ data: { id } }).catch(() => null)) as
+            | { status: string; progress: number; error: string | null }
+            | null;
+          if (!job) break;
+          if (job.status === "completed") {
+            patch(index, {
+              videoUrl: `/api/video-content/${id}`,
+              videoLoading: false,
+              progress: 100,
+            });
+            toast.success(`Scène ${index + 1} récupérée`);
+            break;
+          }
+          if (job.status === "failed") break;
+          patch(index, { videoLoading: true, progress: job.progress });
+          await new Promise((r) => setTimeout(r, 6000));
+        }
+      }
+    })();
+  }, [states, patch]);
+
   // Persiste les médias (images / vidéos / voix) du projet courant pour l'historique.
   useEffect(() => {
     if (!projectId) return;
@@ -564,7 +602,12 @@ function Studio() {
         const image = existing ?? (await onImage(scene));
         if (scene.index === 0 && image) referenceImage.current = image;
         if (image) previousImage.current = image;
-        if (!states[scene.index]?.videoUrl) videoJobs.push(onVideo(scene, image));
+        if (states[scene.index]?.videoUrl) continue;
+        // La voix (peu coûteuse) est produite AVANT le clip : on commande alors
+        // la durée exacte (4/6/8 s) au lieu de payer 8 s systématiquement.
+        const audio = states[scene.index]?.audio ?? (await onVoice(scene));
+        const voiceSeconds = audio ? await audioDuration(audio) : undefined;
+        videoJobs.push(onVideo(scene, image, script, voiceSeconds));
       }
       await Promise.all(videoJobs);
       toast.success("Toutes les scènes sont prêtes");
@@ -800,6 +843,19 @@ function Studio() {
 
   /** Un seul clic depuis le sujet : script → images → vidéos → voix → MP4. */
   const [autoRunning, setAutoRunning] = useState(false);
+
+  // Garde-fou : on prévient avant de fermer l'onglet pendant une génération payante.
+  const busy = generatingAll || autoRunning || assembling;
+  useEffect(() => {
+    if (!busy) return;
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, [busy]);
+
   const onAutoAll = async () => {
     if (!topic.trim()) {
       toast.error("Écris d'abord le sujet de la vidéo");
