@@ -290,6 +290,7 @@ export const suggestTopic = createServerFn({ method: "POST" })
           .enum(["question", "revelation", "storytelling", "listicle"])
           .default("revelation"),
         category: z.enum(TOPIC_CATEGORY_IDS).default("aleatoire"),
+        language: z.enum(LANGUAGE_IDS).default("fr"),
       })
       .parse(input),
   )
@@ -364,7 +365,8 @@ export const suggestTopic = createServerFn({ method: "POST" })
     const res = await chatJSON<{ topic: string; angle: string }>(
       "google/gemini-3.7-flash",
       [
-        "Tu proposes des sujets de vidéos courtes de culture générale en français.",
+        "Tu proposes des sujets de vidéos courtes de culture générale.",
+        `LANGUE DE SORTIE : écris topic et angle en ${languageName(data.language)}. Adapte les références au public de cette langue.`,
         TOPIC_BRIEF[data.style],
         `DOMAINE IMPOSÉ POUR CETTE PROPOSITION : ${domain}. Reste dans ce domaine.`,
         `TYPE D'ANGLE IMPOSÉ : ${angle}.`,
@@ -396,15 +398,20 @@ export const generateSceneVoice = createServerFn({ method: "POST" })
         text: z.string().min(2).max(4000),
         voice: z.string().min(2).max(60).default("ballad"),
         engine: z.enum(["lovable", "elevenlabs"]).default("lovable"),
+        language: z.enum(LANGUAGE_IDS).default("fr"),
       })
       .parse(input),
   )
   .handler(async ({ data }) => {
     if (data.engine === "elevenlabs") {
       const { generateElevenSpeechWithTimings } = await import("./elevenlabs.server");
-      return await generateElevenSpeechWithTimings(data.text, data.voice);
+      return await generateElevenSpeechWithTimings(data.text, data.voice, data.language);
     }
-    const audioDataUrl = await generateSpeechDataUrl(data.text, data.voice);
+    const audioDataUrl = await generateSpeechDataUrl(
+      data.text,
+      data.voice,
+      languageName(data.language),
+    );
     return { audioDataUrl, words: [] as { word: string; start: number; end: number }[] };
   });
 

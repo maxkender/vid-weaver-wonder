@@ -119,7 +119,11 @@ export async function fetchVideoContent(id: string): Promise<Response> {
 }
 
 /** Génère une voix off (TTS) et renvoie une data URL audio/mpeg. */
-export async function generateSpeechDataUrl(text: string, voice: string): Promise<string> {
+export async function generateSpeechDataUrl(
+  text: string,
+  voice: string,
+  langName = "français de France",
+): Promise<string> {
   const res = await fetch(`${GATEWAY}/audio/speech`, {
     method: "POST",
     headers: gatewayHeaders(),
