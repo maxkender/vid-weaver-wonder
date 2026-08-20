@@ -37,6 +37,7 @@ import {
   pollSceneVideo,
   generateSceneVoice,
   listVoices,
+  searchVoices,
   startSceneVideo,
   suggestTopic,
 
