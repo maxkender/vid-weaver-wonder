@@ -22,8 +22,12 @@ export type AssembleScene = {
     | (() => Promise<KaraokeSeqInput | null>);
   /** Masque PNG (carré à coins arrondis) appliqué sous le texte. */
   mask?: Blob | null | undefined;
-  /** Durée cible du plan (= durée de la voix off), en secondes. */
+  /** Durée cible du plan (= durée de la voix off utile), en secondes. */
   duration?: number | undefined;
+  /** Début du premier mot dans l'audio (silence de tête à couper). */
+  trimStart?: number | undefined;
+  /** Fin du dernier mot dans l'audio (silence de queue à couper). */
+  trimEnd?: number | undefined;
 
 };
 
@@ -127,8 +131,13 @@ async function assembleVideoInner(
 
     // On enlève le silence de fin de la voix puis on laisse une petite respiration
     // de 0,25 s : la fin du plan colle au dernier mot prononcé.
+    // On coupe uniquement AUX BORNES (silence de tête / de queue) : jamais au
+    // milieu, sinon les timestamps de la voix ne collent plus aux sous-titres.
+    const tStart = Math.max(0, scene.trimStart ?? 0);
+    const tEnd = scene.trimEnd && scene.trimEnd > tStart + 0.3 ? scene.trimEnd : undefined;
+    const trim = `atrim=start=${tStart.toFixed(3)}${tEnd ? `:end=${tEnd.toFixed(3)}` : ""},asetpts=PTS-STARTPTS`;
     const af = hasVoice
-      ? `[1:a]silenceremove=stop_periods=-1:stop_duration=0.3:stop_threshold=-45dB,apad=pad_dur=0.25,aresample=44100,aformat=sample_fmts=fltp:channel_layouts=stereo[a]`
+      ? `[1:a]${trim},aresample=44100,aformat=sample_fmts=fltp:channel_layouts=stereo[a]`
       : `[1:a]atrim=0:${(target ?? 8).toFixed(2)},aresample=44100,aformat=sample_fmts=fltp:channel_layouts=stereo[a]`;
 
     const rawSeq = scene.karaokeSeq;

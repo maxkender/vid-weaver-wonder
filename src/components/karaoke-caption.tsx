@@ -102,7 +102,7 @@ export function KaraokeCaption({ text, fallback, getMedia, words, showLogo = tru
       >
         {logoNode}
         <span
-          className="max-w-[92%] select-none truncate text-center lowercase tracking-tight text-white"
+          className="max-w-[92%] select-none truncate text-center tracking-tight text-white"
           style={{
             fontFamily: '"Anton", "Arial Narrow", Impact, sans-serif',
             // Même taille relative que dans l'export MP4 (6,2 % de la largeur).
@@ -115,7 +115,7 @@ export function KaraokeCaption({ text, fallback, getMedia, words, showLogo = tru
             opacity: state.pop,
           }}
         >
-          {state.word.replace(/[«»"]/g, "").toLowerCase()}
+          {state.word.replace(/[«»"]/g, "")}
         </span>
       </div>
     );

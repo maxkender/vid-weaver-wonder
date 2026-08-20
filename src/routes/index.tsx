@@ -638,9 +638,8 @@ function Studio() {
     const { assembleVideo } = await import("@/lib/assemble-video");
     const { randomTrack } = await import("@/lib/music-store");
     const { makeOverlayPng } = await import("@/lib/overlay-png");
-    const { makeKaraokeSequence, makeRoundedSquareMask, sophiaWindow } = await import(
-      "@/lib/karaoke-overlay"
-    );
+    const { makeKaraokeSequence, makeRoundedSquareMask, sophiaWindow, voiceWindow, shiftTimings } =
+      await import("@/lib/karaoke-overlay");
     const dims =
       orientation === "horizontal"
         ? { width: settings.hd ? 1920 : 1280, height: settings.hd ? 1080 : 720 }
@@ -660,10 +659,16 @@ function Studio() {
     setAssembleStep("Préparation des sous-titres…");
     const withDurations = await Promise.all(
       ordered.map(async ({ scene, st }) => {
-        const duration = st.audio ? await audioDuration(st.audio) : undefined;
+        const raw = st.audio ? await audioDuration(st.audio) : undefined;
+        // Silences de tête/queue retirés : la voix démarre tout de suite et le
+        // plan s'arrête au dernier mot.
+        const win = raw ? voiceWindow(st.words ?? null, raw) : null;
+        const duration = win ? win.end - win.start : raw;
+        const words = win ? shiftTimings(st.words ?? null, win.start) : (st.words ?? []);
         return {
           videoUrl: st.videoUrl,
           audio: st.audio,
+          ...(win ? { trimStart: win.start, trimEnd: win.end } : {}),
           mask,
           // Les images de sous-titres sont fabriquées juste avant l'encodage du
           // plan (et libérées après) : sinon toutes les scènes tiennent en
@@ -676,11 +681,11 @@ function Studio() {
                   dims.height,
                   duration,
                   24,
-                  st.words ?? null,
+                  words,
                   settings.sophiaLogo
                     ? (() => {
-                        const win = sophiaWindow(scene.narration, duration, st.words ?? null);
-                        return win ? { url: sophiaLogo.url, ...win } : null;
+                        const w = sophiaWindow(scene.narration, duration, words);
+                        return w ? { url: sophiaLogo.url, ...w } : null;
                       })()
                     : null,
                 )
@@ -841,17 +846,19 @@ function Studio() {
     try {
       const { assembleVideo } = await import("@/lib/assemble-video");
       const { makeOverlayPng } = await import("@/lib/overlay-png");
-      const { makeKaraokeSequence, makeRoundedSquareMask, sophiaWindow } = await import(
-        "@/lib/karaoke-overlay"
-      );
+      const { makeKaraokeSequence, makeRoundedSquareMask, sophiaWindow, voiceWindow, shiftTimings } =
+        await import("@/lib/karaoke-overlay");
       const dims =
         orientation === "horizontal"
           ? { width: settings.hd ? 1920 : 1280, height: settings.hd ? 1080 : 720 }
           : { width: settings.hd ? 1080 : 720, height: settings.hd ? 1920 : 1280 };
-      const duration = st.audio ? await audioDuration(st.audio) : undefined;
+      const rawDuration = st.audio ? await audioDuration(st.audio) : undefined;
+      const win = rawDuration ? voiceWindow(st.words ?? null, rawDuration) : null;
+      const duration = win ? win.end - win.start : rawDuration;
+      const sceneWords = win ? shiftTimings(st.words ?? null, win.start) : (st.words ?? []);
       const logoWin =
         settings.sophiaLogo && duration
-          ? sophiaWindow(scene.narration, duration, st.words ?? null)
+          ? sophiaWindow(scene.narration, duration, sceneWords)
           : null;
       const karaokeSeq = duration
         ? await makeKaraokeSequence(
@@ -860,7 +867,7 @@ function Studio() {
             dims.height,
             duration,
             24,
-            st.words ?? null,
+            sceneWords,
             logoWin ? { url: sophiaLogo.url, ...logoWin } : null,
           )
         : null;
@@ -873,6 +880,7 @@ function Studio() {
           {
             videoUrl: st.videoUrl,
             audio: st.audio,
+            ...(win ? { trimStart: win.start, trimEnd: win.end } : {}),
             karaokeSeq,
             mask,
             overlay: karaokeSeq

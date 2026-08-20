@@ -13,8 +13,9 @@ async function ensureFont(size: number) {
 /** Taille de police relative des sous-titres (2× plus petit qu'avant). */
 export const CAPTION_SIZE_RATIO = 0.062;
 
+/** On garde la casse d'origine (majuscule de début de phrase, noms propres). */
 const cleanWord = (w: string) =>
-  w.replace(/[«»"]/g, "").replace(/\s+/g, " ").trim().toLowerCase();
+  w.replace(/[«»"]/g, "").replace(/\s+/g, " ").trim();
 
 /**
  * Dessine la phrase sur une seule ligne, en blanc uni, sans zoom.
@@ -233,10 +234,10 @@ const LOGO_STEPS = 6;
 export const CAPTION_FADE = 0.08;
 const FADE_STEPS = 8;
 
-/** Durée minimale d'affichage d'un groupe de mots (secondes). */
-export const MIN_CAPTION_HOLD = 0.34;
-/** Nombre maximal de mots affichés ensemble. */
-const MAX_GROUP_WORDS = 3;
+/** Mot par mot : aucune fusion de groupes trop courts. */
+export const MIN_CAPTION_HOLD = 0;
+/** Nombre maximal de mots affichés ensemble (1 = strictement mot par mot). */
+const MAX_GROUP_WORDS = 1;
 /** Longueur maximale d'un groupe (une seule ligne). */
 const MAX_GROUP_CHARS = 18;
 /** Léger devancement : le texte apparaît juste avant la syllabe (perçu comme synchro). */
@@ -459,4 +460,35 @@ export function sophiaWindow(
   const hit = timings.find((t) => norm(t.word).includes("sophia"));
   const start = hit ? Math.max(0, hit.start - 0.1) : Math.max(0, duration * 0.55);
   return { start, end: Math.min(duration, start + 2.8) };
+}
+
+/**
+ * Fenêtre utile de la voix off : du premier au dernier mot réellement prononcé.
+ * Sert à couper les silences (parfois plusieurs secondes) que la synthèse laisse
+ * au début et à la fin du plan, sans jamais décaler le karaoké.
+ */
+export function voiceWindow(
+  words: { word: string; start: number; end: number }[] | null | undefined,
+  duration: number,
+): { start: number; end: number } {
+  const valid = (words ?? []).filter((w) => w.word && w.end > w.start && w.start < duration + 1);
+  if (!valid.length) return { start: 0, end: duration };
+  const first = valid.reduce((a, b) => (b.start < a.start ? b : a));
+  const last = valid.reduce((a, b) => (b.end > a.end ? b : a));
+  const start = Math.max(0, Math.min(first.start - 0.08, duration - 0.5));
+  const end = Math.min(duration, Math.max(last.end + 0.3, start + 0.6));
+  return { start, end };
+}
+
+/** Décale les timings pour coller à l'audio rogné. */
+export function shiftTimings(
+  words: { word: string; start: number; end: number }[] | null | undefined,
+  offset: number,
+) {
+  if (!words?.length || !offset) return words ?? [];
+  return words.map((w) => ({
+    word: w.word,
+    start: Math.max(0, w.start - offset),
+    end: Math.max(0.05, w.end - offset),
+  }));
 }
