@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as ParametresRouteImport } from './routes/parametres'
 import { Route as ApiPublicVideosRouteImport } from './routes/api/public/videos'
 import { Route as ApiVideoContentIdRouteImport } from './routes/api/video-content.$id'
+import { Route as ApiPublicJobsTickRouteImport } from './routes/api/public/jobs/tick'
 import { Route as ApiPublicVideosIdRouteImport } from './routes/api/public/videos.$id'
 
 const IndexRoute = IndexRouteImport.update({
@@ -35,6 +36,11 @@ const ApiVideoContentIdRoute = ApiVideoContentIdRouteImport.update({
   path: '/api/video-content/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicJobsTickRoute = ApiPublicJobsTickRouteImport.update({
+  id: '/api/public/jobs/tick',
+  path: '/api/public/jobs/tick',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicVideosIdRoute = ApiPublicVideosIdRouteImport.update({
   id: '/$id',
   path: '/$id',
@@ -46,6 +52,7 @@ export interface FileRoutesByFullPath {
   '/parametres': typeof ParametresRoute
   '/api/public/videos': typeof ApiPublicVideosRouteWithChildren
   '/api/video-content/$id': typeof ApiVideoContentIdRoute
+  '/api/public/jobs/tick': typeof ApiPublicJobsTickRoute
   '/api/public/videos/$id': typeof ApiPublicVideosIdRoute
 }
 export interface FileRoutesByTo {
@@ -53,6 +60,7 @@ export interface FileRoutesByTo {
   '/parametres': typeof ParametresRoute
   '/api/public/videos': typeof ApiPublicVideosRouteWithChildren
   '/api/video-content/$id': typeof ApiVideoContentIdRoute
+  '/api/public/jobs/tick': typeof ApiPublicJobsTickRoute
   '/api/public/videos/$id': typeof ApiPublicVideosIdRoute
 }
 export interface FileRoutesById {
@@ -61,6 +69,7 @@ export interface FileRoutesById {
   '/parametres': typeof ParametresRoute
   '/api/public/videos': typeof ApiPublicVideosRouteWithChildren
   '/api/video-content/$id': typeof ApiVideoContentIdRoute
+  '/api/public/jobs/tick': typeof ApiPublicJobsTickRoute
   '/api/public/videos/$id': typeof ApiPublicVideosIdRoute
 }
 export interface FileRouteTypes {
@@ -70,6 +79,7 @@ export interface FileRouteTypes {
     | '/parametres'
     | '/api/public/videos'
     | '/api/video-content/$id'
+    | '/api/public/jobs/tick'
     | '/api/public/videos/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -77,6 +87,7 @@ export interface FileRouteTypes {
     | '/parametres'
     | '/api/public/videos'
     | '/api/video-content/$id'
+    | '/api/public/jobs/tick'
     | '/api/public/videos/$id'
   id:
     | '__root__'
@@ -84,6 +95,7 @@ export interface FileRouteTypes {
     | '/parametres'
     | '/api/public/videos'
     | '/api/video-content/$id'
+    | '/api/public/jobs/tick'
     | '/api/public/videos/$id'
   fileRoutesById: FileRoutesById
 }
@@ -92,6 +104,7 @@ export interface RootRouteChildren {
   ParametresRoute: typeof ParametresRoute
   ApiPublicVideosRoute: typeof ApiPublicVideosRouteWithChildren
   ApiVideoContentIdRoute: typeof ApiVideoContentIdRoute
+  ApiPublicJobsTickRoute: typeof ApiPublicJobsTickRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -124,6 +137,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiVideoContentIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/jobs/tick': {
+      id: '/api/public/jobs/tick'
+      path: '/api/public/jobs/tick'
+      fullPath: '/api/public/jobs/tick'
+      preLoaderRoute: typeof ApiPublicJobsTickRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/videos/$id': {
       id: '/api/public/videos/$id'
       path: '/$id'
@@ -151,6 +171,7 @@ const rootRouteChildren: RootRouteChildren = {
   ParametresRoute: ParametresRoute,
   ApiPublicVideosRoute: ApiPublicVideosRouteWithChildren,
   ApiVideoContentIdRoute: ApiVideoContentIdRoute,
+  ApiPublicJobsTickRoute: ApiPublicJobsTickRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
