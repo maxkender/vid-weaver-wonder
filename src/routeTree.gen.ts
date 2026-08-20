@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ParametresRouteImport } from './routes/parametres'
+import { Route as StationRouteImport } from './routes/station'
 import { Route as ApiPublicVideosRouteImport } from './routes/api/public/videos'
 import { Route as ApiVideoContentIdRouteImport } from './routes/api/video-content.$id'
 import { Route as ApiPublicJobsRenderCallbackRouteImport } from './routes/api/public/jobs/render-callback'
@@ -25,6 +26,11 @@ const IndexRoute = IndexRouteImport.update({
 const ParametresRoute = ParametresRouteImport.update({
   id: '/parametres',
   path: '/parametres',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const StationRoute = StationRouteImport.update({
+  id: '/station',
+  path: '/station',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiPublicVideosRoute = ApiPublicVideosRouteImport.update({
@@ -57,6 +63,7 @@ const ApiPublicVideosIdRoute = ApiPublicVideosIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/parametres': typeof ParametresRoute
+  '/station': typeof StationRoute
   '/api/public/videos': typeof ApiPublicVideosRouteWithChildren
   '/api/video-content/$id': typeof ApiVideoContentIdRoute
   '/api/public/jobs/render-callback': typeof ApiPublicJobsRenderCallbackRoute
@@ -66,6 +73,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/parametres': typeof ParametresRoute
+  '/station': typeof StationRoute
   '/api/public/videos': typeof ApiPublicVideosRouteWithChildren
   '/api/video-content/$id': typeof ApiVideoContentIdRoute
   '/api/public/jobs/render-callback': typeof ApiPublicJobsRenderCallbackRoute
@@ -76,6 +84,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/parametres': typeof ParametresRoute
+  '/station': typeof StationRoute
   '/api/public/videos': typeof ApiPublicVideosRouteWithChildren
   '/api/video-content/$id': typeof ApiVideoContentIdRoute
   '/api/public/jobs/render-callback': typeof ApiPublicJobsRenderCallbackRoute
@@ -87,6 +96,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/parametres'
+    | '/station'
     | '/api/public/videos'
     | '/api/video-content/$id'
     | '/api/public/jobs/render-callback'
@@ -96,6 +106,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/parametres'
+    | '/station'
     | '/api/public/videos'
     | '/api/video-content/$id'
     | '/api/public/jobs/render-callback'
@@ -105,6 +116,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/parametres'
+    | '/station'
     | '/api/public/videos'
     | '/api/video-content/$id'
     | '/api/public/jobs/render-callback'
@@ -115,6 +127,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ParametresRoute: typeof ParametresRoute
+  StationRoute: typeof StationRoute
   ApiPublicVideosRoute: typeof ApiPublicVideosRouteWithChildren
   ApiVideoContentIdRoute: typeof ApiVideoContentIdRoute
   ApiPublicJobsRenderCallbackRoute: typeof ApiPublicJobsRenderCallbackRoute
@@ -135,6 +148,13 @@ declare module '@tanstack/react-router' {
       path: '/parametres'
       fullPath: '/parametres'
       preLoaderRoute: typeof ParametresRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/station': {
+      id: '/station'
+      path: '/station'
+      fullPath: '/station'
+      preLoaderRoute: typeof StationRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/videos': {
@@ -190,6 +210,7 @@ const ApiPublicVideosRouteWithChildren = ApiPublicVideosRoute._addFileChildren(
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ParametresRoute: ParametresRoute,
+  StationRoute: StationRoute,
   ApiPublicVideosRoute: ApiPublicVideosRouteWithChildren,
   ApiVideoContentIdRoute: ApiVideoContentIdRoute,
   ApiPublicJobsRenderCallbackRoute: ApiPublicJobsRenderCallbackRoute,
