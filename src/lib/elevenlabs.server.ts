@@ -108,6 +108,7 @@ function alignmentToWords(alignment: Alignment | undefined): WordTiming[] {
 export async function generateElevenSpeechWithTimings(
   text: string,
   voiceId: string,
+  language = "fr",
 ): Promise<{ audioDataUrl: string; words: WordTiming[] }> {
   const apiKey = apiKeyOrThrow();
   try {
@@ -115,6 +116,7 @@ export async function generateElevenSpeechWithTimings(
       `/v1/text-to-speech/${voiceId}/with-timestamps`,
       text,
       apiKey,
+      language,
     );
     const json = (await res.json()) as {
       audio_base64?: string;
@@ -128,7 +130,7 @@ export async function generateElevenSpeechWithTimings(
     };
   } catch {
     // Repli : audio sans alignement (le karaoké estimera les durées).
-    const audioDataUrl = await generateElevenSpeechDataUrl(text, voiceId);
+    const audioDataUrl = await generateElevenSpeechDataUrl(text, voiceId, language);
     return { audioDataUrl, words: [] };
   }
 }
