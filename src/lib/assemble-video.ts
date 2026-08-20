@@ -109,8 +109,13 @@ async function assembleVideoInner(
     const scene = scenes[i]!;
     onProgress?.(`Encodage scène ${i + 1}/${scenes.length}`, i / scenes.length);
 
-    const vName = `in${i}.mp4`;
-    await ffmpeg.writeFile(vName, await fetchFile(scene.videoUrl));
+    // Un plan sans clip animé n'est JAMAIS supprimé : on le rend à partir de
+    // son image fixe pour que l'histoire reste complète.
+    const stillOnly = !scene.videoUrl;
+    const vName = stillOnly ? `in${i}.png` : `in${i}.mp4`;
+    const source = scene.videoUrl ?? scene.imageUrl;
+    if (!source) throw new Error(`Scène ${i + 1} : ni clip vidéo ni image.`);
+    await ffmpeg.writeFile(vName, await fetchFile(source));
 
     const out = `part${i}.mp4`;
     const target = scene.duration && scene.duration > 0.5 ? scene.duration : undefined;
@@ -118,11 +123,14 @@ async function assembleVideoInner(
     // pilotée par la voix off (-shortest), pour que la vidéo se termine EXACTEMENT
     // quand la voix se tait (pas de trou, pas de plan qui traîne).
     const padDur = (target ?? 20) + 5;
-    const vf = `scale=${width}:${height}:force_original_aspect_ratio=decrease,pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2:black,setsar=1,fps=24,tpad=stop_mode=clone:stop_duration=${padDur.toFixed(
-      2,
-    )}`;
+    const vf = `scale=${width}:${height}:force_original_aspect_ratio=decrease,pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2:black,setsar=1,fps=24${
+      stillOnly ? "" : `,tpad=stop_mode=clone:stop_duration=${padDur.toFixed(2)}`
+    }`;
 
-    const args = ["-i", vName];
+    const args = stillOnly
+      ? ["-loop", "1", "-framerate", "24", "-t", String((target ?? 8) + 1), "-i", vName]
+      : ["-i", vName];
+
     const hasVoice = Boolean(scene.audio);
     if (scene.audio) {
       await ffmpeg.writeFile(`voice${i}.mp3`, await fetchFile(scene.audio));
