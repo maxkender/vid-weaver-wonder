@@ -43,7 +43,7 @@ export const SOPHIA_OUTRO =
 export const CTA_BRIEF = [
   "RÈGLE CTA : la dernière scène est TOUJOURS un appel à l'action pour l'application Sophia, mais il doit être RÉÉCRIT et ADAPTÉ au sujet de la vidéo (jamais copié-collé d'une vidéo à l'autre).",
   "Le CTA fait 18 à 30 mots, ton oral et naturel, et suit cette logique : rebond sur le fait qu'on vient de raconter → Sophia (app gratuite de culture générale, cours simples) → invitation claire à TÉLÉCHARGER l'appli maintenant.",
-  "Le mot « Sophia » doit être prononcé au moins une fois dans le CTA.",
+  "RÈGLE ABSOLUE : le mot « Sophia » apparaît EXACTEMENT UNE FOIS dans tout le script (CTA compris). Jamais deux fois. Dans le reste du CTA, dis « l'appli » ou « l'application », jamais à nouveau le nom.",
   "Exemple de forme (à ne pas recopier) : « Des histoires comme ça, Sophia t'en apprend une par jour, gratuitement, en cours de deux minutes. Télécharge l'appli, c'est cadeau. »",
   "Le CTA doit donner envie de télécharger : bénéfice concret, zéro ton publicitaire agressif, zéro emoji.",
 ].join("\n");
@@ -53,8 +53,9 @@ const KIND_BRIEF: Record<VideoKind, string> = {
     "Sujet : un fait fascinant, surprenant et vérifiable, raconté comme une petite enquête.",
   culture:
     "Sujet : culture générale par thème (histoire, science, mythologie, espace…), pédagogique mais captivant.",
-  pub: "Sujet : un fait fascinant, avec en plus une mention naturelle de l'application Sophia glissée au milieu du script (une phrase, jamais agressive) en plus de l'outro finale.",
+  pub: "Sujet : un fait fascinant. La marque Sophia n'est nommée qu'une seule fois dans toute la vidéo, dans l'outro finale.",
 };
+
 
 export function scriptSystemPrompt(
   kind: VideoKind,
