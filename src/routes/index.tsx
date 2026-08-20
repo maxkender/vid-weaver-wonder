@@ -746,7 +746,7 @@ function Studio() {
         const image = st.image ?? (await onImage(scene, doc));
         if (scene.index === 0 && image) referenceImage.current = image;
         if (image) previousImage.current = image;
-        prepared.push({ scene, st, image });
+        prepared.push({ scene, st, ...(image ? { image } : {}) });
       }
       const results = await Promise.all(
         prepared.map(async ({ scene, st, image }) => {
