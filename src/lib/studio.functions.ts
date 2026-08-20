@@ -75,27 +75,28 @@ export const generateScript = createServerFn({ method: "POST" })
       ...s,
       index: i,
     }));
-    // « Sophia » ne doit être prononcé qu'une seule fois dans toute la vidéo.
+    // « Sophia » ne doit être prononcé qu'une seule fois : jamais dans les
+    // scènes, une seule fois dans le CTA final.
+    script.scenes = script.scenes.map((s) => ({
+      ...s,
+      narration: (s.narration ?? "").replace(/\bSophia\b/gi, "l'appli"),
+    }));
     let seenSophia = false;
-    const dedupeSophia = (t: string) =>
-      t.replace(/\bSophia\b/gi, (m) => {
+    const cta = ((script.cta ?? "").trim() || SOPHIA_OUTRO)
+      .replace(/\bSophia\b/gi, (m) => {
         if (seenSophia) return "l'appli";
         seenSophia = true;
         return m;
-      });
-    let cta = (script.cta ?? "").trim() || SOPHIA_OUTRO;
-    script.scenes = script.scenes.map((s) => ({
-      ...s,
-      narration: dedupeSophia(s.narration ?? ""),
-    }));
-    // Le CTA garde la mention si aucune scène ne l'a déjà utilisée.
-    cta = seenSophia ? dedupeSophia(cta) : dedupeSophia(cta);
-    script.cta = cta.replace(/\s{2,}/g, " ").trim();
+      })
+      .replace(/\s{2,}/g, " ")
+      .trim();
+    script.cta = cta;
 
     // Le CTA Sophia devient une vraie scène finale (narration + visuel + vidéo)
     script.scenes.push({
       index: script.scenes.length,
       narration: cta,
+
       overlay: "Télécharge Sophia",
       imagePrompt:
         "a hand holding a simple smartphone showing a clean study app screen, small floating book and lightbulb shapes around it, calm background",
