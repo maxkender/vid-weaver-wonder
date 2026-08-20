@@ -321,6 +321,42 @@ function Studio() {
     });
   }, []);
 
+  const saveHistory = useCallback((id: string, next: Script) => {
+    const items = readHistory().filter((h) => h.id !== id);
+    const updated = [
+      { id, title: next.title || "Sans titre", date: Date.now(), script: next },
+      ...items,
+    ];
+    writeHistory(updated);
+    setHistory(updated);
+  }, []);
+
+  const updateScene = useCallback(
+    (index: number, field: keyof Scene, value: string) => {
+      setScript((prev) => {
+        if (!prev) return prev;
+        const next = {
+          ...prev,
+          scenes: prev.scenes.map((s) => (s.index === index ? { ...s, [field]: value } : s)),
+        };
+        if (projectId) saveHistory(projectId, next);
+        return next;
+      });
+    },
+    [projectId, saveHistory],
+  );
+
+  const deleteHistory = useCallback((id: string) => {
+    const updated = readHistory().filter((h) => h.id !== id);
+    writeHistory(updated);
+    setHistory(updated);
+    void import("@/lib/project-store").then((m) => m.deleteProjectMedia(id));
+  }, []);
+
+  const patch = useCallback((i: number, value: SceneState) => {
+    setStates((prev) => ({ ...prev, [i]: { ...prev[i], ...value } }));
+  }, []);
+
   /**
    * Reprise après fermeture d'onglet ou plantage : un clip déjà commandé (donc
    * déjà facturé) est récupéré au lieu d'être régénéré.
@@ -358,42 +394,6 @@ function Studio() {
       }
     })();
   }, [states, patch]);
-
-  const saveHistory = useCallback((id: string, next: Script) => {
-    const items = readHistory().filter((h) => h.id !== id);
-    const updated = [
-      { id, title: next.title || "Sans titre", date: Date.now(), script: next },
-      ...items,
-    ];
-    writeHistory(updated);
-    setHistory(updated);
-  }, []);
-
-  const updateScene = useCallback(
-    (index: number, field: keyof Scene, value: string) => {
-      setScript((prev) => {
-        if (!prev) return prev;
-        const next = {
-          ...prev,
-          scenes: prev.scenes.map((s) => (s.index === index ? { ...s, [field]: value } : s)),
-        };
-        if (projectId) saveHistory(projectId, next);
-        return next;
-      });
-    },
-    [projectId, saveHistory],
-  );
-
-  const deleteHistory = useCallback((id: string) => {
-    const updated = readHistory().filter((h) => h.id !== id);
-    writeHistory(updated);
-    setHistory(updated);
-    void import("@/lib/project-store").then((m) => m.deleteProjectMedia(id));
-  }, []);
-
-  const patch = useCallback((i: number, value: SceneState) => {
-    setStates((prev) => ({ ...prev, [i]: { ...prev[i], ...value } }));
-  }, []);
 
   // Persiste les médias (images / vidéos / voix) du projet courant pour l'historique.
   useEffect(() => {
