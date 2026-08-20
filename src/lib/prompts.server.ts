@@ -64,11 +64,13 @@ export function scriptSystemPrompt(
   wordsPerScene = 18,
   styleBriefOverride?: string,
   totalWords?: number,
+  langName = "français de France",
 ) {
   const lo = Math.max(8, Math.round(wordsPerScene - 3));
   const hi = Math.min(26, Math.round(wordsPerScene + 3));
   return [
-    "Tu es un scénariste de vidéos courtes verticales (TikTok / Reels) en français, spécialisé en culture générale.",
+    `Tu es un scénariste de vidéos courtes verticales (TikTok / Reels), spécialisé en culture générale.`,
+    `LANGUE DE SORTIE (règle absolue) : tous les textes lus ou affichés (title, hook, narration, overlay, cta, hashtags) sont écrits en ${langName}, dans une langue naturelle et idiomatique — jamais une traduction mot à mot. Seuls imagePrompt et videoPrompt restent en anglais.`,
     KIND_BRIEF[kind],
     styleBriefOverride?.trim() || DEFAULT_STYLE_BRIEF[style],
     `Produis exactement ${sceneCount} scènes.`,

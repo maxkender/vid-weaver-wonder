@@ -22,7 +22,7 @@ const VOICE_SETTINGS = {
 // On tente la meilleure qualité d'abord, puis on dégrade si le plan ne le permet pas.
 const FORMATS = ["mp3_44100_192", "mp3_44100_128", "mp3_44100_96", "mp3_22050_32"];
 
-async function callEleven(path: string, text: string, apiKey: string) {
+async function callEleven(path: string, text: string, apiKey: string, language = "fr") {
   let res: Response | null = null;
   let lastErr = "";
   for (const format of FORMATS) {
@@ -31,6 +31,7 @@ async function callEleven(path: string, text: string, apiKey: string) {
       headers: { "xi-api-key": apiKey, "Content-Type": "application/json" },
       body: JSON.stringify({
         text,
+        language_code: language,
         model_id: "eleven_multilingual_v2",
         voice_settings: VOICE_SETTINGS,
       }),
@@ -56,8 +57,14 @@ function apiKeyOrThrow() {
 export async function generateElevenSpeechDataUrl(
   text: string,
   voiceId: string,
+  language = "fr",
 ): Promise<string> {
-  const res = await callEleven(`/v1/text-to-speech/${voiceId}`, text, apiKeyOrThrow());
+  const res = await callEleven(
+    `/v1/text-to-speech/${voiceId}`,
+    text,
+    apiKeyOrThrow(),
+    language,
+  );
   const buf = Buffer.from(await res.arrayBuffer());
   return `data:audio/mpeg;base64,${buf.toString("base64")}`;
 }
@@ -101,6 +108,7 @@ function alignmentToWords(alignment: Alignment | undefined): WordTiming[] {
 export async function generateElevenSpeechWithTimings(
   text: string,
   voiceId: string,
+  language = "fr",
 ): Promise<{ audioDataUrl: string; words: WordTiming[] }> {
   const apiKey = apiKeyOrThrow();
   try {
@@ -108,6 +116,7 @@ export async function generateElevenSpeechWithTimings(
       `/v1/text-to-speech/${voiceId}/with-timestamps`,
       text,
       apiKey,
+      language,
     );
     const json = (await res.json()) as {
       audio_base64?: string;
@@ -121,7 +130,7 @@ export async function generateElevenSpeechWithTimings(
     };
   } catch {
     // Repli : audio sans alignement (le karaoké estimera les durées).
-    const audioDataUrl = await generateElevenSpeechDataUrl(text, voiceId);
+    const audioDataUrl = await generateElevenSpeechDataUrl(text, voiceId, language);
     return { audioDataUrl, words: [] };
   }
 }

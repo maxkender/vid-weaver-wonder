@@ -119,7 +119,11 @@ export async function fetchVideoContent(id: string): Promise<Response> {
 }
 
 /** Génère une voix off (TTS) et renvoie une data URL audio/mpeg. */
-export async function generateSpeechDataUrl(text: string, voice: string): Promise<string> {
+export async function generateSpeechDataUrl(
+  text: string,
+  voice: string,
+  langName = "français de France",
+): Promise<string> {
   const res = await fetch(`${GATEWAY}/audio/speech`, {
     method: "POST",
     headers: gatewayHeaders(),
@@ -130,7 +134,7 @@ export async function generateSpeechDataUrl(text: string, voice: string): Promis
       response_format: "mp3",
       speed: 1.0,
       instructions: [
-        "Langue : français de France, accent neutre et parfaitement naturel.",
+        `Langue : ${langName}, accent neutre et parfaitement naturel.`,
         "Rôle : narrateur de documentaire moderne pour une vidéo courte verticale.",
         "Ton : posé mais captivant, chaleureux, complice, jamais robotique ni publicitaire.",
         "Débit : moyen-rapide, avec de vraies respirations et de courtes pauses après chaque phrase.",

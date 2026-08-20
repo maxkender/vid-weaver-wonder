@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
+import { LANGUAGES, type LanguageId } from "@/lib/languages";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Clapperboard,
@@ -225,6 +226,7 @@ function Studio() {
   );
 
   const [style, setStyle] = useState<NarrationStyle>("revelation");
+  const [language, setLanguage] = useState<LanguageId>("fr");
   const [visual, setVisual] = useState<VisualStyle>("papercraft");
   const [engine, setEngine] = useState<VoiceEngine>("elevenlabs");
   const [voice, setVoice] = useState(defaultVoice("elevenlabs"));
@@ -422,7 +424,7 @@ function Studio() {
         .filter((t, i, a) => t && a.indexOf(t) === i)
         .slice(-40);
       const res = (await runSuggest({
-        data: { avoid, style, category: topicCategory },
+        data: { avoid, style, category: topicCategory, language },
       })) as {
 
         topic: string;
@@ -461,6 +463,7 @@ function Studio() {
           sceneCount,
           style,
           targetSeconds,
+          language,
           styleBrief: settings.narration[style].brief,
           wordsBias: settings.narration[style].wordsBias,
         },
@@ -644,7 +647,7 @@ function Studio() {
     patch(scene.index, { audioLoading: true });
     try {
       const { audioDataUrl, words } = (await runVoice({
-        data: { text: scene.narration, voice, engine },
+        data: { text: scene.narration, voice, engine, language },
       })) as { audioDataUrl: string; words?: { word: string; start: number; end: number }[] };
       patch(scene.index, { audio: audioDataUrl, words: words ?? [], audioLoading: false });
       toast.success(`Voix off scène ${scene.index + 1}`);
@@ -669,6 +672,7 @@ function Studio() {
             text: "Et si je te racontais un fait que presque personne ne connaît ? Écoute bien.",
             voice,
             engine,
+            language,
           },
         })) as { audioDataUrl: string };
         src = audioDataUrl;
@@ -860,7 +864,7 @@ function Studio() {
           let words = st.words;
           if (!audio) {
             const res = (await runVoice({
-              data: { text: scene.narration, voice, engine },
+              data: { text: scene.narration, voice, engine, language },
             }).catch(() => null)) as
               | { audioDataUrl: string; words?: { word: string; start: number; end: number }[] }
               | null;
@@ -1209,6 +1213,30 @@ function Studio() {
           </div>
 
           <div className="flex flex-col gap-4">
+            <div>
+              <label
+                htmlFor="video-language"
+                className="text-xs uppercase tracking-widest text-muted-foreground"
+              >
+                Langue de la vidéo
+              </label>
+              <select
+                id="video-language"
+                value={language}
+                onChange={(e) => setLanguage(e.target.value as LanguageId)}
+                className="mt-2 w-full rounded-lg border border-input bg-background/60 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+              >
+                {LANGUAGES.map((l) => (
+                  <option key={l.id} value={l.id}>
+                    {l.label}
+                  </option>
+                ))}
+              </select>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Script, voix off et sous-titres sont générés dans cette langue.
+              </p>
+            </div>
+
             <div>
               <label className="text-xs uppercase tracking-widest text-muted-foreground">
                 Durée de la vidéo : {targetSeconds}s
