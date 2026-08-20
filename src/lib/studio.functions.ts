@@ -19,6 +19,7 @@ import {
 } from "./prompts.server";
 import { estimateSpeechSeconds } from "./duration";
 import { TOPIC_CATEGORIES, TOPIC_CATEGORY_IDS } from "./topic-categories";
+import { LANGUAGE_IDS, languageName } from "./languages";
 
 
 const visualEnum = z.enum(["papercraft", "cinematique", "documentaire", "retro"]);
@@ -39,10 +40,13 @@ export const generateScript = createServerFn({ method: "POST" })
         styleBrief: z.string().max(4000).optional(),
         /** Densité du texte réglée dans Paramètres (mots par plan). */
         wordsBias: z.number().int().min(-6).max(6).default(0),
+        /** Langue de la narration, des sous-titres et du CTA. */
+        language: z.enum(LANGUAGE_IDS).default("fr"),
       })
       .parse(input),
   )
   .handler(async ({ data }) => {
+    const langName = languageName(data.language);
     // Le CTA final ajoute une scène : on réserve ~6 s pour lui.
     const narrationSeconds = Math.max(8, data.targetSeconds - 6);
     // ~2,6 mots/seconde : mesuré sur les exports réels (ElevenLabs lit vite et
@@ -69,8 +73,9 @@ export const generateScript = createServerFn({ method: "POST" })
         wordsPerScene,
         data.styleBrief,
         totalWords,
+        langName,
       ),
-      scriptUserPrompt(data.kind, data.topic),
+      `${scriptUserPrompt(data.kind, data.topic)}\nÉcris tout le script en ${langName}.`,
     );
 
 
