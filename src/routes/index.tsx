@@ -751,10 +751,12 @@ function Studio() {
         const duration = win ? win.end - win.start : raw;
         const words = win ? shiftTimings(st.words ?? null, win.start) : (st.words ?? []);
         return {
-          videoUrl: st.videoUrl,
+          ...(st.videoUrl ? { videoUrl: st.videoUrl } : {}),
+          ...(st.image ? { imageUrl: st.image } : {}),
           audio: st.audio,
           ...(win ? { trimStart: win.start, trimEnd: win.end } : {}),
           mask,
+
           // Les images de sous-titres sont fabriquées juste avant l'encodage du
           // plan (et libérées après) : sinon toutes les scènes tiennent en
           // mémoire en même temps et l'onglet plante pendant l'export.
