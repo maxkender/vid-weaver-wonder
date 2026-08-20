@@ -126,6 +126,17 @@ export async function generateElevenSpeechWithTimings(
   }
 }
 
+/** Voix FR recommandées, épinglées en tête de liste. */
+const CURATED_FR: { id: string; label: string }[] = [
+  { id: "3HZyQcLKlT0a3RDeXVsP", label: "🇫🇷 ⭐ Guillaume — documentaire & storytelling" },
+  { id: "aQROLel5sQbj1vuIVi6B", label: "🇫🇷 ⭐ Nicolas — narrateur" },
+  { id: "EIe4oLyymVX7lKVYli9m", label: "🇫🇷 ⭐ Nicolas — narrateur audiobook" },
+  { id: "2AGrjHJgmTgUqzy68M9W", label: "🇫🇷 ⭐ Nicolas Petit — voix grave" },
+  { id: "93nuHbke4dTER9x2pDwE", label: "🇫🇷 ⭐ Adam — chaleureux, multilingue" },
+  { id: "McVZB9hVxVSk3Equu8EH", label: "🇫🇷 ⭐ Audrey — dynamique, pub" },
+  { id: "tVu7uvtKsrCoOPPIUVR7", label: "🇫🇷 ⭐ Guillaume — narrateur" },
+];
+
 /** Voix du compte + voix françaises de la bibliothèque partagée (FR en premier). */
 export async function listElevenVoices(): Promise<{ id: string; label: string }[]> {
   const apiKey = apiKeyOrThrow();
@@ -133,8 +144,9 @@ export async function listElevenVoices(): Promise<{ id: string; label: string }[
 
   const [ownRes, frRes] = await Promise.all([
     fetch("https://api.elevenlabs.io/v2/voices?page_size=100", { headers }),
-    fetch("https://api.elevenlabs.io/v1/shared-voices?page_size=60&language=fr", { headers }).catch(() => null),
+    fetch("https://api.elevenlabs.io/v1/shared-voices?page_size=100&language=fr", { headers }).catch(() => null),
   ]);
+
 
   if (!ownRes.ok) throw new Error(`ElevenLabs voices ${ownRes.status}: ${await ownRes.text()}`);
   const own = (await ownRes.json()) as {
@@ -174,6 +186,9 @@ export async function listElevenVoices(): Promise<{ id: string; label: string }[
     else others.push(entry);
   }
 
-  return [...french, ...others];
+  const all = [...CURATED_FR, ...french, ...others];
+  const uniq = new Set<string>();
+  return all.filter((v) => (uniq.has(v.id) ? false : (uniq.add(v.id), true)));
+
 }
 
