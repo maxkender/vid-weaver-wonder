@@ -45,8 +45,11 @@ export const generateScript = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     // Le CTA final ajoute une scène : on réserve ~7 s pour lui.
     const narrationSeconds = Math.max(8, data.targetSeconds - 7);
-    // ~2,4 mots/seconde en lecture naturelle (voix off posée).
-    const totalWords = Math.round(narrationSeconds * 2.4);
+    // ~2,15 mots/seconde : la voix off ElevenLabs lit vite et les silences de
+    // tête/queue sont coupés, donc on écrit un peu plus long que l'estimation
+    // théorique pour atteindre réellement la durée demandée.
+    const totalWords = Math.round(narrationSeconds * 2.15);
+
     // Un plan dure 8 s max (~19 mots) : on ajoute des scènes si la durée
     // demandée ne tient pas dans le nombre de plans choisi.
     const sceneCount = Math.min(
@@ -75,14 +78,26 @@ export const generateScript = createServerFn({ method: "POST" })
       ...s,
       index: i,
     }));
+    // UN SEUL plan CTA : si l'IA a déjà écrit une (ou plusieurs) scènes de pub
+    // à la fin, on les retire avant d'ajouter le CTA officiel.
+    const isCta = (t: string) =>
+      /\b(sophia|t[ée]l[ée]charge|l'appli|l'application)\b/i.test(t);
+    while (
+      script.scenes.length > 2 &&
+      isCta(script.scenes[script.scenes.length - 1]?.narration ?? "")
+    ) {
+      script.scenes.pop();
+    }
     // « Sophia » ne doit être prononcé qu'une seule fois : jamais dans les
     // scènes, une seule fois dans le CTA final.
-    script.scenes = script.scenes.map((s) => ({
+    script.scenes = script.scenes.map((s, i) => ({
       ...s,
+      index: i,
       narration: (s.narration ?? "").replace(/\bSophia\b/gi, "l'appli"),
     }));
     let seenSophia = false;
     const cta = ((script.cta ?? "").trim() || SOPHIA_OUTRO)
+
       .replace(/\bSophia\b/gi, (m) => {
         if (seenSophia) return "l'appli";
         seenSophia = true;

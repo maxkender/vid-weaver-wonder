@@ -88,6 +88,9 @@ export function scriptSystemPrompt(
     "CLARTÉ AVANT TOUT : on doit comprendre l'histoire même sans les images. Nomme explicitement de qui et de quoi on parle dans chaque scène (jamais « il », « ça », « cette chose » sans que le nom ait été dit juste avant). Le lieu et l'époque sont donnés dès la scène 2.",
     "STORYTELLING CLAIR ET CONCIS : une seule idée par scène, phrases de 6 à 12 mots, sujet-verbe-complément, aucune subordonnée compliquée, aucun adjectif décoratif. Chaque phrase apporte une information nouvelle : si on peut la supprimer sans rien perdre, supprime-la.",
     "FIL LOGIQUE : le script doit se lire comme un seul paragraphe suivi. Chaque scène répond à la question posée par la précédente et en pose une nouvelle. Avant-dernière scène = la révélation qui explique tout, sans rien laisser d'inexpliqué.",
+    "TEST D'INTELLIGIBILITÉ (obligatoire avant de répondre) : relis le script d'une traite comme si tu l'entendais pour la première fois. Chaque nom, lieu, époque et enjeu doit être introduit avant d'être utilisé ; aucune ellipse, aucun saut de logique, aucune scène qui suppose une connaissance préalable. Si une phrase peut être mal comprise, réécris-la plus simplement.",
+    "UN SEUL CTA : le CTA Sophia est écrit UNIQUEMENT dans le champ cta. Aucune scène du tableau scenes ne doit parler de l'appli, de téléchargement ou de cours gratuits.",
+
     "Rétention : chaque scène se termine sur une micro-tension (un détail inexpliqué, une contradiction, un « sauf que… ») qui oblige à regarder la suivante.",
     "Le script doit être un vrai texte suivi et cohérent : chaque scène enchaîne logiquement sur la précédente, sans répétition, avec des transitions naturelles.",
     "VOCABULAIRE SIMPLE : écris pour quelqu'un de 15 ans. Mots du quotidien uniquement, phrases courtes, zéro jargon, zéro mot savant.",

@@ -690,9 +690,10 @@ function Studio() {
     () =>
       (script?.scenes ?? [])
         .map((s) => states[s.index])
-        .filter((st): st is SceneState & { videoUrl: string } => Boolean(st?.videoUrl)),
+        .filter((st): st is SceneState => Boolean(st?.videoUrl || st?.image)),
     [script, states],
   );
+
 
   const buildFinalVideo = async (
     snapshot: Record<number, SceneState | undefined>,
@@ -709,12 +710,12 @@ function Studio() {
       orientation === "horizontal"
         ? { width: settings.hd ? 1920 : 1280, height: settings.hd ? 1080 : 720 }
         : { width: settings.hd ? 1080 : 720, height: settings.hd ? 1920 : 1280 };
+    // AUCUN plan n'est écarté : un plan sans clip animé est rendu à partir de
+    // son image fixe, pour que l'histoire (et la durée) restent complètes.
     const all = (doc?.scenes ?? [])
-      .map((s) => ({ scene: s, st: snapshot[s.index] }))
-      .filter((x): x is { scene: Scene; st: SceneState & { videoUrl: string } } =>
-        Boolean(x.st?.videoUrl),
-      );
-    if (!all.length) throw new Error("Aucune scène animée à assembler.");
+      .map((s) => ({ scene: s, st: (snapshot[s.index] ?? {}) as SceneState }))
+      .filter((x) => Boolean(x.st.videoUrl || x.st.image));
+    if (!all.length) throw new Error("Aucune scène à assembler.");
 
     // Un plan sans voix off produirait un blanc silencieux (typiquement le hook
     // du début) : on refabrique la voix manquante AVANT d'assembler, pour ne
@@ -735,6 +736,7 @@ function Studio() {
 
 
 
+
     // Papier découpé : masque carré à coins arrondis, toujours présent.
     const mask = useSquareMask
       ? await makeRoundedSquareMask(dims.width, dims.height)
@@ -750,10 +752,12 @@ function Studio() {
         const duration = win ? win.end - win.start : raw;
         const words = win ? shiftTimings(st.words ?? null, win.start) : (st.words ?? []);
         return {
-          videoUrl: st.videoUrl,
+          ...(st.videoUrl ? { videoUrl: st.videoUrl } : {}),
+          ...(st.image ? { imageUrl: st.image } : {}),
           audio: st.audio,
           ...(win ? { trimStart: win.start, trimEnd: win.end } : {}),
           mask,
+
           // Les images de sous-titres sont fabriquées juste avant l'encodage du
           // plan (et libérées après) : sinon toutes les scènes tiennent en
           // mémoire en même temps et l'onglet plante pendant l'export.
@@ -867,8 +871,12 @@ function Studio() {
             }
           }
           const voiceSeconds = audio ? await audioDuration(audio) : undefined;
-          const videoUrl = st.videoUrl ?? (await onVideo(scene, image, doc, voiceSeconds));
+          // Un clip raté fait disparaître un plan entier : on retente une fois
+          // avant de laisser l'assemblage retomber sur l'image fixe.
+          let videoUrl = st.videoUrl ?? (await onVideo(scene, image, doc, voiceSeconds));
+          if (!videoUrl) videoUrl = await onVideo(scene, image, doc, voiceSeconds);
           return [scene.index, { ...st, image, videoUrl, audio, words }] as const;
+
         }),
       );
       const snapshot: Record<number, SceneState | undefined> = { ...states };
