@@ -6,8 +6,12 @@ import wasmURL from "@ffmpeg/core/wasm?url";
 export type KaraokeSeqInput = { fps: number; frames: Blob[] };
 
 export type AssembleScene = {
-  videoUrl: string;
+  /** Clip animé du plan. Absent → on retombe sur l'image fixe (imageUrl). */
+  videoUrl?: string | undefined;
+  /** Image fixe de secours si le clip animé n'a pas pu être généré. */
+  imageUrl?: string | undefined;
   audio?: string | undefined;
+
   /** PNG transparent (texte incrusté) superposé sur toute la durée du plan. */
   overlay?: Blob | null | undefined;
   /**
