@@ -45,22 +45,31 @@ export const generateScript = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     // Le CTA final ajoute une scène : on réserve ~7 s pour lui.
     const narrationSeconds = Math.max(8, data.targetSeconds - 7);
-    // ~2,5 mots/seconde en lecture naturelle.
+    // ~2,4 mots/seconde en lecture naturelle (voix off posée).
+    const totalWords = Math.round(narrationSeconds * 2.4);
+    // Un plan dure 8 s max (~19 mots) : on ajoute des scènes si la durée
+    // demandée ne tient pas dans le nombre de plans choisi.
+    const sceneCount = Math.min(
+      14,
+      Math.max(data.sceneCount, Math.ceil(totalWords / 19)),
+    );
     const wordsPerScene = Math.min(
-      28,
-      Math.max(8, Math.round((narrationSeconds * 2.5) / data.sceneCount) + data.wordsBias),
+      22,
+      Math.max(8, Math.round(totalWords / sceneCount) + data.wordsBias),
     );
     const script = await chatJSON<Script>(
       "google/gemini-3.7-flash",
       scriptSystemPrompt(
         data.kind,
-        data.sceneCount,
+        sceneCount,
         data.style,
         wordsPerScene,
         data.styleBrief,
+        totalWords,
       ),
       scriptUserPrompt(data.kind, data.topic),
     );
+
 
     script.scenes = (script.scenes ?? []).slice(0, data.sceneCount).map((s, i) => ({
       ...s,
