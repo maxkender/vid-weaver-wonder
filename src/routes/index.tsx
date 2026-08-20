@@ -607,7 +607,7 @@ function Studio() {
         if (states[scene.index]?.videoUrl) continue;
         // La voix (peu coûteuse) est produite AVANT le clip : on commande alors
         // la durée exacte (4/6/8 s) au lieu de payer 8 s systématiquement.
-        const audio = states[scene.index]?.audio ?? (await onVoice(scene));
+        const audio = states[scene.index]?.audio ?? (await onVoice(scene))?.audioDataUrl;
         const voiceSeconds = audio ? await audioDuration(audio) : undefined;
         videoJobs.push(onVideo(scene, image, script, voiceSeconds));
       }
