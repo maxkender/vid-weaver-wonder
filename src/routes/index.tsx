@@ -682,7 +682,6 @@ function Studio() {
 
     const { assembleVideo } = await import("@/lib/assemble-video");
     const { randomTrack } = await import("@/lib/music-store");
-    const { makeOverlayPng } = await import("@/lib/overlay-png");
     const { makeKaraokeSequence, makeRoundedSquareMask, sophiaWindow, voiceWindow, shiftTimings } =
       await import("@/lib/karaoke-overlay");
     const dims =
