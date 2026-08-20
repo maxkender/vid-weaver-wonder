@@ -253,6 +253,10 @@ function Studio() {
   const [script, setScript] = useState<Script | null>(null);
   const [loadingScript, setLoadingScript] = useState(false);
   const [states, setStates] = useState<Record<number, SceneState>>({});
+  const patch = useCallback((i: number, value: SceneState) => {
+    setStates((prev) => ({ ...prev, [i]: { ...prev[i], ...value } }));
+  }, []);
+
   
   const audioRefs = useRef<Record<number, HTMLAudioElement | null>>({});
   const videoRefs = useRef<Record<number, HTMLVideoElement | null>>({});
@@ -353,9 +357,6 @@ function Studio() {
     void import("@/lib/project-store").then((m) => m.deleteProjectMedia(id));
   }, []);
 
-  const patch = useCallback((i: number, value: SceneState) => {
-    setStates((prev) => ({ ...prev, [i]: { ...prev[i], ...value } }));
-  }, []);
 
   /**
    * Reprise après fermeture d'onglet ou plantage : un clip déjà commandé (donc
