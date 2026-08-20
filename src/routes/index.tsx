@@ -1214,6 +1214,30 @@ function Studio() {
 
           <div className="flex flex-col gap-4">
             <div>
+              <label
+                htmlFor="video-language"
+                className="text-xs uppercase tracking-widest text-muted-foreground"
+              >
+                Langue de la vidéo
+              </label>
+              <select
+                id="video-language"
+                value={language}
+                onChange={(e) => setLanguage(e.target.value as LanguageId)}
+                className="mt-2 w-full rounded-lg border border-input bg-background/60 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+              >
+                {LANGUAGES.map((l) => (
+                  <option key={l.id} value={l.id}>
+                    {l.label}
+                  </option>
+                ))}
+              </select>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Script, voix off et sous-titres sont générés dans cette langue.
+              </p>
+            </div>
+
+            <div>
               <label className="text-xs uppercase tracking-widest text-muted-foreground">
                 Durée de la vidéo : {targetSeconds}s
               </label>
