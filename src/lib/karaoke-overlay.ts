@@ -13,8 +13,9 @@ async function ensureFont(size: number) {
 /** Taille de police relative des sous-titres (2× plus petit qu'avant). */
 export const CAPTION_SIZE_RATIO = 0.062;
 
+/** On garde la casse d'origine (majuscule de début de phrase, noms propres). */
 const cleanWord = (w: string) =>
-  w.replace(/[«»"]/g, "").replace(/\s+/g, " ").trim().toLowerCase();
+  w.replace(/[«»"]/g, "").replace(/\s+/g, " ").trim();
 
 /**
  * Dessine la phrase sur une seule ligne, en blanc uni, sans zoom.
