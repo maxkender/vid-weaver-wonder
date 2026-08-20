@@ -702,13 +702,14 @@ function Studio() {
     for (const item of all) {
       if (item.st.audio) continue;
       setAssembleStep(`Voix off manquante — scène ${item.scene.index + 1}…`);
-      const audio = await onVoice(item.scene);
-      if (!audio) {
+      const res = await onVoice(item.scene);
+      if (!res) {
         throw new Error(
           `La voix off de la scène ${item.scene.index + 1} n'a pas pu être générée : relance l'export.`,
         );
       }
-      item.st = { ...item.st, audio, words: states[item.scene.index]?.words ?? [] };
+      item.st = { ...item.st, audio: res.audioDataUrl, words: res.words };
+
     }
     const ordered = all;
 
