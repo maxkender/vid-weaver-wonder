@@ -690,9 +690,10 @@ function Studio() {
     () =>
       (script?.scenes ?? [])
         .map((s) => states[s.index])
-        .filter((st): st is SceneState & { videoUrl: string } => Boolean(st?.videoUrl)),
+        .filter((st): st is SceneState => Boolean(st?.videoUrl || st?.image)),
     [script, states],
   );
+
 
   const buildFinalVideo = async (
     snapshot: Record<number, SceneState | undefined>,
