@@ -745,10 +745,10 @@ function Studio() {
                     : null,
                 )
             : null,
-          overlay: duration
-            ? null
-            : await makeOverlayPng(scene.overlay, dims.width, dims.height),
+          // Jamais de gros titre en majuscules : pas d'overlay de secours.
+          overlay: null,
           duration,
+
         };
       }),
     );
