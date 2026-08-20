@@ -234,10 +234,10 @@ const LOGO_STEPS = 6;
 export const CAPTION_FADE = 0.08;
 const FADE_STEPS = 8;
 
-/** Durée minimale d'affichage d'un groupe de mots (secondes). */
-export const MIN_CAPTION_HOLD = 0.34;
-/** Nombre maximal de mots affichés ensemble. */
-const MAX_GROUP_WORDS = 3;
+/** Mot par mot : aucune fusion de groupes trop courts. */
+export const MIN_CAPTION_HOLD = 0;
+/** Nombre maximal de mots affichés ensemble (1 = strictement mot par mot). */
+const MAX_GROUP_WORDS = 1;
 /** Longueur maximale d'un groupe (une seule ligne). */
 const MAX_GROUP_CHARS = 18;
 /** Léger devancement : le texte apparaît juste avant la syllabe (perçu comme synchro). */
