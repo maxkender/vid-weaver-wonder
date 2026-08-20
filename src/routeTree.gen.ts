@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as ParametresRouteImport } from './routes/parametres'
 import { Route as ApiPublicVideosRouteImport } from './routes/api/public/videos'
 import { Route as ApiVideoContentIdRouteImport } from './routes/api/video-content.$id'
+import { Route as ApiPublicVideosIdRouteImport } from './routes/api/public/videos.$id'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -34,44 +35,62 @@ const ApiVideoContentIdRoute = ApiVideoContentIdRouteImport.update({
   path: '/api/video-content/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicVideosIdRoute = ApiPublicVideosIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => ApiPublicVideosRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/parametres': typeof ParametresRoute
-  '/api/public/videos': typeof ApiPublicVideosRoute
+  '/api/public/videos': typeof ApiPublicVideosRouteWithChildren
   '/api/video-content/$id': typeof ApiVideoContentIdRoute
+  '/api/public/videos/$id': typeof ApiPublicVideosIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/parametres': typeof ParametresRoute
-  '/api/public/videos': typeof ApiPublicVideosRoute
+  '/api/public/videos': typeof ApiPublicVideosRouteWithChildren
   '/api/video-content/$id': typeof ApiVideoContentIdRoute
+  '/api/public/videos/$id': typeof ApiPublicVideosIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/parametres': typeof ParametresRoute
-  '/api/public/videos': typeof ApiPublicVideosRoute
+  '/api/public/videos': typeof ApiPublicVideosRouteWithChildren
   '/api/video-content/$id': typeof ApiVideoContentIdRoute
+  '/api/public/videos/$id': typeof ApiPublicVideosIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    '/' | '/parametres' | '/api/public/videos' | '/api/video-content/$id'
+    | '/'
+    | '/parametres'
+    | '/api/public/videos'
+    | '/api/video-content/$id'
+    | '/api/public/videos/$id'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/parametres' | '/api/public/videos' | '/api/video-content/$id'
+  to:
+    | '/'
+    | '/parametres'
+    | '/api/public/videos'
+    | '/api/video-content/$id'
+    | '/api/public/videos/$id'
   id:
     | '__root__'
     | '/'
     | '/parametres'
     | '/api/public/videos'
     | '/api/video-content/$id'
+    | '/api/public/videos/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ParametresRoute: typeof ParametresRoute
-  ApiPublicVideosRoute: typeof ApiPublicVideosRoute
+  ApiPublicVideosRoute: typeof ApiPublicVideosRouteWithChildren
   ApiVideoContentIdRoute: typeof ApiVideoContentIdRoute
 }
 
@@ -105,13 +124,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiVideoContentIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/videos/$id': {
+      id: '/api/public/videos/$id'
+      path: '/$id'
+      fullPath: '/api/public/videos/$id'
+      preLoaderRoute: typeof ApiPublicVideosIdRouteImport
+      parentRoute: typeof ApiPublicVideosRoute
+    }
   }
 }
+
+interface ApiPublicVideosRouteChildren {
+  ApiPublicVideosIdRoute: typeof ApiPublicVideosIdRoute
+}
+
+const ApiPublicVideosRouteChildren: ApiPublicVideosRouteChildren = {
+  ApiPublicVideosIdRoute: ApiPublicVideosIdRoute,
+}
+
+const ApiPublicVideosRouteWithChildren = ApiPublicVideosRoute._addFileChildren(
+  ApiPublicVideosRouteChildren,
+)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ParametresRoute: ParametresRoute,
-  ApiPublicVideosRoute: ApiPublicVideosRoute,
+  ApiPublicVideosRoute: ApiPublicVideosRouteWithChildren,
   ApiVideoContentIdRoute: ApiVideoContentIdRoute,
 }
 export const routeTree = rootRouteImport
