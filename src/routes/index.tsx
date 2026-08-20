@@ -870,8 +870,12 @@ function Studio() {
             }
           }
           const voiceSeconds = audio ? await audioDuration(audio) : undefined;
-          const videoUrl = st.videoUrl ?? (await onVideo(scene, image, doc, voiceSeconds));
+          // Un clip raté fait disparaître un plan entier : on retente une fois
+          // avant de laisser l'assemblage retomber sur l'image fixe.
+          let videoUrl = st.videoUrl ?? (await onVideo(scene, image, doc, voiceSeconds));
+          if (!videoUrl) videoUrl = await onVideo(scene, image, doc, voiceSeconds);
           return [scene.index, { ...st, image, videoUrl, audio, words }] as const;
+
         }),
       );
       const snapshot: Record<number, SceneState | undefined> = { ...states };
