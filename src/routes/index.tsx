@@ -474,7 +474,12 @@ function Studio() {
   };
 
 
-  const onVideo = async (scene: Scene, imageOverride?: string, doc: Script | null = script) => {
+  const onVideo = async (
+    scene: Scene,
+    imageOverride?: string,
+    doc: Script | null = script,
+    voiceSeconds?: number,
+  ) => {
     // Économie de crédits : on ne relance pas un plan déjà généré.
     const done = states[scene.index]?.videoUrl;
     if (done && !imageOverride) return done;
@@ -488,11 +493,19 @@ function Studio() {
         "Keep every character, object, costume and location from the reference image unchanged",
         scene.videoPrompt,
       ].join(". ").slice(0, 1950);
+      const seconds = voiceSeconds
+        ? voiceSeconds <= 4
+          ? "4"
+          : voiceSeconds <= 6
+            ? "6"
+            : "8"
+        : undefined;
       const { id } = (await runVideo({
         data: {
           videoPrompt: literalVideoPrompt,
           ...(image ? { imageDataUrl: image } : {}),
           narration: scene.narration,
+          ...(seconds ? { seconds } : {}),
           orientation,
           visual,
           ...visualOpts,
@@ -662,7 +675,7 @@ function Studio() {
                   dims.width,
                   dims.height,
                   duration,
-                  20,
+                  24,
                   st.words ?? null,
                   settings.sophiaLogo
                     ? (() => {
@@ -750,7 +763,6 @@ function Studio() {
       }
       const results = await Promise.all(
         prepared.map(async ({ scene, st, image }) => {
-          const videoUrl = st.videoUrl ?? (await onVideo(scene, image, doc));
           let audio = st.audio;
           let words = st.words;
           if (!audio) {
@@ -765,6 +777,8 @@ function Studio() {
               patch(scene.index, { audio, words });
             }
           }
+          const voiceSeconds = audio ? await audioDuration(audio) : undefined;
+          const videoUrl = st.videoUrl ?? (await onVideo(scene, image, doc, voiceSeconds));
           return [scene.index, { ...st, image, videoUrl, audio, words }] as const;
         }),
       );
@@ -845,7 +859,7 @@ function Studio() {
             dims.width,
             dims.height,
             duration,
-            20,
+            24,
             st.words ?? null,
             logoWin ? { url: sophiaLogo.url, ...logoWin } : null,
           )
