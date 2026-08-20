@@ -192,3 +192,44 @@ export async function listElevenVoices(): Promise<{ id: string; label: string }[
 
 }
 
+
+/** Recherche par nom dans la bibliothèque ElevenLabs (FR d'abord, puis global). */
+export async function searchElevenVoices(query: string): Promise<{ id: string; label: string }[]> {
+  const apiKey = apiKeyOrThrow();
+  const headers = { "xi-api-key": apiKey };
+  const q = encodeURIComponent(query.trim());
+  if (!q) return [];
+
+  const fetchShared = async (url: string) => {
+    try {
+      const res = await fetch(url, { headers });
+      if (!res.ok) return [];
+      const json = (await res.json()) as {
+        voices?: {
+          voice_id: string;
+          name: string;
+          language?: string;
+          gender?: string;
+          age?: string;
+          descriptive?: string;
+          use_case?: string;
+        }[];
+      };
+      return (json.voices ?? []).map((v) => {
+        const bits = [v.gender, v.age, v.descriptive, v.use_case].filter(Boolean).join(", ");
+        const fr = (v.language ?? "").toLowerCase().startsWith("fr");
+        return { id: v.voice_id, label: `${fr ? "🇫🇷 " : ""}${v.name}${bits ? ` — ${bits}` : ""}` };
+      });
+    } catch {
+      return [];
+    }
+  };
+
+  const [fr, any] = await Promise.all([
+    fetchShared(`https://api.elevenlabs.io/v1/shared-voices?page_size=40&language=fr&search=${q}`),
+    fetchShared(`https://api.elevenlabs.io/v1/shared-voices?page_size=40&search=${q}`),
+  ]);
+
+  const seen = new Set<string>();
+  return [...fr, ...any].filter((v) => (seen.has(v.id) ? false : (seen.add(v.id), true)));
+}

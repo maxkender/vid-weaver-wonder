@@ -272,3 +272,17 @@ export const listVoices = createServerFn({ method: "GET" }).handler(async () => 
     return { voices: [] as { id: string; label: string }[] };
   }
 });
+
+/** Recherche de narrateurs par nom dans la bibliothèque ElevenLabs. */
+export const searchVoices = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) =>
+    z.object({ query: z.string().min(1).max(80) }).parse(input),
+  )
+  .handler(async ({ data }) => {
+    try {
+      const { searchElevenVoices } = await import("./elevenlabs.server");
+      return { voices: await searchElevenVoices(data.query) };
+    } catch {
+      return { voices: [] as { id: string; label: string }[] };
+    }
+  });

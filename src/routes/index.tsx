@@ -37,6 +37,7 @@ import {
   pollSceneVideo,
   generateSceneVoice,
   listVoices,
+  searchVoices,
   startSceneVideo,
   suggestTopic,
 
@@ -878,13 +879,44 @@ function Studio() {
 
   const [exporting, setExporting] = useState<number | null>(null);
 
+  const [voiceQuery, setVoiceQuery] = useState("");
+  const [remoteVoices, setRemoteVoices] = useState<{ id: string; label: string }[]>([]);
+  const runSearchVoices = useServerFn(searchVoices);
+
+  // Recherche dans la bibliothèque ElevenLabs (au-delà des voix déjà chargées).
+  useEffect(() => {
+    const q = voiceQuery.trim();
+    if (engine !== "elevenlabs" || q.length < 2) {
+      setRemoteVoices([]);
+      return;
+    }
+    let cancelled = false;
+    const t = setTimeout(async () => {
+      try {
+        const res = await runSearchVoices({ data: { query: q } });
+        if (!cancelled) setRemoteVoices(res.voices);
+      } catch {
+        /* recherche best-effort */
+      }
+    }, 350);
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
+  }, [voiceQuery, engine, runSearchVoices]);
+
   const availableVoices = useMemo(() => {
-    const all = engine === "elevenlabs" && accountVoices.length ? accountVoices : voicesFor(engine);
-    return [...all].sort((a, b) => {
+    const base = engine === "elevenlabs" && accountVoices.length ? accountVoices : voicesFor(engine);
+    const q = voiceQuery.trim().toLowerCase();
+    const filtered = q ? base.filter((v) => v.label.toLowerCase().includes(q)) : base;
+    const seen = new Set(filtered.map((v) => v.id));
+    const extra = remoteVoices.filter((v) => !seen.has(v.id));
+    return [...filtered, ...extra].sort((a, b) => {
       const favoriteDelta = Number(favoriteVoices.includes(b.id)) - Number(favoriteVoices.includes(a.id));
       return favoriteDelta || a.label.localeCompare(b.label, "fr");
     });
-  }, [accountVoices, engine, favoriteVoices]);
+  }, [accountVoices, engine, favoriteVoices, voiceQuery, remoteVoices]);
+
 
   const toggleFavoriteVoice = () => {
     const next = favoriteVoices.includes(voice)
@@ -1187,6 +1219,14 @@ function Studio() {
                   </button>
                 ))}
               </div>
+              <input
+                type="search"
+                value={voiceQuery}
+                onChange={(e) => setVoiceQuery(e.target.value)}
+                placeholder="Chercher un narrateur (Nicolas, Guillaume, Adam…)"
+                aria-label="Chercher un narrateur par son nom"
+                className="mt-2 w-full rounded-lg border border-input bg-background/60 p-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+              />
               <div className="mt-2 flex gap-2">
                 <select
                   id="narrator-voice"
@@ -1194,12 +1234,16 @@ function Studio() {
                   onChange={(e) => setVoice(e.target.value)}
                   className="min-w-0 flex-1 rounded-lg border border-input bg-background/60 p-2 text-sm outline-none focus:ring-2 focus:ring-ring"
                 >
+                  {!availableVoices.some((v) => v.id === voice) && (
+                    <option value={voice}>Narrateur sélectionné</option>
+                  )}
                   {availableVoices.map((v) => (
                     <option key={v.id} value={v.id}>
                       {favoriteVoices.includes(v.id) ? `★ ${v.label}` : v.label}
                     </option>
                   ))}
                 </select>
+
                 <button
                   type="button"
                   onClick={toggleFavoriteVoice}
