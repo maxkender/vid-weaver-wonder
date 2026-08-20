@@ -134,7 +134,7 @@ export async function generateSpeechDataUrl(
       response_format: "mp3",
       speed: 1.0,
       instructions: [
-        "Langue : français de France, accent neutre et parfaitement naturel.",
+        `Langue : ${langName}, accent neutre et parfaitement naturel.`,
         "Rôle : narrateur de documentaire moderne pour une vidéo courte verticale.",
         "Ton : posé mais captivant, chaleureux, complice, jamais robotique ni publicitaire.",
         "Débit : moyen-rapide, avec de vraies respirations et de courtes pauses après chaque phrase.",
