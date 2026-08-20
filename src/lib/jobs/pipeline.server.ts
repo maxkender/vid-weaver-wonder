@@ -276,10 +276,12 @@ async function stepRender(job: RenderJob, origin: string) {
   const url = process.env["RENDER_WORKER_URL"];
   const secret = process.env["RENDER_WORKER_SECRET"];
   if (!url || !secret) {
-    throw new Error(
-      "Service de rendu non configuré (RENDER_WORKER_URL / RENDER_WORKER_SECRET manquants).",
-    );
+    // Pas de service externe : le montage est assuré par la station intégrée
+    // (page /station). Le job reste en « rendering » jusqu'à sa prise en charge.
+    await logEvent(job.id, "rendering", "En attente de la station de montage (page /station)");
+    return;
   }
+
 
   const scenes = await Promise.all(
     job.scenes.map(async (s) => ({
