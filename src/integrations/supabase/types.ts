@@ -14,13 +14,217 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      api_clients: {
+        Row: {
+          active: boolean
+          created_at: string
+          daily_quota: number
+          id: string
+          key_hash: string
+          name: string
+          webhook_secret: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          daily_quota?: number
+          id?: string
+          key_hash: string
+          name: string
+          webhook_secret: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          daily_quota?: number
+          id?: string
+          key_hash?: string
+          name?: string
+          webhook_secret?: string
+        }
+        Relationships: []
+      }
+      job_control: {
+        Row: {
+          id: number
+          paused: boolean
+          paused_at: string | null
+          paused_reason: string | null
+        }
+        Insert: {
+          id?: number
+          paused?: boolean
+          paused_at?: string | null
+          paused_reason?: string | null
+        }
+        Update: {
+          id?: number
+          paused?: boolean
+          paused_at?: string | null
+          paused_reason?: string | null
+        }
+        Relationships: []
+      }
+      job_events: {
+        Row: {
+          created_at: string
+          id: number
+          job_id: string
+          level: string
+          message: string | null
+          step: string
+        }
+        Insert: {
+          created_at?: string
+          id?: number
+          job_id: string
+          level?: string
+          message?: string | null
+          step: string
+        }
+        Update: {
+          created_at?: string
+          id?: number
+          job_id?: string
+          level?: string
+          message?: string | null
+          step?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_events_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "render_jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      render_jobs: {
+        Row: {
+          attempts: number
+          callback_url: string | null
+          client_id: string | null
+          created_at: string
+          duration_sec: number
+          error: string | null
+          id: string
+          language: string
+          lease_until: string | null
+          narration_style: string
+          poster_id: string | null
+          progress: number
+          scenes: Json
+          script: Json | null
+          status: string
+          step: string
+          topic: string | null
+          topic_category: string
+          updated_at: string
+          video_path: string | null
+          visual_style: string
+          voice_engine: string
+          voice_id: string | null
+        }
+        Insert: {
+          attempts?: number
+          callback_url?: string | null
+          client_id?: string | null
+          created_at?: string
+          duration_sec?: number
+          error?: string | null
+          id?: string
+          language?: string
+          lease_until?: string | null
+          narration_style?: string
+          poster_id?: string | null
+          progress?: number
+          scenes?: Json
+          script?: Json | null
+          status?: string
+          step?: string
+          topic?: string | null
+          topic_category?: string
+          updated_at?: string
+          video_path?: string | null
+          visual_style?: string
+          voice_engine?: string
+          voice_id?: string | null
+        }
+        Update: {
+          attempts?: number
+          callback_url?: string | null
+          client_id?: string | null
+          created_at?: string
+          duration_sec?: number
+          error?: string | null
+          id?: string
+          language?: string
+          lease_until?: string | null
+          narration_style?: string
+          poster_id?: string | null
+          progress?: number
+          scenes?: Json
+          script?: Json | null
+          status?: string
+          step?: string
+          topic?: string | null
+          topic_category?: string
+          updated_at?: string
+          video_path?: string | null
+          visual_style?: string
+          voice_engine?: string
+          voice_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "render_jobs_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "api_clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      claim_render_job: {
+        Args: { lease_seconds?: number }
+        Returns: {
+          attempts: number
+          callback_url: string | null
+          client_id: string | null
+          created_at: string
+          duration_sec: number
+          error: string | null
+          id: string
+          language: string
+          lease_until: string | null
+          narration_style: string
+          poster_id: string | null
+          progress: number
+          scenes: Json
+          script: Json | null
+          status: string
+          step: string
+          topic: string | null
+          topic_category: string
+          updated_at: string
+          video_path: string | null
+          visual_style: string
+          voice_engine: string
+          voice_id: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "render_jobs"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
     }
     Enums: {
       [_ in never]: never

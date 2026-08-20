@@ -11,12 +11,10 @@ import {
 import {
   coverPrompt,
   motionPrompt,
-  scriptSystemPrompt,
-  scriptUserPrompt,
-  SOPHIA_OUTRO,
   TOPIC_BRIEF,
   type Script,
 } from "./prompts.server";
+
 import { estimateSpeechSeconds } from "./duration";
 import { TOPIC_CATEGORIES, TOPIC_CATEGORY_IDS } from "./topic-categories";
 import { LANGUAGE_IDS, languageName } from "./languages";
@@ -46,131 +44,10 @@ export const generateScript = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data }) => {
-    const langName = languageName(data.language);
-    // Le CTA final ajoute une scène : on réserve ~6 s pour lui.
-    const narrationSeconds = Math.max(8, data.targetSeconds - 6);
-    // ~2,6 mots/seconde : mesuré sur les exports réels (ElevenLabs lit vite et
-    // les silences de tête/queue sont coupés). En dessous, la vidéo finale est
-    // systématiquement trop courte de 10 à 15 secondes.
-    const totalWords = Math.round(narrationSeconds * 2.6);
-
-    // Un plan dure 8 s max (~19 mots) : on ajoute des scènes si la durée
-    // demandée ne tient pas dans le nombre de plans choisi.
-    const sceneCount = Math.min(
-      16,
-      Math.max(data.sceneCount, Math.ceil(totalWords / 18)),
-    );
-    const wordsPerScene = Math.min(
-      22,
-      Math.max(8, Math.round(totalWords / sceneCount) + data.wordsBias),
-    );
-    const script = await chatJSON<Script>(
-      "google/gemini-3.7-flash",
-      scriptSystemPrompt(
-        data.kind,
-        sceneCount,
-        data.style,
-        wordsPerScene,
-        data.styleBrief,
-        totalWords,
-        langName,
-      ),
-      `${scriptUserPrompt(data.kind, data.topic)}\nÉcris tout le script en ${langName}.`,
-    );
-
-
-    script.scenes = (script.scenes ?? []).slice(0, sceneCount).map((s, i) => ({
-      ...s,
-      index: i,
-    }));
-
-    // UN SEUL plan CTA : si l'IA a déjà écrit une (ou plusieurs) scènes de pub
-    // à la fin, on les retire avant d'ajouter le CTA officiel.
-    const isCta = (t: string) =>
-      /\b(sophia|t[ée]l[ée]charge|l'appli|l'application)\b/i.test(t);
-    while (
-      script.scenes.length > 2 &&
-      isCta(script.scenes[script.scenes.length - 1]?.narration ?? "")
-    ) {
-      script.scenes.pop();
-    }
-
-    // RALLONGE AUTOMATIQUE : si le script rendu est trop court, la vidéo finale
-    // sera trop courte. On demande à l'IA de compléter l'histoire.
-    const countWords = (t: string) => t.trim().split(/\s+/).filter(Boolean).length;
-    const words = () =>
-      script.scenes.reduce((n, s) => n + countWords(s.narration ?? ""), 0);
-    if (words() < totalWords * 0.92 && script.scenes.length < 16) {
-      const missing = totalWords - words();
-      const extra = Math.max(1, Math.min(6, Math.ceil(missing / wordsPerScene)));
-      try {
-        const more = await chatJSON<{ scenes: Script["scenes"] }>(
-          "google/gemini-3.7-flash",
-          [
-            scriptSystemPrompt(
-              data.kind,
-              extra,
-              data.style,
-              wordsPerScene,
-              data.styleBrief,
-              undefined,
-              langName,
-            ),
-            `Tu complètes un script existant : tu écris UNIQUEMENT ${extra} scènes SUPPLÉMENTAIRES qui s'intercalent avant la révélation finale, dans la même histoire, mêmes personnages, même bible visuelle. Aucune scène de pub. Réponds en JSON {"scenes":[...]} uniquement.`,
-          ].join("\n"),
-          [
-            `Histoire existante (JSON) : ${JSON.stringify({
-              title: script.title,
-              characters: script.characters,
-              palette: script.palette,
-              scenes: script.scenes.map((s) => s.narration),
-            })}`,
-            `Ajoute ${extra} scènes de détails concrets (époque exacte, lieu, noms, chiffres marquants) qui rendent l'histoire plus claire et plus longue d'environ ${missing} mots.`,
-          ].join("\n"),
-        );
-        const add = (more.scenes ?? []).filter((s) => (s.narration ?? "").trim());
-        if (add.length) {
-          const tail = script.scenes.slice(-1);
-          script.scenes = [...script.scenes.slice(0, -1), ...add, ...tail];
-        }
-      } catch {
-        // Rallonge best-effort : on garde le script d'origine en cas d'échec.
-      }
-    }
-
-    // « Sophia » ne doit être prononcé qu'une seule fois : jamais dans les
-    // scènes, une seule fois dans le CTA final.
-    script.scenes = script.scenes.map((s, i) => ({
-      ...s,
-      index: i,
-      narration: (s.narration ?? "").replace(/\bSophia\b/gi, "l'appli"),
-    }));
-    let seenSophia = false;
-    const cta = ((script.cta ?? "").trim() || SOPHIA_OUTRO)
-
-      .replace(/\bSophia\b/gi, (m) => {
-        if (seenSophia) return "l'appli";
-        seenSophia = true;
-        return m;
-      })
-      .replace(/\s{2,}/g, " ")
-      .trim();
-    script.cta = cta;
-
-    // Le CTA Sophia devient une vraie scène finale (narration + visuel + vidéo)
-    script.scenes.push({
-      index: script.scenes.length,
-      narration: cta,
-
-      overlay: "Télécharge Sophia",
-      imagePrompt:
-        "a hand holding a simple smartphone showing a clean study app screen, small floating book and lightbulb shapes around it, calm background",
-      videoPrompt:
-        "static frontal shot, the smartphone rises slightly while small book and lightbulb shapes float gently around it",
-    } as Script["scenes"][number]);
-
-    return script;
+    const { buildScript } = await import("./script-core.server");
+    return await buildScript(data);
   });
+
 
 export const generateSceneImage = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) =>
