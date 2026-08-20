@@ -113,6 +113,8 @@ export const generateScript = createServerFn({ method: "POST" })
               data.style,
               wordsPerScene,
               data.styleBrief,
+              undefined,
+              langName,
             ),
             `Tu complètes un script existant : tu écris UNIQUEMENT ${extra} scènes SUPPLÉMENTAIRES qui s'intercalent avant la révélation finale, dans la même histoire, mêmes personnages, même bible visuelle. Aucune scène de pub. Réponds en JSON {"scenes":[...]} uniquement.`,
           ].join("\n"),
