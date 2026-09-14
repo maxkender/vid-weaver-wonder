@@ -79,6 +79,9 @@ export const translateScript = createServerFn({ method: "POST" })
         language: z.enum(LANGUAGE_IDS),
         /** Durée maximale d'un plan (secondes) : plafond de mots par scène. */
         maxSceneSeconds: z.number().min(2).max(12).default(8),
+        /** Cible de durée TOTALE de la version traduite (secondes). */
+        minTotalSeconds: z.number().min(10).max(180).default(60),
+        maxTotalSeconds: z.number().min(10).max(180).default(66),
       })
       .parse(input),
   )
@@ -98,6 +101,12 @@ export const translateScript = createServerFn({ method: "POST" })
         data.scenes.length,
         maxWords,
         data.maxSceneSeconds,
+        {
+          minSeconds: data.minTotalSeconds,
+          maxSeconds: data.maxTotalSeconds,
+          minWords: maxWordsForSeconds(data.minTotalSeconds, data.language),
+          maxWords: maxWordsForSeconds(data.maxTotalSeconds, data.language),
+        },
       ),
       JSON.stringify({
         title: data.title,
