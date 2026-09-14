@@ -87,7 +87,9 @@ export async function buildScript(data: BuildScriptInput): Promise<Script> {
   // Rallonge automatique si le script est trop court pour la durée demandée.
   const countWords = (t: string) => t.trim().split(/\s+/).filter(Boolean).length;
   const words = () => script.scenes.reduce((n, s) => n + countWords(s.narration ?? ""), 0);
-  if (words() < totalWords * 0.92 && script.scenes.length) {
+  // Une vidéo trop courte est le défaut n°1 : on vise 100 % du budget et on
+  // n'accepte pas moins de 98 %.
+  if (words() < totalWords * 0.98 && script.scenes.length) {
     const missing = totalWords - words();
     try {
       // On ALLONGE les scènes existantes : ajouter des scènes ajouterait des
