@@ -1571,8 +1571,8 @@ function Studio() {
         await import("@/lib/karaoke-overlay");
       const dims =
         orientation === "horizontal"
-          ? { width: settings.hd ? 1920 : 1280, height: settings.hd ? 1080 : 720 }
-          : { width: settings.hd ? 1080 : 720, height: settings.hd ? 1920 : 1280 };
+          ? { width: 1920, height: 1080 }
+          : { width: 1080, height: 1920 };
       // On exporte le plan dans la langue actuellement affichée.
       const take = voiceOf(st, viewLang);
       const narration =
