@@ -572,6 +572,7 @@ function Studio() {
     // Économie de crédits : on ne relance pas un plan déjà généré.
     const done = states[scene.index]?.videoUrl;
     if (done && !imageOverride) return done;
+    if (cancelledRef.current) return undefined; // appel payant : arrêt demandé
     patch(scene.index, { videoLoading: true, progress: 0, videoUrl: undefined });
     try {
       const image = imageOverride ?? states[scene.index]?.image;
@@ -607,7 +608,15 @@ function Studio() {
       patch(scene.index, { videoId: id });
 
       for (let attempt = 0; attempt < 90; attempt++) {
+        if (cancelledRef.current) {
+          patch(scene.index, { videoLoading: false });
+          return undefined;
+        }
         await new Promise((r) => setTimeout(r, 6000));
+        if (cancelledRef.current) {
+          patch(scene.index, { videoLoading: false });
+          return undefined;
+        }
         const job = (await runPoll({ data: { id } })) as {
           status: string;
           progress: number;
