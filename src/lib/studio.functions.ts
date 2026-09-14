@@ -306,6 +306,7 @@ export const suggestTopic = createServerFn({ method: "POST" })
       "un film ou une série récente très connue (expliquer le vrai fait historique ou scientifique derrière)",
       "une légende ou un mythe (Odyssée, Atlantide, loups-garous…) et son origine réelle",
       "un fait historique marquant, raconté par un détail méconnu",
+      "un épisode historique dont tout le monde connaît le nom (Tchernobyl, Pompéi, le Titanic, le Hindenburg, Apollo 13, la peste noire, Hiroshima, Fukushima, la mutinerie du Bounty), raconté par une heure, une décision, un homme ou un objet précis",
       "la géographie : une frontière, une île, un fleuve, une ville avec une bizarrerie surprenante",
       "un fait scientifique du quotidien (corps humain, météo, physique simple)",
       "un animal ou la nature : un comportement incroyable mais vrai",
@@ -385,7 +386,9 @@ export const suggestTopic = createServerFn({ method: "POST" })
         "Le sujet peut porter sur des choses très connues du grand public (films, monuments, animaux, pays) tant que l'angle est surprenant.",
         "VOCABULAIRE SIMPLE : formule le sujet avec des mots du quotidien, compréhensibles par tout le monde. Pas de jargon, pas de noms d'opérations militaires, de traités ou de termes techniques. Le sujet doit se comprendre en une seconde.",
         "Reste sur des faits simples : une seule idée, rien de trop pointu ni de trop spécialisé.",
-        "Évite les sujets ultra rebattus (pyramides, Titanic, Mozart enfant prodige, Grande Muraille visible de l'espace, Mur de Berlin, Cléopâtre, Einstein mauvais élève).",
+        "Évite les ANGLES ultra rebattus (les pyramides construites par des esclaves, Mozart enfant prodige, la Grande Muraille visible de l'espace, Einstein mauvais élève). Un événement très connu (Tchernobyl, le Titanic, Pompéi) reste autorisé À CONDITION que l'angle soit un détail précis et peu connu, jamais un résumé de l'événement.",
+        "INTERDIT — LE SON ET LE BRUITAGE : aucun sujet sur la fabrication d'un cri, d'un rugissement, d'une musique ou d'un bruitage de film (cri de Godzilla, sabre laser, cri Wilhelm). Sans extrait sonore, la vidéo ne peut rien démontrer.",
+        "INTERDIT — L'INCONNU : le sujet principal (lieu, personne, œuvre, événement) doit être reconnu immédiatement par le grand public. Si le spectateur peut se demander « c'est quoi ça ? », change de sujet.",
         'Réponds uniquement en JSON: {"topic": string (une phrase de 8 à 20 mots), "angle": string (une phrase expliquant l\'angle surprenant)}',
       ].join("\n"),
       data.avoid.length
