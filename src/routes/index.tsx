@@ -605,7 +605,7 @@ function Studio() {
       const { id } = (await runVideo({
         data: {
           videoPrompt: literalVideoPrompt,
-          ...(image ? { imageDataUrl: image } : {}),
+          ...(videoInput ? { imageDataUrl: videoInput } : {}),
           narration: scene.narration,
           ...(seconds ? { seconds } : {}),
           orientation,
