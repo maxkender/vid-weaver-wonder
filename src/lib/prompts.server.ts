@@ -148,6 +148,12 @@ export function scriptSystemPrompt(
     "videoPrompt anime uniquement les éléments visibles dans imagePrompt et décrit une action simple qui rend la narration immédiatement compréhensible, avec un mouvement de caméra discret, en 8 secondes maximum. Aucun nouvel objet, personnage ou événement.",
 
     "",
+    verifiedFacts.length
+      ? [
+          "FAITS VÉRIFIÉS (source unique autorisée) : le script n'utilise AUCUN chiffre, AUCUNE date et AUCUNE affirmation qui ne figure pas dans cette liste. Tu peux reformuler, illustrer et simplifier, jamais ajouter un fait nouveau ni arrondir un chiffre dans l'autre sens. Si un détail te manque, tu l'omets.",
+          ...verifiedFacts.map((f) => `- ${f}`),
+        ].join("\n")
+      : "",
     includeCta ? CTA_BRIEF : "",
     includeCta
       ? "UN SEUL CTA : le CTA Sophia est écrit UNIQUEMENT dans le champ cta (texte prêt à être lu à voix haute), adapté au sujet. Aucune scène du tableau scenes ne doit parler de l'appli, de téléchargement ou de cours gratuits. Le mot « Sophia » n'apparaît qu'une seule fois dans TOUT le script."
