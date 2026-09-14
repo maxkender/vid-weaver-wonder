@@ -187,6 +187,7 @@ async function stepVoice(job: RenderJob, t0: number) {
       scene.narration,
       voice,
       job.language,
+      `plan ${i + 1}`,
     );
     scene.audioPath = await uploadDataUrl(`jobs/${job.id}/voice-${i}.mp3`, audioDataUrl);
     scene.words = words;
