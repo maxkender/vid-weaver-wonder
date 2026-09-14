@@ -181,6 +181,17 @@ function migrateStates(
   return out;
 }
 
+/** Vidéo exportée et sauvegardée en ligne (bucket privé du projet). */
+type ExportInfo = {
+  /** Chemin dans le stockage : permet de re-signer un lien expiré. */
+  path: string;
+  /** Lien de téléchargement signé (7 jours). */
+  url: string;
+  expiresAt: number;
+  size: number;
+  duration: number;
+};
+
 type HistoryItem = {
   id: string;
   title: string;
@@ -188,6 +199,8 @@ type HistoryItem = {
   script: Script;
   /** Script traduit par langue (la langue source pointe sur le script d'origine). */
   scripts?: Record<string, Script>;
+  /** Vidéos exportées, par langue : survivent au rechargement et au changement de machine. */
+  exports?: Record<string, ExportInfo>;
 };
 
 const HISTORY_KEY = "studio-history-v1";
@@ -203,6 +216,13 @@ function readHistory(): HistoryItem[] {
 function writeHistory(items: HistoryItem[]) {
   if (typeof window === "undefined") return;
   window.localStorage.setItem(HISTORY_KEY, JSON.stringify(items.slice(0, 30)));
+}
+
+/** Poids d'un fichier en unités lisibles. */
+function formatSize(bytes: number) {
+  if (!bytes) return "—";
+  const mo = bytes / (1024 * 1024);
+  return mo >= 1 ? `${mo.toFixed(1)} Mo` : `${Math.round(bytes / 1024)} Ko`;
 }
 
 const STYLES: { id: NarrationStyle; label: string; hint: string }[] = [
