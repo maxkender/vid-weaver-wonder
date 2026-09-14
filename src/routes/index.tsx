@@ -939,12 +939,10 @@ function Studio() {
   );
 
   /** Confirmation obligatoire avant toute dépense de crédits en série. */
-  const confirmCost = (doc: Script | null = script) => {
-    const { clips, seconds, perClip, voices, languages } = estimateCost(doc);
-    if (!clips) return true;
-    return window.confirm(
-      `Coût estimé : ${clips} clip${clips > 1 ? "s" : ""} × ${perClip} s payés UNE SEULE FOIS (${seconds} s de vidéo IA) + ${voices} voix off réparties sur ${languages} langue${languages > 1 ? "s" : ""}.\n\nLancer la génération ?`,
-    );
+  const confirmCost = async (doc: Script | null = script) => {
+    const cost = estimateCost(doc);
+    if (!cost.clips) return true;
+    return requestCostConfirmation(cost);
   };
 
   /** Voix off d'UN plan dans UNE langue. Rangée dans states[i].voices[lang]. */
