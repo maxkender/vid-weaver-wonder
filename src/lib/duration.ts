@@ -20,6 +20,16 @@ export function wordsPerSecond(language = "fr") {
   return WORDS_PER_SECOND[language.slice(0, 2).toLowerCase()] ?? DEFAULT_WPS;
 }
 
+/**
+ * Débit le PLUS RAPIDE parmi plusieurs langues. Sert à dimensionner le script :
+ * si le texte dure assez longtemps dans la langue la plus rapide, toutes les
+ * autres versions atteignent forcément la durée cible.
+ */
+export function fastestWordsPerSecond(languages: string[], fallback = "fr") {
+  const list = languages.length ? languages : [fallback];
+  return Math.max(...list.map((l) => wordsPerSecond(l)));
+}
+
 /** Nombre de mots maximum tenant dans `seconds` secondes de voix off. */
 export function maxWordsForSeconds(seconds: number, language = "fr") {
   return Math.max(4, Math.floor(seconds * wordsPerSecond(language)));
