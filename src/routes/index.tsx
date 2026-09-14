@@ -1451,84 +1451,75 @@ function Studio() {
   );
 
   return (
-    <main className="mx-auto w-full max-w-6xl px-5 py-12">
+    <div className="min-h-screen">
       <Toaster position="top-center" />
 
-      <header className="mb-10">
-        <span className="inline-flex items-center gap-2 rounded-full border border-border bg-secondary/60 px-3 py-1 text-xs tracking-widest uppercase text-muted-foreground">
-          <Sparkles className="h-3.5 w-3.5" /> Studio IA
-        </span>
-        <h1 className="mt-5 text-5xl leading-[0.95] sm:text-7xl">
-          Générateur de <span className="text-gold">vidéos animées</span>
-        </h1>
-        <p className="mt-4 max-w-2xl text-muted-foreground">
-          Un sujet, et le studio écrit le script, dessine chaque plan, l'anime en vidéo avec
-          son, et prépare vos textes incrustés.
-        </p>
-        <div className="mt-6 flex flex-wrap items-center gap-3">
-          <button
-            onClick={() => setShowHistory((v) => !v)}
-            className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-xs uppercase tracking-widest hover:border-primary"
-          >
-            <History className="h-3.5 w-3.5" /> Historique ({history.length})
-          </button>
-          <Link
-            to="/parametres"
-            className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-xs uppercase tracking-widest hover:border-primary"
-          >
-            <Settings className="h-3.5 w-3.5" /> Paramètres
-          </Link>
-        </div>
+      {/* BARRE SUPÉRIEURE — état du pipeline, coût, arrêt d'urgence et navigation. */}
+      <header className="sticky top-0 z-30 border-b border-border bg-background/90 backdrop-blur">
+        <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center gap-x-4 gap-y-2 px-4 py-2.5">
+          <span className="text-[15px] font-semibold tracking-tight">Studio vidéo</span>
 
-        {/* Panneau d'état, toujours visible : étape, avancement, coût estimé et
-            arrêt d'urgence. Il reste affiché au repos pour pouvoir mettre en
-            pause la file serveur (jobs automatiques) avant même qu'elle parte. */}
-          <div className="mt-4 flex flex-wrap items-center gap-4 rounded-lg border border-border bg-secondary/30 px-4 py-3 text-xs">
-            <span className="uppercase tracking-widest text-muted-foreground">
-              {currentStep ||
-                (busy
-                  ? "Génération en cours…"
-                  : stopped
-                    ? "Pipeline arrêté"
-                    : pipelinePaused
-                      ? "File en pause"
-                      : "File active — prête")}
+          <span className="text-xs text-muted-foreground">
+            {currentStep ||
+              (busy
+                ? "Génération en cours…"
+                : stopped
+                  ? "Pipeline arrêté"
+                  : pipelinePaused
+                    ? "File en pause"
+                    : "File active — prête")}
+          </span>
+          {totalScenes > 0 && (
+            <span className="text-xs text-muted-foreground">
+              Plans {doneScenes}/{totalScenes}
             </span>
-            {totalScenes > 0 && (
-              <span className="text-muted-foreground">
-                Plans : {doneScenes}/{totalScenes}
-              </span>
+          )}
+          <span className="hidden text-xs text-muted-foreground md:inline">
+            Coût estimé : {cost.clips} clip{cost.clips > 1 ? "s" : ""} × {cost.perClip} s payés une
+            seule fois + {cost.voices} voix off ({cost.languages} langue
+            {cost.languages > 1 ? "s" : ""})
+          </span>
+
+          <div className="ml-auto flex flex-wrap items-center gap-2">
+            {!pipelinePaused && !(busy && stopped) && (
+              <button onClick={onStopAll} className="btn-base btn-danger px-2.5 py-1.5 text-xs">
+                <Square className="h-3 w-3" /> Stop
+              </button>
             )}
-            <span className="text-muted-foreground">
-              Coût estimé : {cost.clips} clip{cost.clips > 1 ? "s" : ""} × {cost.perClip} s payés une
-              seule fois + {cost.voices} voix off ({cost.languages} langue
-              {cost.languages > 1 ? "s" : ""})
-            </span>
-            <div className="ml-auto flex items-center gap-2">
-              {!pipelinePaused && !(busy && stopped) && (
-                <button
-                  onClick={onStopAll}
-                  className="inline-flex items-center gap-2 rounded-lg border border-destructive px-3 py-1.5 uppercase tracking-widest text-destructive hover:bg-destructive/10"
-                >
-                  <Square className="h-3 w-3" /> Stop
-                </button>
-              )}
-              {pipelinePaused && (
-                <button
-                  onClick={onResumePipeline}
-                  className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-1.5 uppercase tracking-widest hover:border-primary"
-                >
-                  <Play className="h-3 w-3" /> Reprendre
-                </button>
-              )}
-            </div>
+            {pipelinePaused && (
+              <button
+                onClick={onResumePipeline}
+                className="btn-base btn-ghost px-2.5 py-1.5 text-xs"
+              >
+                <Play className="h-3 w-3" /> Reprendre
+              </button>
+            )}
+            <button
+              onClick={() => setShowHistory((v) => !v)}
+              className="btn-base btn-ghost px-2.5 py-1.5 text-xs"
+            >
+              <History className="h-3.5 w-3.5" /> Historique ({history.length})
+            </button>
+            <Link to="/parametres" className="btn-base btn-ghost px-2.5 py-1.5 text-xs">
+              <Settings className="h-3.5 w-3.5" /> Paramètres
+            </Link>
           </div>
+        </div>
+        <div className="mx-auto w-full max-w-6xl px-4 pb-2 md:hidden">
+          <span className="text-xs text-muted-foreground">
+            Coût estimé : {cost.clips} clip{cost.clips > 1 ? "s" : ""} × {cost.perClip} s + {cost.voices}{" "}
+            voix off
+          </span>
+        </div>
+      </header>
 
-
+      <main className="mx-auto w-full max-w-6xl px-4 py-6">
         {showHistory && (
-          <div className="mt-4 space-y-2 rounded-lg border border-border bg-secondary/30 p-4">
+          <div className="surface-card mb-6 space-y-2 p-4">
             {history.length === 0 && (
-              <p className="text-xs text-muted-foreground">Aucune vidéo enregistrée pour l'instant.</p>
+              <p className="text-xs text-muted-foreground">
+                Aucune vidéo enregistrée pour l'instant.
+              </p>
             )}
             {history.map((h) => (
               <div key={h.id} className="flex items-center justify-between gap-3">
@@ -1550,7 +1541,6 @@ function Studio() {
                     if (savedFinal) setFinalUrl(URL.createObjectURL(savedFinal));
                     toast.success("Projet rechargé");
                   }}
-
                   className="flex-1 truncate text-left text-sm hover:text-primary"
                 >
                   {h.title}
@@ -1569,26 +1559,27 @@ function Studio() {
             ))}
           </div>
         )}
-      </header>
 
-      <section className="surface-card p-6 sm:p-8">
-        <div className="grid gap-6 md:grid-cols-[1.4fr_1fr]">
-          <div>
-            <label className="text-xs uppercase tracking-widest text-muted-foreground">
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)]">
+          {/* COLONNE GAUCHE — configuration du sujet et du ton. */}
+          <section className="surface-card flex flex-col p-4">
+            <label htmlFor="topic" className="label-x">
               Sujet de la vidéo
             </label>
             <textarea
+              id="topic"
               value={topic}
               onChange={(e) => setTopic(e.target.value)}
               rows={3}
               placeholder="Ex : pourquoi les octopodes ont trois cœurs"
-              className="mt-2 w-full resize-none rounded-lg border border-input bg-background/60 p-3 text-sm outline-none focus:ring-2 focus:ring-ring"
+              className="field mt-2 resize-none"
             />
-            <div className="mt-2 flex flex-wrap items-center gap-3">
+            <div className="mt-2 flex flex-wrap items-center gap-2">
               <select
                 value={topicCategory}
                 onChange={(e) => setTopicCategory(e.target.value as TopicCategory)}
-                className="rounded-lg border border-input bg-background/60 px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-ring"
+                className="field w-auto max-w-full text-xs"
+                aria-label="Catégorie de sujet"
               >
                 {TOPIC_CATEGORIES.map((c) => (
                   <option key={c.id} value={c.id}>
@@ -1599,66 +1590,116 @@ function Studio() {
               <button
                 onClick={onSuggest}
                 disabled={suggesting}
-                className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-xs uppercase tracking-widest hover:border-primary disabled:opacity-50"
+                className="btn-base btn-ghost text-xs"
               >
                 {suggesting ? (
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
                 ) : (
                   <Sparkles className="h-3.5 w-3.5" />
                 )}
-                Proposer un sujet par IA
+                Proposer un sujet
               </button>
               {angle && <span className="text-xs text-muted-foreground">{angle}</span>}
             </div>
 
-
-
-            <label className="mt-6 block text-xs uppercase tracking-widest text-muted-foreground">
-              Style de narration
-            </label>
+            <p className="label-x mt-5">Style de narration</p>
             <div className="mt-2 grid gap-2 sm:grid-cols-2">
               {STYLES.map((s) => (
                 <button
                   key={s.id}
                   onClick={() => setStyle(s.id)}
-                  className={`rounded-lg border px-4 py-2 text-left text-sm transition-colors ${
+                  className={`rounded-[10px] border px-3 py-2 text-left text-sm transition-colors ${
                     style === s.id
-                      ? "border-primary bg-primary/15 text-foreground"
-                      : "border-border bg-secondary/40 text-muted-foreground hover:text-foreground"
+                      ? "border-primary/60 bg-primary/15 text-foreground"
+                      : "border-border text-muted-foreground hover:text-foreground"
                   }`}
                 >
-                  <span className="block font-semibold">{s.label}</span>
+                  <span className="block font-medium">{s.label}</span>
                   <span className="block text-xs opacity-70">{s.hint}</span>
                 </button>
               ))}
             </div>
 
-            <label className="mt-6 block text-xs uppercase tracking-widest text-muted-foreground">
-              Direction artistique
-            </label>
+            <p className="label-x mt-5">Direction artistique</p>
             <div className="mt-2 flex flex-wrap gap-2">
               {VISUALS.map((v) => (
                 <button
                   key={v.id}
                   onClick={() => setVisual(v.id)}
-                  className={`rounded-full border px-4 py-2 text-sm transition-colors ${
-                    visual === v.id
-                      ? "border-primary bg-primary/15 text-foreground"
-                      : "border-border bg-secondary/40 text-muted-foreground hover:text-foreground"
-                  }`}
+                  className={`chip ${visual === v.id ? "chip-active" : ""}`}
                 >
                   {v.label}
                 </button>
               ))}
             </div>
-          </div>
 
-          <div className="flex flex-col gap-4">
+            {/* BARRE D'ACTIONS — une seule action pleine : la génération complète. */}
+            <div className="mt-auto space-y-2 pt-5">
+              <div className="flex flex-wrap items-center gap-2 border-t border-border pt-4">
+                <button
+                  onClick={onAutoAll}
+                  disabled={autoRunning || loadingScript || assembling}
+                  className="btn-base btn-primary"
+                >
+                  {autoRunning ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Sparkles className="h-4 w-4" />
+                  )}
+                  Générer toute la vidéo et exporter
+                </button>
+
+                {/* MODE MANUEL — porte 1 : le sujet. Rien de payant avant ce clic. */}
+                <button
+                  onClick={() => {
+                    if (!topic.trim()) {
+                      toast.error("Écris d'abord le sujet de la vidéo");
+                      return;
+                    }
+                    setTopicValidated(true);
+                    toast.success("Sujet validé — tu peux générer le script");
+                  }}
+                  disabled={topicValidated}
+                  className="btn-base btn-ghost"
+                >
+                  {topicValidated ? "Sujet validé" : "Valider le sujet"}
+                </button>
+
+                <button
+                  onClick={() => void onScript()}
+                  disabled={loadingScript || !topicValidated}
+                  className="btn-base btn-ghost"
+                >
+                  {loadingScript ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Wand2 className="h-4 w-4" />
+                  )}
+                  Générer le script
+                </button>
+              </div>
+              {autoRunning && assembleStep && (
+                <p className="text-xs text-muted-foreground">{assembleStep}</p>
+              )}
+              <p className="text-xs text-muted-foreground">
+                Étape suivante :{" "}
+                {!topicValidated
+                  ? "valider le sujet"
+                  : !script
+                    ? "écrire le script (gratuit)"
+                    : !scriptValidated
+                      ? "valider le script pour lancer les traductions"
+                      : !imagesValidated
+                        ? "générer puis valider les images"
+                        : "animer les plans (payant)"}
+              </p>
+            </div>
+          </section>
+
+          {/* COLONNE DROITE — sortie : langues, durée, format, voix, musique. */}
+          <section className="surface-card flex flex-col gap-4 p-4">
             <div>
-              <label
-                htmlFor="video-language"
-                className="text-xs uppercase tracking-widest text-muted-foreground"
-              >
+              <label htmlFor="video-language" className="label-x">
                 Langue d'écriture
               </label>
               <select
@@ -1669,7 +1710,7 @@ function Studio() {
                   setSourceLang(next);
                   setTargetLangs((prev) => (prev.includes(next) ? prev : [...prev, next]));
                 }}
-                className="mt-2 w-full rounded-lg border border-input bg-background/60 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+                className="field mt-2"
               >
                 {LANGUAGES.map((l) => (
                   <option key={l.id} value={l.id}>
@@ -1677,13 +1718,11 @@ function Studio() {
                   </option>
                 ))}
               </select>
-              <p className="mt-1 text-xs text-muted-foreground">
+              <p className="mt-1.5 text-xs text-muted-foreground">
                 Le script est écrit dans cette langue, puis traduit dans les autres.
               </p>
 
-              <p className="mt-4 text-xs uppercase tracking-widest text-muted-foreground">
-                Langues à produire
-              </p>
+              <p className="label-x mt-4">Langues à produire</p>
               <div className="mt-2 flex flex-wrap gap-2">
                 {MASTER_LANGUAGES.map((l) => {
                   const active = l.id === sourceLang || targetLangs.includes(l.id as LanguageId);
@@ -1693,11 +1732,9 @@ function Studio() {
                       type="button"
                       onClick={() => toggleLang(l.id as LanguageId)}
                       disabled={l.id === sourceLang}
-                      className={`rounded-full border px-4 py-2 text-sm transition-colors ${
-                        active
-                          ? "border-primary bg-primary/15 text-foreground"
-                          : "border-border bg-secondary/40 text-muted-foreground hover:text-foreground"
-                      } ${l.id === sourceLang ? "opacity-70" : ""}`}
+                      className={`chip ${active ? "chip-active" : ""} ${
+                        l.id === sourceLang ? "opacity-70" : ""
+                      }`}
                     >
                       {l.label}
                       {l.id === sourceLang ? " · source" : ""}
@@ -1705,24 +1742,25 @@ function Studio() {
                   );
                 })}
               </div>
-              <p className="mt-1 text-xs text-muted-foreground">
-                Images et plans animés sont payés une seule fois : seules les voix off
-                se multiplient.
+              <p className="mt-1.5 text-xs text-muted-foreground">
+                Images et plans animés sont payés une seule fois : seules les voix off se
+                multiplient.
               </p>
             </div>
 
             <div>
-              <label className="text-xs uppercase tracking-widest text-muted-foreground">
+              <label htmlFor="duration" className="label-x">
                 Durée de la vidéo : {targetSeconds}s
               </label>
               <input
+                id="duration"
                 type="range"
                 min={15}
                 max={75}
                 step={5}
                 value={targetSeconds}
                 onChange={(e) => setTargetSeconds(Number(e.target.value))}
-                className="mt-3 w-full accent-[oklch(0.79_0.16_72)]"
+                className="mt-2 w-full"
               />
               <p className="mt-1 text-xs text-muted-foreground">
                 {sceneCount} plans{settings.sophiaCta !== false ? " + CTA" : ""} · zone efficace
@@ -1730,27 +1768,26 @@ function Studio() {
               </p>
             </div>
 
-            <div className="flex gap-2">
-              {(["vertical", "square", "horizontal"] as const).map((o) => (
-                <button
-                  key={o}
-                  onClick={() => setOrientation(o)}
-                  className={`flex-1 rounded-lg border px-3 py-2 text-sm ${
-                    orientation === o
-                      ? "border-primary bg-primary/15"
-                      : "border-border bg-secondary/40 text-muted-foreground"
-                  }`}
-                >
-                  {o === "vertical" ? "9:16" : o === "square" ? "1:1 dans 9:16" : "16:9"}
-                </button>
-              ))}
+            <div>
+              <p className="label-x">Format</p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {(["vertical", "square", "horizontal"] as const).map((o) => (
+                  <button
+                    key={o}
+                    onClick={() => setOrientation(o)}
+                    className={`chip ${orientation === o ? "chip-active" : ""}`}
+                  >
+                    {o === "vertical" ? "9:16" : o === "square" ? "1:1 dans 9:16" : "16:9"}
+                  </button>
+                ))}
+              </div>
             </div>
 
             <div>
-              <label htmlFor="narrator-voice" className="text-xs uppercase tracking-widest text-muted-foreground">
+              <label htmlFor="narrator-voice" className="label-x">
                 Voix off
               </label>
-              <div className="mt-2 flex gap-2">
+              <div className="mt-2 flex flex-wrap gap-2">
                 {(["lovable", "elevenlabs"] as const).map((e) => (
                   <button
                     key={e}
@@ -1758,11 +1795,7 @@ function Studio() {
                       setEngine(e);
                       setVoice(defaultVoice(e));
                     }}
-                    className={`flex-1 rounded-lg border px-3 py-2 text-xs uppercase tracking-widest ${
-                      engine === e
-                        ? "border-primary bg-primary/15"
-                        : "border-border bg-secondary/40 text-muted-foreground"
-                    }`}
+                    className={`chip flex-1 justify-center ${engine === e ? "chip-active" : ""}`}
                   >
                     {e === "lovable" ? "Standard" : "Premium (ElevenLabs)"}
                   </button>
@@ -1774,14 +1807,14 @@ function Studio() {
                 onChange={(e) => setVoiceQuery(e.target.value)}
                 placeholder="Chercher un narrateur (Nicolas, Guillaume, Adam…)"
                 aria-label="Chercher un narrateur par son nom"
-                className="mt-2 w-full rounded-lg border border-input bg-background/60 p-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+                className="field mt-2"
               />
               <div className="mt-2 flex gap-2">
                 <select
                   id="narrator-voice"
                   value={voice}
                   onChange={(e) => setVoice(e.target.value)}
-                  className="min-w-0 flex-1 rounded-lg border border-input bg-background/60 p-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+                  className="field min-w-0 flex-1"
                 >
                   {!availableVoices.some((v) => v.id === voice) && (
                     <option value={voice}>Narrateur sélectionné</option>
@@ -1796,21 +1829,29 @@ function Studio() {
                 <button
                   type="button"
                   onClick={toggleFavoriteVoice}
-                  aria-label={favoriteVoices.includes(voice) ? "Retirer ce narrateur des favoris" : "Ajouter ce narrateur aux favoris"}
-                  title={favoriteVoices.includes(voice) ? "Retirer des favoris" : "Ajouter aux favoris"}
-                  className={`grid size-10 shrink-0 place-items-center rounded-lg border transition-colors ${
+                  aria-label={
                     favoriteVoices.includes(voice)
-                      ? "border-primary bg-primary/15 text-primary"
-                      : "border-border text-muted-foreground hover:border-primary hover:text-primary"
+                      ? "Retirer ce narrateur des favoris"
+                      : "Ajouter ce narrateur aux favoris"
+                  }
+                  title={
+                    favoriteVoices.includes(voice) ? "Retirer des favoris" : "Ajouter aux favoris"
+                  }
+                  className={`grid size-9 shrink-0 place-items-center rounded-[10px] border transition-colors ${
+                    favoriteVoices.includes(voice)
+                      ? "border-primary/60 bg-primary/15 text-primary"
+                      : "border-border text-muted-foreground hover:text-foreground"
                   }`}
                 >
-                  <Star className={`h-4 w-4 ${favoriteVoices.includes(voice) ? "fill-current" : ""}`} />
+                  <Star
+                    className={`h-4 w-4 ${favoriteVoices.includes(voice) ? "fill-current" : ""}`}
+                  />
                 </button>
               </div>
               <button
                 onClick={onPreviewVoice}
                 disabled={previewVoice}
-                className="mt-2 inline-flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-xs uppercase tracking-widest hover:border-primary disabled:opacity-50"
+                className="btn-base btn-ghost mt-2 text-xs"
               >
                 {previewVoice ? (
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -1820,132 +1861,71 @@ function Studio() {
                 Écouter un exemple
               </button>
               <audio ref={sampleRef} className="hidden" />
-
             </div>
 
             <MusicLibrary
               styles={STYLES.map((s) => ({ id: s.id, label: s.label }))}
               activeStyle={style}
             />
-
-
-
-            <button
-              onClick={onAutoAll}
-              disabled={autoRunning || loadingScript || assembling}
-              className="btn-gold inline-flex items-center justify-center gap-2 rounded-lg px-5 py-3 text-sm font-bold uppercase tracking-wider disabled:opacity-60"
-            >
-              {autoRunning ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Sparkles className="h-4 w-4" />
-              )}
-              Générer toute la vidéo et exporter
-            </button>
-            {autoRunning && assembleStep && (
-              <p className="-mt-1 text-center text-xs text-muted-foreground">{assembleStep}</p>
-            )}
-
-            {/* MODE MANUEL — porte 1 : le sujet. Rien de payant avant ce clic. */}
-            <button
-              onClick={() => {
-                if (!topic.trim()) {
-                  toast.error("Écris d'abord le sujet de la vidéo");
-                  return;
-                }
-                setTopicValidated(true);
-                toast.success("Sujet validé — tu peux générer le script");
-              }}
-              disabled={topicValidated}
-              className="inline-flex items-center justify-center gap-2 rounded-lg border border-border px-5 py-3 text-xs font-bold uppercase tracking-widest hover:border-primary disabled:opacity-50"
-            >
-              {topicValidated ? "Sujet validé" : "Valider le sujet"}
-            </button>
-
-            <button
-              onClick={() => void onScript()}
-              disabled={loadingScript || !topicValidated}
-              className="btn-gold inline-flex items-center justify-center gap-2 rounded-lg px-5 py-3 text-sm font-bold uppercase tracking-wider disabled:opacity-60"
-            >
-              {loadingScript ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Wand2 className="h-4 w-4" />
-              )}
-              Générer le script
-            </button>
-            <p className="-mt-1 text-center text-xs text-muted-foreground">
-              Étape suivante :{" "}
-              {!topicValidated
-                ? "valider le sujet"
-                : !script
-                  ? "écrire le script (gratuit)"
-                  : !scriptValidated
-                    ? "valider le script pour lancer les traductions"
-                    : !imagesValidated
-                      ? "générer puis valider les images"
-                      : "animer les plans (payant)"}
-            </p>
-          </div>
+          </section>
         </div>
-      </section>
 
-      {script && (
-        <section className="mt-10">
-          <div className="surface-card p-6 sm:p-8">
-            <h2 className="text-3xl">{script.title}</h2>
-            <p className="mt-2 text-lg text-primary">{script.hook}</p>
-            <div className="mt-5 rounded-lg border border-border bg-secondary/40 p-4">
-              <span className="text-xs uppercase tracking-widest text-muted-foreground">
-                Outro Sophia (fixe sur toutes les vidéos)
-              </span>
-              <p className="mt-2 text-sm">{script.cta}</p>
-            </div>
-            <div className="mt-4 flex flex-wrap gap-2">
-              {(script.hashtags ?? []).map((h) => (
-                <span
-                  key={h}
-                  className="rounded-full bg-secondary/60 px-3 py-1 text-xs text-muted-foreground"
+        {script && (
+          <section className="mt-6 space-y-4">
+            <div className="surface-card p-4">
+              <h2 className="text-lg font-semibold">{script.title}</h2>
+              <p className="mt-1 text-sm text-muted-foreground">{script.hook}</p>
+
+              <div className="mt-4 rounded-[10px] border border-border p-3">
+                <span className="label-x">Outro Sophia (fixe sur toutes les vidéos)</span>
+                <p className="mt-1.5 text-sm">{script.cta}</p>
+              </div>
+
+              <div className="mt-3 flex flex-wrap gap-1.5">
+                {(script.hashtags ?? []).map((h) => (
+                  <span
+                    key={h}
+                    className="rounded-md border border-border px-2 py-0.5 text-xs text-muted-foreground"
+                  >
+                    {h.startsWith("#") ? h : `#${h}`}
+                  </span>
+                ))}
+              </div>
+
+              {/* MODE MANUEL — portes 2 et 3 : script (puis traductions) et images. */}
+              <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-border pt-4">
+                <button
+                  onClick={async () => {
+                    setScriptValidated(true);
+                    await onTranslateAll(script);
+                  }}
+                  disabled={translating}
+                  className="btn-base btn-ghost"
                 >
-                  {h.startsWith("#") ? h : `#${h}`}
+                  {translating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
+                  {scriptValidated ? "Retraduire le script" : "Valider le script (traduire)"}
+                </button>
+                <button
+                  onClick={() => {
+                    setImagesValidated(true);
+                    toast.success("Images validées — l'animation est débloquée");
+                  }}
+                  disabled={imagesValidated || !script.scenes.some((s) => states[s.index]?.image)}
+                  className="btn-base btn-ghost"
+                >
+                  {imagesValidated ? "Images validées" : "Valider les images"}
+                </button>
+                <span className="text-xs text-muted-foreground">
+                  L'animation, seule étape vraiment coûteuse, ne part qu'après validation des
+                  images.
                 </span>
-              ))}
-            </div>
+              </div>
 
-            {/* MODE MANUEL — portes 2 et 3 : script (puis traductions) et images. */}
-            <div className="mt-6 flex flex-wrap items-center gap-3 rounded-lg border border-border bg-secondary/30 p-4">
-              <button
-                onClick={async () => {
-                  setScriptValidated(true);
-                  await onTranslateAll(script);
-                }}
-                disabled={translating}
-                className="inline-flex items-center gap-2 rounded-lg border border-border px-4 py-2 text-xs font-bold uppercase tracking-widest hover:border-primary disabled:opacity-50"
-              >
-                {translating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
-                {scriptValidated ? "Retraduire le script" : "Valider le script (traduire)"}
-              </button>
-              <button
-                onClick={() => {
-                  setImagesValidated(true);
-                  toast.success("Images validées — l'animation est débloquée");
-                }}
-                disabled={imagesValidated || !script.scenes.some((s) => states[s.index]?.image)}
-                className="inline-flex items-center gap-2 rounded-lg border border-border px-4 py-2 text-xs font-bold uppercase tracking-widest hover:border-primary disabled:opacity-50"
-              >
-                {imagesValidated ? "Images validées" : "Valider les images"}
-              </button>
-              <span className="text-xs text-muted-foreground">
-                L'animation, seule étape vraiment coûteuse, ne part qu'après validation des images.
-              </span>
-            </div>
-
-            <div className="mt-6 rounded-lg border border-border bg-secondary/30 p-4">
-              <div className="flex flex-wrap items-center gap-3">
+              <div className="mt-3 flex flex-wrap items-center gap-2">
                 <button
                   onClick={onGenerateAll}
                   disabled={generatingAll || !imagesValidated}
-                  className="inline-flex items-center gap-2 rounded-lg border border-border px-4 py-2.5 text-xs font-bold uppercase tracking-widest hover:border-primary disabled:opacity-50"
+                  className="btn-base btn-ghost"
                 >
                   {generatingAll ? (
                     <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -1957,7 +1937,7 @@ function Studio() {
                 <button
                   onClick={() => onExportEverything()}
                   disabled={assembling || generatingAll}
-                  className="btn-gold inline-flex items-center gap-2 rounded-lg px-4 py-2.5 text-xs font-bold uppercase tracking-widest disabled:opacity-50"
+                  className="btn-base btn-primary"
                 >
                   {assembling ? (
                     <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -1969,7 +1949,7 @@ function Studio() {
                 <button
                   onClick={onAssemble}
                   disabled={assembling || readyScenes.length === 0}
-                  className="inline-flex items-center gap-2 rounded-lg border border-border px-4 py-2.5 text-xs font-bold uppercase tracking-widest hover:border-primary disabled:opacity-50"
+                  className="btn-base btn-ghost"
                 >
                   {assembling ? (
                     <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -1978,334 +1958,360 @@ function Studio() {
                   )}
                   Assembler la vidéo entière
                 </button>
-
-                <span className="text-xs uppercase tracking-widest text-muted-foreground">
+                {Object.keys(finalUrls).length > 1 && (
+                  <button onClick={onDownloadAll} className="btn-base btn-ghost">
+                    <Download className="h-3.5 w-3.5" /> Tout télécharger
+                  </button>
+                )}
+                <span className="text-xs text-muted-foreground">
                   {assembling
                     ? assembleStep
                     : `${readyScenes.length}/${script.scenes.length} scènes animées`}
                 </span>
-                {Object.keys(finalUrls).length > 1 && (
-                  <button
-                    onClick={onDownloadAll}
-                    className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-xs uppercase tracking-widest hover:border-primary"
-                  >
-                    <Download className="h-3.5 w-3.5" /> Tout télécharger
-                  </button>
+              </div>
+
+              <div className="mt-3 flex flex-wrap gap-2">
+                <button
+                  onClick={() => {
+                    const allOpen = script.scenes.every((s) => editing[s.index]);
+                    setEditing(
+                      allOpen
+                        ? {}
+                        : Object.fromEntries(script.scenes.map((s) => [s.index, true])),
+                    );
+                  }}
+                  className="btn-base btn-ghost text-xs"
+                >
+                  {script.scenes.every((s) => editing[s.index])
+                    ? "Fermer l'édition du script"
+                    : "Modifier le script avant les images"}
+                </button>
+                <button
+                  onClick={() => {
+                    void navigator.clipboard.writeText(fullNarration);
+                    toast.success("Voix off copiée");
+                  }}
+                  className="btn-base btn-ghost text-xs"
+                >
+                  Copier la voix off complète
+                </button>
+              </div>
+            </div>
+
+            {/* Une vidéo par langue : mêmes clips, voix et sous-titres différents. */}
+            {(Object.keys(finalUrls).length > 0 || finalUrl) && (
+              <div className="surface-card p-4">
+                <p className="label-x">Exports</p>
+                <div className="mt-3 grid gap-3 md:grid-cols-2">
+                  {langs
+                    .filter((l) => finalUrls[l])
+                    .map((l) => (
+                      <div key={l} className="rounded-[10px] border border-border p-3">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-xs text-muted-foreground">
+                            {languageLabel(l)} · {l}
+                          </span>
+                          <a
+                            href={finalUrls[l]}
+                            download={`${(script.title || "video").replace(/[^\p{L}\p{N}]+/gu, "-").toLowerCase()}-${l}.mp4`}
+                            className="btn-base btn-ghost px-2.5 py-1.5 text-xs"
+                          >
+                            <Download className="h-3.5 w-3.5" /> MP4
+                          </a>
+                        </div>
+                        <video
+                          src={finalUrls[l]}
+                          controls
+                          playsInline
+                          className="mt-3 max-h-[60vh] w-full rounded-[10px] bg-black object-contain"
+                        />
+                      </div>
+                    ))}
+                </div>
+                {!Object.keys(finalUrls).length && finalUrl && (
+                  <video
+                    src={finalUrl}
+                    controls
+                    playsInline
+                    className="mt-3 max-h-[70vh] w-full rounded-[10px] bg-black object-contain"
+                  />
                 )}
               </div>
+            )}
 
-              {/* Une vidéo par langue : mêmes clips, voix et sous-titres différents. */}
-              <div className="mt-4 grid gap-4 md:grid-cols-2">
-                {langs
-                  .filter((l) => finalUrls[l])
-                  .map((l) => (
-                    <div key={l} className="rounded-lg border border-border p-3">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-xs uppercase tracking-widest text-muted-foreground">
-                          {languageLabel(l)} · {l}
-                        </span>
-                        <a
-                          href={finalUrls[l]}
-                          download={`${(script.title || "video").replace(/[^\p{L}\p{N}]+/gu, "-").toLowerCase()}-${l}.mp4`}
-                          className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-1.5 text-xs uppercase tracking-widest hover:border-primary"
-                        >
-                          <Download className="h-3.5 w-3.5" /> MP4
-                        </a>
-                      </div>
-                      <video
-                        src={finalUrls[l]}
-                        controls
-                        playsInline
-                        className="mt-3 max-h-[60vh] w-full rounded-lg bg-black object-contain"
-                      />
-                    </div>
-                  ))}
-              </div>
-              {!Object.keys(finalUrls).length && finalUrl && (
-                <video
-                  src={finalUrl}
-                  controls
-                  playsInline
-                  className="mt-4 max-h-[70vh] w-full rounded-lg bg-black object-contain"
-                />
-              )}
-            </div>
-
-            <div className="mt-5 flex flex-wrap gap-2">
-              <button
-                onClick={() => {
-                  const allOpen = script.scenes.every((s) => editing[s.index]);
-                  setEditing(
-                    allOpen
-                      ? {}
-                      : Object.fromEntries(script.scenes.map((s) => [s.index, true])),
-                  );
-                }}
-                className="rounded-lg border border-border px-4 py-2 text-xs uppercase tracking-widest text-muted-foreground hover:text-foreground"
-              >
-                {script.scenes.every((s) => editing[s.index])
-                  ? "Fermer l'édition du script"
-                  : "Modifier le script avant les images"}
-              </button>
-              <button
-                onClick={() => {
-                  void navigator.clipboard.writeText(fullNarration);
-                  toast.success("Voix off copiée");
-                }}
-                className="rounded-lg border border-border px-4 py-2 text-xs uppercase tracking-widest text-muted-foreground hover:text-foreground"
-              >
-                Copier la voix off complète
-              </button>
-            </div>
-
-          </div>
-
-          {langs.length > 1 && (
-            <div className="mt-6 flex flex-wrap items-center gap-2">
-              <span className="text-xs uppercase tracking-widest text-muted-foreground">
-                Langue affichée
-              </span>
-              {langs.map((l) => (
-                <button
-                  key={l}
-                  type="button"
-                  onClick={() => setViewLang(l)}
-                  className={`rounded-full border px-3 py-1.5 text-xs uppercase tracking-widest transition-colors ${
-                    viewLang === l
-                      ? "border-primary bg-primary/15 text-foreground"
-                      : "border-border bg-secondary/40 text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  {languageLabel(l)}
-                </button>
-              ))}
-              {translating && (
-                <span className="text-xs text-muted-foreground">Traduction en cours…</span>
-              )}
-            </div>
-          )}
-
-          <div className="mt-8 grid gap-6 lg:grid-cols-2">
-            {(scriptFor(viewLang, script) ?? script).scenes.map((scene) => {
-              const st = states[scene.index] ?? {};
-              const take = voiceOf(st, viewLang);
-              const isSource = viewLang === sourceLang;
-              return (
-                <article key={scene.index} className="surface-card overflow-hidden">
-                  <div
-                    className={`relative w-full bg-black ${
-                      orientation === "horizontal" ? "aspect-video" : "aspect-[9/16]"
-                    }`}
+            {langs.length > 1 && (
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-xs text-muted-foreground">Langue affichée</span>
+                {langs.map((l) => (
+                  <button
+                    key={l}
+                    type="button"
+                    onClick={() => setViewLang(l)}
+                    className={`chip ${viewLang === l ? "chip-active" : ""}`}
                   >
-                    {st.videoUrl ? (
-                      <video
-                        key={st.videoUrl}
-                        ref={(el) => {
-                          videoRefs.current[scene.index] = el;
-                        }}
-                        src={st.videoUrl}
+                    {languageLabel(l)}
+                  </button>
+                ))}
+                {translating && (
+                  <span className="text-xs text-muted-foreground">Traduction en cours…</span>
+                )}
+              </div>
+            )}
 
-                        controls
-                        loop
-                        playsInline
-                        preload="metadata"
-                        muted={Boolean(take?.audio)}
-                        {...(st.image ? { poster: st.image } : {})}
-                        onPlay={(e) => {
-                          const a = audioRefs.current[scene.index];
-                          if (a) {
-                            a.currentTime = e.currentTarget.currentTime;
-                            void a.play();
-                          }
-                        }}
-                        onPause={() => audioRefs.current[scene.index]?.pause()}
-                        onSeeked={(e) => {
-                          const a = audioRefs.current[scene.index];
-                          if (a) a.currentTime = e.currentTarget.currentTime;
-                        }}
-                        className="h-full w-full object-contain"
-                      />
-                    ) : st.image ? (
-                      <img
-                        src={st.image}
-                        alt={`Plan ${scene.index + 1} : ${scene.overlay}`}
-                        className="h-full w-full object-contain"
-                      />
-                    ) : (
-                      <div className="flex h-full w-full items-center justify-center text-muted-foreground">
-                        <Clapperboard className="h-10 w-10 opacity-40" />
-                      </div>
-                    )}
-
-                    {useSquareMask && (
-                      <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-                        <div
-                          className="aspect-square w-[88%] rounded-[7%]"
-                          style={{ boxShadow: "0 0 0 9999px #000" }}
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              {(scriptFor(viewLang, script) ?? script).scenes.map((scene) => {
+                const st = states[scene.index] ?? {};
+                const take = voiceOf(st, viewLang);
+                const isSource = viewLang === sourceLang;
+                return (
+                  <article key={scene.index} className="surface-card group overflow-hidden">
+                    <div
+                      className={`relative w-full bg-black ${
+                        orientation === "horizontal" ? "aspect-video" : "aspect-[9/16]"
+                      }`}
+                    >
+                      {st.videoUrl ? (
+                        <video
+                          key={st.videoUrl}
+                          ref={(el) => {
+                            videoRefs.current[scene.index] = el;
+                          }}
+                          src={st.videoUrl}
+                          controls
+                          loop
+                          playsInline
+                          preload="metadata"
+                          muted={Boolean(take?.audio)}
+                          {...(st.image ? { poster: st.image } : {})}
+                          onPlay={(e) => {
+                            const a = audioRefs.current[scene.index];
+                            if (a) {
+                              a.currentTime = e.currentTarget.currentTime;
+                              void a.play();
+                            }
+                          }}
+                          onPause={() => audioRefs.current[scene.index]?.pause()}
+                          onSeeked={(e) => {
+                            const a = audioRefs.current[scene.index];
+                            if (a) a.currentTime = e.currentTarget.currentTime;
+                          }}
+                          className="h-full w-full object-contain"
                         />
-                      </div>
-                    )}
-
-
-                    <KaraokeCaption
-                      text={scene.narration}
-                      fallback={scene.overlay}
-                      words={take?.words}
-                      showLogo={settings.sophiaLogo}
-                      getMedia={() =>
-                        audioRefs.current[scene.index] ?? videoRefs.current[scene.index] ?? null
-                      }
-
-                    />
-
-
-                    {(st.imageLoading || st.videoLoading) && (
-                      <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/60">
-                        <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                        <span className="text-xs uppercase tracking-widest text-muted-foreground">
-                          {st.videoLoading
-                            ? `Animation ${st.progress ?? 0}%`
-                            : "Création de l'image"}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="p-5">
-                    <span className="text-xs uppercase tracking-widest text-muted-foreground">
-                      Scène {scene.index + 1}
-                    </span>
-                    {editing[scene.index] ? (
-                      <div className="mt-3 space-y-2">
-                        <textarea
-                          value={scene.narration}
-                          onChange={(e) =>
-                            isSource
-                              ? updateScene(scene.index, "narration", e.target.value)
-                              : updateTranslatedScene(viewLang, scene.index, e.target.value)
-                          }
-                          rows={3}
-                          className="w-full rounded-lg border border-border bg-background p-2 text-sm"
+                      ) : st.image ? (
+                        <img
+                          src={st.image}
+                          alt={`Plan ${scene.index + 1} : ${scene.overlay}`}
+                          className="h-full w-full object-contain"
                         />
-                        <input
-                          value={scene.overlay}
-                          onChange={(e) => updateScene(scene.index, "overlay", e.target.value)}
-                          placeholder="Texte incrusté"
-                          className="w-full rounded-lg border border-border bg-background p-2 text-xs"
-                        />
-                        <textarea
-                          value={scene.imagePrompt}
-                          onChange={(e) => updateScene(scene.index, "imagePrompt", e.target.value)}
-                          rows={2}
-                          placeholder="Prompt image (anglais)"
-                          className="w-full rounded-lg border border-border bg-background p-2 text-xs"
-                        />
-                        <textarea
-                          value={scene.videoPrompt}
-                          onChange={(e) => updateScene(scene.index, "videoPrompt", e.target.value)}
-                          rows={2}
-                          placeholder="Prompt animation (anglais)"
-                          className="w-full rounded-lg border border-border bg-background p-2 text-xs"
-                        />
-                      </div>
-                    ) : (
-                      <p className="mt-2 text-sm">{scene.narration}</p>
-                    )}
-                    <p className="mt-2 text-xs uppercase tracking-widest text-muted-foreground">
-                      ≈ {estimateSpeechSeconds(scene.narration, viewLang).toFixed(1)} s de voix
-                      {estimateSpeechSeconds(scene.narration, viewLang) > 8 && " — plus long que le clip, le plan sera légèrement ralenti"}
-                    </p>
+                      ) : (
+                        <div className="flex h-full w-full items-center justify-center text-muted-foreground">
+                          <Clapperboard className="h-8 w-8 opacity-40" />
+                        </div>
+                      )}
 
-                    <div className="mt-4 flex flex-wrap gap-2">
-                      <button
-                        onClick={() => onImage(scene)}
-                        disabled={st.imageLoading}
-                        className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-xs uppercase tracking-widest hover:border-primary disabled:opacity-50"
-                      >
-                        <ImageIcon className="h-3.5 w-3.5" />
-                        {st.image ? "Regénérer cette image" : "Image"}
-                      </button>
-                      <button
-                        onClick={() =>
-                          setEditing((prev) => ({ ...prev, [scene.index]: !prev[scene.index] }))
+                      {useSquareMask && (
+                        <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                          <div
+                            className="aspect-square w-[88%] rounded-[7%]"
+                            style={{ boxShadow: "0 0 0 9999px #000" }}
+                          />
+                        </div>
+                      )}
+
+                      <KaraokeCaption
+                        text={scene.narration}
+                        fallback={scene.overlay}
+                        words={take?.words}
+                        showLogo={settings.sophiaLogo}
+                        getMedia={() =>
+                          audioRefs.current[scene.index] ?? videoRefs.current[scene.index] ?? null
                         }
-                        className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-xs uppercase tracking-widest hover:border-primary"
-                      >
-                        <Pencil className="h-3.5 w-3.5" />
-                        {editing[scene.index] ? "Terminé" : "Modifier"}
-                      </button>
-                      <button
-                        onClick={() => onVideo(scene)}
-                        disabled={st.videoLoading || !imagesValidated}
-                        className="btn-gold inline-flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-bold uppercase tracking-widest disabled:opacity-50"
-                      >
-                        <Play className="h-3.5 w-3.5" /> Animer
-                      </button>
-                      <button
-                        onClick={() => onVoice(scene, viewLang)}
-                        disabled={st.audioLoading}
-                        className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-xs uppercase tracking-widest hover:border-primary disabled:opacity-50"
-                      >
-                        {st.audioLoading ? (
-                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                        ) : (
-                          <Mic className="h-3.5 w-3.5" />
-                        )}
-                        Voix off
-                      </button>
-                      {take?.audio && (
-                        <a
-                          href={take.audio}
-                          download={`scene-${scene.index + 1}-${viewLang}.mp3`}
-                          className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-xs uppercase tracking-widest hover:border-primary"
-                        >
-                          <Download className="h-3.5 w-3.5" /> MP3
-                        </a>
-                      )}
-                      {st.videoUrl && (
-                        <>
-                          <a
-                            href={st.videoUrl}
-                            download={`scene-${scene.index + 1}-brut.mp4`}
-                            className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-xs uppercase tracking-widest hover:border-primary"
-                          >
-                            <Download className="h-3.5 w-3.5" /> MP4 brut
-                          </a>
-                          <button
-                            onClick={() => onExportScene(scene)}
-                            disabled={exporting === scene.index}
-                            className="btn-gold inline-flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-bold uppercase tracking-widest disabled:opacity-50"
-                          >
-                            {exporting === scene.index ? (
-                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                            ) : (
-                              <Download className="h-3.5 w-3.5" />
-                            )}
-                            MP4 + voix + texte
-                          </button>
-                        </>
-                      )}
+                      />
 
+                      {/* Numéro du plan et pastilles d'état, discrets. */}
+                      <span className="pointer-events-none absolute left-2 top-2 rounded-md bg-black/65 px-1.5 py-0.5 text-[11px] text-white">
+                        {scene.index + 1}
+                      </span>
+                      <span className="pointer-events-none absolute right-2 top-2 flex items-center gap-1.5 rounded-md bg-black/65 px-1.5 py-1">
+                        <span
+                          className={`dot ${st.image ? "dot-on" : ""}`}
+                          title={st.image ? "Image prête" : "Pas d'image"}
+                        />
+                        <span
+                          className={`dot ${st.videoUrl ? "dot-on" : ""}`}
+                          title={st.videoUrl ? "Plan animé" : "Pas encore animé"}
+                        />
+                        {langs.map((l) => (
+                          <span
+                            key={l}
+                            className={`dot ${voiceOf(st, l)?.audio ? "dot-on" : ""}`}
+                            title={`Voix ${l.toUpperCase()}${voiceOf(st, l)?.audio ? " prête" : " manquante"}`}
+                          />
+                        ))}
+                      </span>
+
+                      {(st.imageLoading || st.videoLoading) && (
+                        <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/60">
+                          <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                          <span className="text-xs text-muted-foreground">
+                            {st.videoLoading
+                              ? `Animation ${st.progress ?? 0}%`
+                              : "Création de l'image"}
+                          </span>
+                        </div>
+                      )}
                     </div>
 
-                    {take?.audio && (
-                      <audio
-                        key={viewLang}
-                        ref={(el) => {
-                          audioRefs.current[scene.index] = el;
-                        }}
-                        src={take.audio}
-                        controls
-                        className="mt-4 w-full"
-                      />
-                    )}
-                  </div>
-                </article>
-              );
-            })}
-          </div>
-        </section>
-      )}
-    </main>
+                    <div className="space-y-2 p-3">
+                      {editing[scene.index] ? (
+                        <div className="space-y-2">
+                          <textarea
+                            value={scene.narration}
+                            onChange={(e) =>
+                              isSource
+                                ? updateScene(scene.index, "narration", e.target.value)
+                                : updateTranslatedScene(viewLang, scene.index, e.target.value)
+                            }
+                            rows={3}
+                            className="field"
+                          />
+                          <input
+                            value={scene.overlay}
+                            onChange={(e) => updateScene(scene.index, "overlay", e.target.value)}
+                            placeholder="Texte incrusté"
+                            className="field text-xs"
+                          />
+                          <textarea
+                            value={scene.imagePrompt}
+                            onChange={(e) =>
+                              updateScene(scene.index, "imagePrompt", e.target.value)
+                            }
+                            rows={2}
+                            placeholder="Prompt image (anglais)"
+                            className="field text-xs"
+                          />
+                          <textarea
+                            value={scene.videoPrompt}
+                            onChange={(e) =>
+                              updateScene(scene.index, "videoPrompt", e.target.value)
+                            }
+                            rows={2}
+                            placeholder="Prompt animation (anglais)"
+                            className="field text-xs"
+                          />
+                        </div>
+                      ) : (
+                        <p className="text-sm">{scene.narration}</p>
+                      )}
+
+                      <p className="text-xs text-muted-foreground">
+                        ≈ {estimateSpeechSeconds(scene.narration, viewLang).toFixed(1)} s de voix
+                        {estimateSpeechSeconds(scene.narration, viewLang) > 8 &&
+                          " — plus long que le clip, le plan sera légèrement ralenti"}
+                      </p>
+
+                      {/* Action principale visible, le reste dans un menu. */}
+                      <div className="flex flex-wrap items-center gap-2">
+                        <button
+                          onClick={() => onVideo(scene)}
+                          disabled={st.videoLoading || !imagesValidated}
+                          className="btn-base btn-ghost px-2.5 py-1.5 text-xs"
+                        >
+                          <Play className="h-3.5 w-3.5" /> Animer
+                        </button>
+
+                        <details className="relative">
+                          <summary className="btn-base btn-ghost cursor-pointer list-none px-2.5 py-1.5 text-xs">
+                            Actions
+                          </summary>
+                          <div className="absolute right-0 z-20 mt-2 flex w-56 flex-col gap-1 rounded-[10px] border border-border bg-popover p-2 shadow-lg">
+                            <button
+                              onClick={() => onImage(scene)}
+                              disabled={st.imageLoading}
+                              className="btn-base btn-ghost justify-start px-2.5 py-1.5 text-xs"
+                            >
+                              <ImageIcon className="h-3.5 w-3.5" />
+                              {st.image ? "Regénérer cette image" : "Image"}
+                            </button>
+                            <button
+                              onClick={() =>
+                                setEditing((prev) => ({
+                                  ...prev,
+                                  [scene.index]: !prev[scene.index],
+                                }))
+                              }
+                              className="btn-base btn-ghost justify-start px-2.5 py-1.5 text-xs"
+                            >
+                              <Pencil className="h-3.5 w-3.5" />
+                              {editing[scene.index] ? "Terminé" : "Modifier"}
+                            </button>
+                            <button
+                              onClick={() => onVoice(scene, viewLang)}
+                              disabled={st.audioLoading}
+                              className="btn-base btn-ghost justify-start px-2.5 py-1.5 text-xs"
+                            >
+                              {st.audioLoading ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              ) : (
+                                <Mic className="h-3.5 w-3.5" />
+                              )}
+                              Voix off
+                            </button>
+                            {take?.audio && (
+                              <a
+                                href={take.audio}
+                                download={`scene-${scene.index + 1}-${viewLang}.mp3`}
+                                className="btn-base btn-ghost justify-start px-2.5 py-1.5 text-xs"
+                              >
+                                <Download className="h-3.5 w-3.5" /> MP3
+                              </a>
+                            )}
+                            {st.videoUrl && (
+                              <>
+                                <a
+                                  href={st.videoUrl}
+                                  download={`scene-${scene.index + 1}-brut.mp4`}
+                                  className="btn-base btn-ghost justify-start px-2.5 py-1.5 text-xs"
+                                >
+                                  <Download className="h-3.5 w-3.5" /> MP4 brut
+                                </a>
+                                <button
+                                  onClick={() => onExportScene(scene)}
+                                  disabled={exporting === scene.index}
+                                  className="btn-base btn-ghost justify-start px-2.5 py-1.5 text-xs"
+                                >
+                                  {exporting === scene.index ? (
+                                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                  ) : (
+                                    <Download className="h-3.5 w-3.5" />
+                                  )}
+                                  MP4 + voix + texte
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        </details>
+                      </div>
+
+                      {take?.audio && (
+                        <audio
+                          key={viewLang}
+                          ref={(el) => {
+                            audioRefs.current[scene.index] = el;
+                          }}
+                          src={take.audio}
+                          controls
+                          className="w-full"
+                        />
+                      )}
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          </section>
+        )}
+      </main>
+    </div>
   );
 }

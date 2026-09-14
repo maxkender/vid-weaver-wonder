@@ -37,12 +37,12 @@ export function MusicLibrary({
   const activeCount = tracks.filter((t) => t.style === activeStyle).length;
 
   return (
-    <div className="rounded-lg border border-border bg-secondary/30 p-4">
+    <div className="rounded-[10px] border border-border p-3">
       <button
         onClick={() => setOpen((v) => !v)}
         className="flex w-full items-center justify-between gap-3 text-left"
       >
-        <span className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-widest">
+        <span className="inline-flex items-center gap-2 text-xs font-medium">
           <Music className="h-3.5 w-3.5" /> Musiques de fond
         </span>
         <span className="text-xs text-muted-foreground">
@@ -59,10 +59,10 @@ export function MusicLibrary({
           {styles.map((s) => {
             const list = tracks.filter((t) => t.style === s.id);
             return (
-              <div key={s.id} className="rounded-lg border border-border/70 p-3">
+              <div key={s.id} className="rounded-[10px] border border-border p-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <span className="text-sm font-semibold">{s.label}</span>
-                  <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-border px-3 py-1.5 text-xs uppercase tracking-widest hover:border-primary">
+                  <label className="btn-base btn-ghost cursor-pointer px-2.5 py-1.5 text-xs">
                     <Upload className="h-3.5 w-3.5" /> Ajouter des MP3
                     <input
                       type="file"

@@ -38,8 +38,7 @@ export const Route = createFileRoute("/parametres")({
   component: SettingsPage,
 });
 
-const field =
-  "mt-2 w-full resize-y rounded-lg border border-input bg-background/60 p-3 text-sm outline-none focus:ring-2 focus:ring-ring";
+const field = "field mt-2 resize-y";
 
 function SettingsPage() {
   const [settings, setSettings] = useState<StudioSettings>(defaultSettings());
@@ -53,23 +52,22 @@ function SettingsPage() {
   };
 
   return (
-    <main className="mx-auto w-full max-w-4xl px-5 py-12">
+    <main className="mx-auto w-full max-w-4xl px-4 py-6">
       <Toaster position="top-center" />
-      <Link
-        to="/"
-        className="inline-flex items-center gap-2 text-xs uppercase tracking-widest text-muted-foreground hover:text-foreground"
-      >
-        <ArrowLeft className="h-3.5 w-3.5" /> Retour au studio
-      </Link>
+      <div className="mb-5 flex flex-wrap items-center gap-3 border-b border-border pb-3">
+        <Link to="/" className="btn-base btn-ghost px-2.5 py-1.5 text-xs">
+          <ArrowLeft className="h-3.5 w-3.5" /> Retour au studio
+        </Link>
+        <h1 className="text-[15px] font-semibold tracking-tight">Paramètres</h1>
+      </div>
 
-      <h1 className="mt-6 text-4xl sm:text-5xl">Paramètres</h1>
-      <p className="mt-3 max-w-2xl text-muted-foreground">
+      <p className="max-w-2xl text-sm text-muted-foreground">
         Chaque style de narration et chaque direction artistique a ses propres consignes,
         modifiables ici. Elles sont utilisées à la génération du script, des images et des
         clips animés.
       </p>
 
-      <div className="mt-6 flex flex-wrap gap-2">
+      <div className="mt-4 flex flex-wrap gap-2">
         {(
           [
             ["narration", "Styles de narration"],
@@ -80,11 +78,7 @@ function SettingsPage() {
           <button
             key={id}
             onClick={() => setTab(id)}
-            className={`rounded-full border px-4 py-2 text-sm ${
-              tab === id
-                ? "border-primary bg-primary/15"
-                : "border-border bg-secondary/40 text-muted-foreground hover:text-foreground"
-            }`}
+            className={`chip ${tab === id ? "chip-active" : ""}`}
           >
             {label}
           </button>
@@ -92,11 +86,11 @@ function SettingsPage() {
       </div>
 
       {tab === "narration" && (
-        <div className="mt-6 space-y-4">
+        <div className="mt-4 space-y-3">
           {(Object.keys(NARRATION_LABELS) as NarrationStyleId[]).map((id) => (
-            <section key={id} className="surface-card p-5">
-              <h2 className="text-xl">{NARRATION_LABELS[id]}</h2>
-              <label className="mt-3 block text-xs uppercase tracking-widest text-muted-foreground">
+            <section key={id} className="surface-card p-4">
+              <h2 className="text-base font-semibold">{NARRATION_LABELS[id]}</h2>
+              <label className="label-x mt-3">
                 Consignes d'écriture
               </label>
               <textarea
@@ -113,7 +107,7 @@ function SettingsPage() {
                 }
                 className={field}
               />
-              <label className="mt-4 block text-xs uppercase tracking-widest text-muted-foreground">
+              <label className="label-x mt-4">
                 Densité du texte : {settings.narration[id].wordsBias > 0 ? "+" : ""}
                 {settings.narration[id].wordsBias} mots par plan
               </label>
@@ -135,7 +129,7 @@ function SettingsPage() {
                     },
                   })
                 }
-                className="mt-3 w-full accent-[oklch(0.79_0.16_72)]"
+                className="mt-3 w-full"
               />
             </section>
           ))}
@@ -143,10 +137,10 @@ function SettingsPage() {
       )}
 
       {tab === "visual" && (
-        <div className="mt-6 space-y-4">
+        <div className="mt-4 space-y-3">
           {(Object.keys(VISUAL_LABELS) as VisualStyleId[]).map((id) => (
-            <section key={id} className="surface-card p-5">
-              <h2 className="text-xl">{VISUAL_LABELS[id]}</h2>
+            <section key={id} className="surface-card p-4">
+              <h2 className="text-base font-semibold">{VISUAL_LABELS[id]}</h2>
               {(
                 [
                   ["brief", "Description du style (anglais)"],
@@ -155,7 +149,7 @@ function SettingsPage() {
                 ] as const
               ).map(([key, label]) => (
                 <div key={key}>
-                  <label className="mt-3 block text-xs uppercase tracking-widest text-muted-foreground">
+                  <label className="label-x mt-3">
                     {label}
                   </label>
                   <textarea
@@ -187,7 +181,7 @@ function SettingsPage() {
                       },
                     })
                   }
-                  className="h-4 w-4 accent-[oklch(0.79_0.16_72)]"
+                  className="h-4 w-4"
                 />
                 Masque carré à coins arrondis dans le cadre vertical
               </label>
@@ -197,13 +191,13 @@ function SettingsPage() {
       )}
 
       {tab === "general" && (
-        <section className="surface-card mt-6 space-y-5 p-5">
+        <section className="surface-card mt-4 space-y-5 p-4">
           <label className="flex items-start gap-3 text-sm">
             <input
               type="checkbox"
               checked={settings.useReferenceImage}
               onChange={(e) => persist({ ...settings, useReferenceImage: e.target.checked })}
-              className="mt-1 h-4 w-4 accent-[oklch(0.79_0.16_72)]"
+              className="mt-1 h-4 w-4"
             />
             <span>
               Cohérence des personnages
@@ -219,7 +213,7 @@ function SettingsPage() {
               type="checkbox"
               checked={settings.hd}
               onChange={(e) => persist({ ...settings, hd: e.target.checked })}
-              className="mt-1 h-4 w-4 accent-[oklch(0.79_0.16_72)]"
+              className="mt-1 h-4 w-4"
             />
             <span>
               Export en 1080p
@@ -235,7 +229,7 @@ function SettingsPage() {
               type="checkbox"
               checked={settings.precomposeSquare !== false}
               onChange={(e) => persist({ ...settings, precomposeSquare: e.target.checked })}
-              className="mt-1 h-4 w-4 accent-[oklch(0.79_0.16_72)]"
+              className="mt-1 h-4 w-4"
             />
             <span>
               Pré-composer le carré avant animation
@@ -252,7 +246,7 @@ function SettingsPage() {
               type="checkbox"
               checked={settings.sophiaCta !== false}
               onChange={(e) => persist({ ...settings, sophiaCta: e.target.checked })}
-              className="mt-1 h-4 w-4 accent-[oklch(0.79_0.16_72)]"
+              className="mt-1 h-4 w-4"
             />
             <span>
               Ajouter le plan CTA Sophia à la fin
@@ -269,7 +263,7 @@ function SettingsPage() {
               type="checkbox"
               checked={settings.sophiaLogo}
               onChange={(e) => persist({ ...settings, sophiaLogo: e.target.checked })}
-              className="mt-1 h-4 w-4 accent-[oklch(0.79_0.16_72)]"
+              className="mt-1 h-4 w-4"
             />
             <span className="flex-1">
               Logo Sophia animé
@@ -286,7 +280,7 @@ function SettingsPage() {
           </label>
 
           <div>
-            <label className="text-xs uppercase tracking-widest text-muted-foreground">
+            <label className="label-x">
               Volume de la musique de fond : {Math.round(settings.musicVolume * 100)} %
             </label>
             <input
@@ -298,19 +292,19 @@ function SettingsPage() {
               onChange={(e) =>
                 persist({ ...settings, musicVolume: Number(e.target.value) / 100 })
               }
-              className="mt-3 w-full accent-[oklch(0.79_0.16_72)]"
+              className="mt-3 w-full"
             />
           </div>
         </section>
       )}
 
-      <div className="mt-8 flex flex-wrap gap-3">
+      <div className="mt-6 flex flex-wrap gap-2">
         <button
           onClick={() => {
             saveSettings(settings);
             toast.success("Paramètres enregistrés");
           }}
-          className="btn-gold inline-flex items-center gap-2 rounded-lg px-5 py-3 text-sm font-bold uppercase tracking-wider"
+          className="btn-base btn-primary"
         >
           <Save className="h-4 w-4" /> Enregistrer
         </button>
@@ -319,7 +313,7 @@ function SettingsPage() {
             persist(defaultSettings());
             toast.success("Réglages par défaut restaurés");
           }}
-          className="inline-flex items-center gap-2 rounded-lg border border-border px-5 py-3 text-xs uppercase tracking-widest hover:border-primary"
+          className="btn-base btn-ghost"
         >
           <RotateCcw className="h-3.5 w-3.5" /> Réinitialiser
         </button>
