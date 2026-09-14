@@ -1662,6 +1662,11 @@ function Studio() {
             seule fois + {cost.voices} voix off ({cost.languages} langue
             {cost.languages > 1 ? "s" : ""})
           </span>
+          {spent.clips > 0 && (
+            <span className="hidden text-xs text-foreground md:inline">
+              · Consommé : {spent.clips} clip{spent.clips > 1 ? "s" : ""} / {spent.seconds} s
+            </span>
+          )}
 
           <div className="ml-auto flex flex-wrap items-center gap-2">
             {!pipelinePaused && !(busy && stopped) && (
@@ -1692,6 +1697,7 @@ function Studio() {
           <span className="text-xs text-muted-foreground">
             Coût estimé : {cost.clips} clip{cost.clips > 1 ? "s" : ""} × {cost.perClip} s + {cost.voices}{" "}
             voix off
+            {spent.clips > 0 ? ` · Consommé : ${spent.clips} clips / ${spent.seconds} s` : ""}
           </span>
         </div>
       </header>
