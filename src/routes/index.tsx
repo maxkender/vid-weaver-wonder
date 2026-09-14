@@ -22,6 +22,7 @@ import {
   Sparkles,
   Wand2,
   History,
+  ListChecks,
   Settings,
   Pencil,
   Star,
