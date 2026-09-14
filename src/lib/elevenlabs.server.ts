@@ -240,12 +240,17 @@ export async function listElevenVoices(
 }
 
 
-/** Recherche par nom dans la bibliothèque ElevenLabs (FR d'abord, puis global). */
-export async function searchElevenVoices(query: string): Promise<{ id: string; label: string }[]> {
+/** Recherche par nom (voix de la langue demandée d'abord, puis global). */
+export async function searchElevenVoices(
+  query: string,
+  language = "fr",
+): Promise<{ id: string; label: string }[]> {
   const apiKey = apiKeyOrThrow();
   const headers = { "xi-api-key": apiKey };
   const q = encodeURIComponent(query.trim());
   if (!q) return [];
+  const lang = language.slice(0, 2).toLowerCase();
+  const mark = flag(lang);
 
   const fetchShared = async (url: string) => {
     try {
@@ -264,19 +269,24 @@ export async function searchElevenVoices(query: string): Promise<{ id: string; l
       };
       return (json.voices ?? []).map((v) => {
         const bits = [v.gender, v.age, v.descriptive, v.use_case].filter(Boolean).join(", ");
-        const fr = (v.language ?? "").toLowerCase().startsWith("fr");
-        return { id: v.voice_id, label: `${fr ? "🇫🇷 " : ""}${v.name}${bits ? ` — ${bits}` : ""}` };
+        const native = (v.language ?? "").toLowerCase().startsWith(lang);
+        return {
+          id: v.voice_id,
+          label: `${native ? `${mark} ` : ""}${v.name}${bits ? ` — ${bits}` : ""}`,
+        };
       });
     } catch {
       return [];
     }
   };
 
-  const [fr, any] = await Promise.all([
-    fetchShared(`https://api.elevenlabs.io/v1/shared-voices?page_size=40&language=fr&search=${q}`),
+  const [native, any] = await Promise.all([
+    fetchShared(
+      `https://api.elevenlabs.io/v1/shared-voices?page_size=40&language=${lang}&search=${q}`,
+    ),
     fetchShared(`https://api.elevenlabs.io/v1/shared-voices?page_size=40&search=${q}`),
   ]);
 
   const seen = new Set<string>();
-  return [...fr, ...any].filter((v) => (seen.has(v.id) ? false : (seen.add(v.id), true)));
+  return [...native, ...any].filter((v) => (seen.has(v.id) ? false : (seen.add(v.id), true)));
 }
