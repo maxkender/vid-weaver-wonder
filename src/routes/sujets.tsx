@@ -65,7 +65,7 @@ function TopicQueuePage() {
 
   const refresh = useCallback(async () => {
     try {
-      const res = (await runList({ data: {} })) as { topics: QueuedTopic[] };
+      const res = (await runList()) as { topics: QueuedTopic[] };
       setTopics(res.topics);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Lecture de la file impossible");
