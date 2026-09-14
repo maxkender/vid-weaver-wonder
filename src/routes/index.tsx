@@ -98,23 +98,54 @@ type Script = {
   palette?: string;
 };
 
+type WordTiming = { word: string; start: number; end: number };
+
+/** Voix off d'UNE langue pour un plan : audio + alignement mot à mot + durée. */
+type VoiceTake = { audio: string; words: WordTiming[]; duration: number };
+
 type SceneState = {
+  /** MÉDIAS VISUELS — communs à toutes les langues du master, payés une fois. */
   image?: string | undefined;
   imageLoading?: boolean | undefined;
   videoId?: string | undefined;
   videoUrl?: string | undefined;
   videoLoading?: boolean | undefined;
   progress?: number | undefined;
-  audio?: string | undefined;
+  /** MÉDIAS PARLÉS — un enregistrement par langue produite. */
+  voices?: Record<string, VoiceTake> | undefined;
   audioLoading?: boolean | undefined;
-  /** Alignement exact mot par mot renvoyé par la voix off (ElevenLabs). */
-  words?: { word: string; start: number; end: number }[] | undefined;
 };
 
+function voiceOf(st: SceneState | undefined, lang: string): VoiceTake | undefined {
+  return st?.voices?.[lang];
+}
 
+/** Projets d'avant le master : une seule voix, rangée dans la langue source. */
+function migrateStates(
+  raw: Record<number, SceneState & { audio?: string; words?: WordTiming[] }>,
+  sourceLang: string,
+): Record<number, SceneState> {
+  const out: Record<number, SceneState> = {};
+  for (const [k, v] of Object.entries(raw)) {
+    const { audio, words, ...rest } = v;
+    out[Number(k)] = audio
+      ? {
+          ...rest,
+          voices: { ...(rest.voices ?? {}), [sourceLang]: { audio, words: words ?? [], duration: 0 } },
+        }
+      : rest;
+  }
+  return out;
+}
 
-
-type HistoryItem = { id: string; title: string; date: number; script: Script };
+type HistoryItem = {
+  id: string;
+  title: string;
+  date: number;
+  script: Script;
+  /** Script traduit par langue (la langue source pointe sur le script d'origine). */
+  scripts?: Record<string, Script>;
+};
 
 const HISTORY_KEY = "studio-history-v1";
 function readHistory(): HistoryItem[] {
