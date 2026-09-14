@@ -864,13 +864,16 @@ function Studio() {
         "Keep every character, object, costume and location from the reference image unchanged",
         scene.videoPrompt,
       ].join(". ").slice(0, 1950);
-      const seconds = voiceSeconds
-        ? voiceSeconds <= 4
-          ? "4"
-          : voiceSeconds <= 6
-            ? "6"
-            : "8"
-        : undefined;
+      // Hors brouillon, le 1080p n'existe qu'en plans de 8 s : on les impose.
+      const seconds: "4" | "6" | "8" | undefined = !draft
+        ? "8"
+        : voiceSeconds
+          ? voiceSeconds <= 4
+            ? "4"
+            : voiceSeconds <= 6
+              ? "6"
+              : "8"
+          : undefined;
       const { id } = (await runVideo({
         data: {
           videoPrompt: literalVideoPrompt,
