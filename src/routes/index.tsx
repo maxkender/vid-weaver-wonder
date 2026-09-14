@@ -30,6 +30,16 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { Toaster } from "@/components/ui/sonner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { KaraokeCaption } from "@/components/karaoke-caption";
 import { MusicLibrary } from "@/components/music-library";
 import { audioDuration, estimateSpeechSeconds } from "@/lib/duration";
@@ -417,6 +427,40 @@ function Studio() {
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [showHistory, setShowHistory] = useState(false);
   const [editing, setEditing] = useState<Record<number, boolean>>({});
+
+  /** Fenêtre de confirmation modale remplaçant window.confirm. */
+  type LaunchCost = {
+    clips: number;
+    seconds: number;
+    perClip: number;
+    voices: number;
+    languages: number;
+  };
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [confirmPayload, setConfirmPayload] = useState<LaunchCost | null>(null);
+  const confirmResolverRef = useRef<((value: boolean) => void) | null>(null);
+
+  const requestCostConfirmation = (payload: LaunchCost): Promise<boolean> => {
+    setConfirmPayload(payload);
+    setConfirmOpen(true);
+    return new Promise((resolve) => {
+      confirmResolverRef.current = resolve;
+    });
+  };
+
+  const onConfirmLaunch = () => {
+    const resolve = confirmResolverRef.current;
+    confirmResolverRef.current = null;
+    setConfirmOpen(false);
+    resolve?.(true);
+  };
+
+  const onCancelLaunch = () => {
+    const resolve = confirmResolverRef.current;
+    confirmResolverRef.current = null;
+    setConfirmOpen(false);
+    resolve?.(false);
+  };
 
   /** Bible visuelle : personnages + palette répétés sur chaque plan. */
   const bible = useMemo(() => {
@@ -895,12 +939,10 @@ function Studio() {
   );
 
   /** Confirmation obligatoire avant toute dépense de crédits en série. */
-  const confirmCost = (doc: Script | null = script) => {
-    const { clips, seconds, perClip, voices, languages } = estimateCost(doc);
-    if (!clips) return true;
-    return window.confirm(
-      `Coût estimé : ${clips} clip${clips > 1 ? "s" : ""} × ${perClip} s payés UNE SEULE FOIS (${seconds} s de vidéo IA) + ${voices} voix off réparties sur ${languages} langue${languages > 1 ? "s" : ""}.\n\nLancer la génération ?`,
-    );
+  const confirmCost = async (doc: Script | null = script) => {
+    const cost = estimateCost(doc);
+    if (!cost.clips) return true;
+    return requestCostConfirmation(cost);
   };
 
   /** Voix off d'UN plan dans UNE langue. Rangée dans states[i].voices[lang]. */
@@ -974,7 +1016,7 @@ function Studio() {
 
   const onGenerateAll = async () => {
     if (!script) return;
-    if (!confirmCost(script)) return;
+    if (!(await confirmCost(script))) return;
     beginRun();
     setGeneratingAll(true);
     setCurrentStep("Génération des plans…");
@@ -1217,7 +1259,7 @@ function Studio() {
   const onExportEverything = async (scriptOverride?: Script, skipConfirm = false) => {
     const doc = scriptOverride ?? script;
     if (!doc) return;
-    if (!skipConfirm && !confirmCost(doc)) return;
+    if (!skipConfirm && !(await confirmCost(doc))) return;
     if (!skipConfirm) beginRun();
     setAssembling(true);
     try {
@@ -1354,9 +1396,13 @@ function Studio() {
       return;
     }
     const perClip = Math.min(8, Math.max(4, Math.round(targetSeconds / Math.max(1, sceneCount))));
-    const ok = window.confirm(
-      `Coût estimé : ${sceneCount} clips × ${perClip} s payés UNE SEULE FOIS (${sceneCount * perClip} s de vidéo IA) + ${sceneCount * langs.length} voix off pour ${langs.length} langue${langs.length > 1 ? "s" : ""}.\n\nLancer la génération complète ?`,
-    );
+    const ok = await requestCostConfirmation({
+      clips: sceneCount,
+      seconds: sceneCount * perClip,
+      perClip,
+      voices: sceneCount * langs.length,
+      languages: langs.length,
+    });
     if (!ok) return;
     beginRun();
     // Mode automatique : mêmes étapes, sans les portes de validation.
@@ -2503,6 +2549,42 @@ function Studio() {
           </section>
         )}
       </main>
+
+      {/* DIALOGUE DE CONFIRMATION — remplace window.confirm. */}
+      <AlertDialog
+        open={confirmOpen}
+        onOpenChange={(open) => {
+          setConfirmOpen(open);
+          if (!open && confirmResolverRef.current) {
+            const resolve = confirmResolverRef.current;
+            confirmResolverRef.current = null;
+            resolve(false);
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Lancer la génération ?</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-1.5 text-left text-sm text-muted-foreground">
+                <p>
+                  {confirmPayload?.clips} clip{confirmPayload && confirmPayload.clips > 1 ? "s" : ""} ×{" "}
+                  {confirmPayload?.perClip} s payés une seule fois, quel que soit le nombre de langues.
+                </p>
+                <p>{confirmPayload?.seconds} s de vidéo IA au total.</p>
+                <p>
+                  {confirmPayload?.voices} voix off réparties sur {confirmPayload?.languages} langue
+                  {confirmPayload && confirmPayload.languages > 1 ? "s" : ""}.
+                </p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={onCancelLaunch}>Annuler</AlertDialogCancel>
+            <AlertDialogAction onClick={onConfirmLaunch}>Lancer</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
