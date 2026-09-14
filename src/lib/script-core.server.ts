@@ -36,8 +36,12 @@ export async function buildScript(data: BuildScriptInput): Promise<Script> {
   const includeCta = data.includeCta !== false;
   // Le CTA final ajoute une scène : on ne réserve ses ~6 s que s'il existe.
   const narrationSeconds = Math.max(8, data.targetSeconds - (includeCta ? 6 : 0));
-  // Débit de parole réel de la langue (estimateSpeechSeconds fait foi).
-  const wordsPerSecond = 1 / estimateSpeechSeconds("mot", data.language);
+  // Budget calé sur la langue la PLUS RAPIDE produite : la version la plus
+  // courte atteint quand même la cible, les autres sont un peu plus longues.
+  const wordsPerSecond = fastestWordsPerSecond(
+    (data.productionLanguages?.length ? data.productionLanguages : [data.language]).filter(Boolean),
+    data.language,
+  );
   const totalWords = Math.round(narrationSeconds * wordsPerSecond);
   const wordsBias = data.wordsBias ?? 0;
 
