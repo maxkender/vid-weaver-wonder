@@ -116,6 +116,7 @@ async function stepScript(job: RenderJob) {
     sceneCount: 5,
     targetSeconds: job.duration_sec,
     language: job.language,
+    includeCta: job.include_cta !== false,
   });
   const scenes: JobScene[] = (script.scenes ?? []).map((s, i) => ({
     index: i,
