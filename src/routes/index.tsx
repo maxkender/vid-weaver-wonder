@@ -719,6 +719,8 @@ function Studio() {
   };
 
   const runTranslate = useServerFn(translateScript);
+  const runCreateUpload = useServerFn(createExportUpload);
+  const runExportUrl = useServerFn(getExportDownloadUrl);
 
   /**
    * MASTER : traduit le script source dans chaque autre langue cochée.
