@@ -2,6 +2,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import {
   CAPTION_FADE,
+  CAPTION_MAX_WIDTH_RATIO,
+  CAPTION_SIZE_RATIO,
+  SQUARE_MARGIN_RATIO,
   smoothTimings,
   sophiaWindow,
   wordTimings,

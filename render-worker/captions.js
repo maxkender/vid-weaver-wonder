@@ -49,7 +49,7 @@ export function smoothTimings(words, duration) {
  * `offset` décale la piste dans la timeline globale.
  */
 export function drawTextFilters(words, { width, height, fontFile, offset = 0 }) {
-  const size = Math.round(width * CAPTION_SIZE_RATIO);
+  const size = Math.round(squareSide(width, height) * CAPTION_SIZE_RATIO);
   return words
     .map((w) => {
       const start = (w.start + offset).toFixed(3);
