@@ -543,6 +543,11 @@ function Studio() {
       })) as Script;
       setScript(result);
       setStates({});
+      setScripts({ [sourceLang]: result });
+      scriptsRef.current = { [sourceLang]: result };
+      setFinalUrls({});
+      setScriptValidated(false);
+      setImagesValidated(false);
       referenceImage.current = null;
       previousImage.current = null;
 
@@ -557,6 +562,97 @@ function Studio() {
     } finally {
       setLoadingScript(false);
     }
+  };
+
+  const runTranslate = useServerFn(translateScript);
+
+  /**
+   * MASTER : traduit le script source dans chaque autre langue cochée.
+   * Les visuels ne sont jamais régénérés — seuls les textes parlés changent.
+   */
+  const onTranslateAll = async (
+    doc: Script | null = script,
+  ): Promise<Record<string, Script> | undefined> => {
+    if (!doc) return undefined;
+    const others = langs.filter((l) => l !== sourceLang);
+    const next: Record<string, Script> = { ...scriptsRef.current, [sourceLang]: doc };
+    if (!others.length) {
+      setScripts(next);
+      scriptsRef.current = next;
+      return next;
+    }
+    setTranslating(true);
+    try {
+      for (const lang of others) {
+        if (cancelledRef.current) break; // arrêt demandé avant une traduction
+        setCurrentStep(`Traduction — ${languageLabel(lang)}…`);
+        setAssembleStep(`Traduction — ${languageLabel(lang)}…`);
+        try {
+          const res = (await runTranslate({
+            data: {
+              title: doc.title ?? "",
+              hook: doc.hook ?? "",
+              cta: doc.cta ?? "",
+              scenes: doc.scenes.map((s) => ({
+                index: s.index,
+                narration: s.narration,
+                overlay: s.overlay ?? "",
+              })),
+              language: lang,
+              maxSceneSeconds: 8,
+            },
+          })) as {
+            title: string;
+            hook: string;
+            cta: string;
+            scenes: { index: number; narration: string; overlay: string }[];
+          };
+          // Les prompts visuels sont repris À L'IDENTIQUE : ils ont déjà servi.
+          const byIndex = new Map(res.scenes.map((s) => [s.index, s]));
+          next[lang] = {
+            ...doc,
+            title: res.title || doc.title,
+            hook: res.hook || doc.hook,
+            cta: res.cta,
+            scenes: doc.scenes.map((s) => ({
+              ...s,
+              narration: byIndex.get(s.index)?.narration ?? s.narration,
+              overlay: byIndex.get(s.index)?.overlay ?? s.overlay,
+            })),
+          };
+          toast.success(`Script traduit — ${languageLabel(lang)}`);
+        } catch (e) {
+          toast.error(
+            e instanceof Error ? e.message : `Traduction impossible (${languageLabel(lang)})`,
+          );
+        }
+      }
+      setScripts(next);
+      scriptsRef.current = next;
+      if (projectId) saveHistory(projectId, doc, next);
+      return next;
+    } finally {
+      setTranslating(false);
+    }
+  };
+
+  /** Met à jour la narration traduite d'un plan (traductions éditables). */
+  const updateTranslatedScene = (lang: string, index: number, value: string) => {
+    setScripts((prev) => {
+      const doc = prev[lang];
+      if (!doc) return prev;
+      const next = {
+        ...prev,
+        [lang]: {
+          ...doc,
+          scenes: doc.scenes.map((s) =>
+            s.index === index ? { ...s, narration: value } : s,
+          ),
+        },
+      };
+      scriptsRef.current = next;
+      return next;
+    });
   };
 
   /** Résumé narratif : ce qui vient d'être raconté et ce qui suit. */
