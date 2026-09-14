@@ -2232,7 +2232,7 @@ function Studio() {
                       </button>
                       <button
                         onClick={() => onVideo(scene)}
-                        disabled={st.videoLoading}
+                        disabled={st.videoLoading || !imagesValidated}
                         className="btn-gold inline-flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-bold uppercase tracking-widest disabled:opacity-50"
                       >
                         <Play className="h-3.5 w-3.5" /> Animer
