@@ -1974,6 +1974,32 @@ function Studio() {
                   />
                 </button>
               </div>
+
+              {/* Saisie directe d'un identifiant ElevenLabs, même absent de la liste. */}
+              <div className="mt-2 flex gap-2">
+                <input
+                  type="text"
+                  value={voiceIdDraft}
+                  onChange={(e) => setVoiceIdDraft(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      applyVoiceId();
+                    }
+                  }}
+                  placeholder="Ou colle un ID ElevenLabs"
+                  aria-label="Coller un identifiant de voix ElevenLabs"
+                  className="field min-w-0 flex-1"
+                />
+                <button type="button" onClick={applyVoiceId} className="btn-base btn-ghost shrink-0">
+                  Appliquer
+                </button>
+              </div>
+              <p className="mt-1 text-[11px] text-muted-foreground">
+                ID retenu pour {languageLabel(voiceLangTab)} :{" "}
+                <span className="font-mono">{voice}</span>
+              </p>
+
               <button
                 onClick={onPreviewVoice}
                 disabled={previewVoice}
