@@ -1391,6 +1391,7 @@ function Studio() {
   const cost = estimateCost();
 
   const onAutoAll = async () => {
+    console.log("onAutoAll called");
     if (!topic.trim()) {
       toast.error("Écris d'abord le sujet de la vidéo");
       return;
