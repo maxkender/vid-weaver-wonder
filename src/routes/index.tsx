@@ -832,14 +832,13 @@ function Studio() {
           // Les images de sous-titres sont fabriquées juste avant l'encodage du
           // plan (et libérées après) : sinon toutes les scènes tiennent en
           // mémoire en même temps et l'onglet plante pendant l'export.
-          karaokeSeq: duration
+          cues: duration
             ? () =>
-                makeKaraokeSequence(
+                makeCaptionCues(
                   scene.narration,
                   dims.width,
                   dims.height,
                   duration,
-                  24,
                   words,
                   settings.sophiaLogo
                     ? (() => {
