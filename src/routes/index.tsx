@@ -775,7 +775,7 @@ function Studio() {
 
     const { assembleVideo } = await import("@/lib/assemble-video");
     const { randomTrack } = await import("@/lib/music-store");
-    const { makeKaraokeSequence, makeRoundedSquareMask, sophiaWindow, voiceWindow, shiftTimings } =
+    const { makeCaptionCues, makeRoundedSquareMask, sophiaWindow, voiceWindow, shiftTimings } =
       await import("@/lib/karaoke-overlay");
     const dims =
       orientation === "horizontal"
