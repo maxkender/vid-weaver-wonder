@@ -233,6 +233,23 @@ function SettingsPage() {
           <label className="flex items-start gap-3 text-sm">
             <input
               type="checkbox"
+              checked={settings.precomposeSquare !== false}
+              onChange={(e) => persist({ ...settings, precomposeSquare: e.target.checked })}
+              className="mt-1 h-4 w-4 accent-[oklch(0.79_0.16_72)]"
+            />
+            <span>
+              Pré-composer le carré avant animation
+              <span className="block text-xs text-muted-foreground">
+                L'image carrée est placée nous-mêmes au centre d'un cadre vertical noir avant
+                d'être animée : le cadrage reste identique d'un plan à l'autre et le sujet
+                n'est plus recadré. Décoche pour comparer avec l'ancien rendu.
+              </span>
+            </span>
+          </label>
+
+          <label className="flex items-start gap-3 text-sm">
+            <input
+              type="checkbox"
               checked={settings.sophiaLogo}
               onChange={(e) => persist({ ...settings, sophiaLogo: e.target.checked })}
               className="mt-1 h-4 w-4 accent-[oklch(0.79_0.16_72)]"

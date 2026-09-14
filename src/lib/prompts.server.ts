@@ -192,7 +192,10 @@ export function motionPrompt(
   const quality = o.quality?.trim() || DEFAULT_QUALITY[visual];
   const motion = o.motion?.trim() || DEFAULT_MOTION[visual];
   return `${videoPrompt}. Vertical short-form video. ${brief}. ${quality}.${bibleLine(o.bible)}${storyLine(o.story)} ${
-    square ? SQUARE_FRAME + " The black bands stay perfectly static. " : ""
+    square
+      ? SQUARE_FRAME +
+        " The frame is locked: the centered square never moves, never changes size and is never re-framed. The black bands above and below the square must stay perfectly pure black, completely static and empty for the whole clip. No element, character, particle, shadow or effect may leave the square, cross into the black bands or overlap them. No camera movement, no pan, no tilt, no dolly, no zoom in or out, no push in: absolutely all motion happens strictly inside the square. "
+      : ""
   }${motion} Consistent art direction, same characters and same colors as the reference image, no on-screen text, no subtitles, no watermark.`;
 }
 

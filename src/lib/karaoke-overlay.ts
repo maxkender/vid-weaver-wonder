@@ -226,16 +226,9 @@ export function wordTimings(text: string, duration: number) {
   return out;
 }
 
-/** Pop d'apparition du logo uniquement (le texte, lui, ne zoome pas). */
-function popScale(progress: number) {
-  if (progress >= 1) return 1;
-  const p = Math.max(0, progress);
-  return 0.82 + 0.18 * (1 - Math.pow(1 - p, 3)) + 0.05 * Math.sin(Math.PI * p);
-}
-
 // Paliers d'animation du logo Sophia (le mot, lui, est toujours à l'échelle 1).
 const LOGO_STEPS = 6;
-/** Durée du fondu d'apparition d'un groupe (secondes). */
+/** Durée du fondu d'apparition d'un mot (secondes) — utilisée par l'aperçu. */
 export const CAPTION_FADE = 0.08;
 
 /**

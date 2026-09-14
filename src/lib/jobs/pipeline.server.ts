@@ -219,6 +219,12 @@ async function stepClips(job: RenderJob, t0: number) {
       const est = scene.audioDuration ?? estimateSpeechSeconds(scene.narration, job.language);
       const seconds: "4" | "6" | "8" = est <= 4 ? "4" : est <= 6 ? "6" : "8";
       const hd = seconds === "8";
+      // TODO (file serveur) : en mode carré, le studio pré-compose l'image carrée
+      // au centre d'un cadre 9:16 noir (src/lib/square-frame.ts) avant de l'envoyer
+      // au modèle vidéo, pour que le cadrage ne bouge plus d'un plan à l'autre.
+      // Ici, pas de canvas côté serveur : si une bibliothèque d'images s'installe
+      // proprement dans ce runtime, refaire la même composition avant l'envoi.
+      // En attendant, le chemin serveur reste inchangé (image carrée brute).
       const image = scene.imagePath ? await downloadAsDataUrl(scene.imagePath) : undefined;
       const created = await createVideoJob({
         prompt: motionPrompt(scene.videoPrompt || scene.narration, visual, square, {

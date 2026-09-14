@@ -112,66 +112,6 @@ type SceneState = {
 type HistoryItem = { id: string; title: string; date: number; script: Script };
 
 const HISTORY_KEY = "studio-history-v1";
-const NAPOLEON_PROJECT_ID = "recovered-napoleon-1807";
-const NAPOLEON_SCRIPT: Script = {
-  title: "Le jour où Napoléon a fui face à des lapins",
-  hook: "Le plus grand conquérant de l'Histoire a fui en panique devant la créature la plus inoffensive du monde.",
-  scenes: [
-    {
-      index: 0,
-      narration: "Le plus grand conquérant de l'Histoire a fui en panique devant la créature la plus inoffensive du monde.",
-      overlay: "Vaincu par l'absurde",
-      imagePrompt: "Silhouette of a 19th-century military emperor wearing a bicorne hat, standing alone on a vast empty grassy hill under a dramatic overcast sky.",
-      videoPrompt: "Slow dramatic push-in shot toward the lone silhouette of a military commander standing on a vast green field.",
-    },
-    {
-      index: 1,
-      narration: "En 1807, après une victoire totale, Napoléon organise une gigantesque partie de chasse. Mais l'organisation tourne au désastre.",
-      overlay: "Une chasse royale",
-      imagePrompt: "Row of rustic wooden cages placed on a bright open meadow with a minimalist forest backdrop.",
-      videoPrompt: "Smooth panning camera shot moving past wooden cages in a lush field as the cage doors open.",
-    },
-    {
-      index: 2,
-      narration: "On libère trois mille lapins d'élevage. Au lieu de fuir, ils croient voir arriver leur nourriture.",
-      overlay: "Trois mille lapins",
-      imagePrompt: "A large swarm of fluffy domestic rabbits gathered together on green grass under bright natural lighting.",
-      videoPrompt: "Low-angle dynamic tracking shot moving forward over the grass alongside a large group of hopping rabbits.",
-    },
-    {
-      index: 3,
-      narration: "La marée blanche charge l'empereur, grimpe sur ses bottes et dévore même les boutons de sa veste.",
-      overlay: "L'attaque surprise totale",
-      imagePrompt: "Close-up of tall black leather riding boots on grass, surrounded by dozens of fluffy rabbits climbing upward.",
-      videoPrompt: "Fast downward tilt shot focusing on tall military boots completely overrun by an energetic swarm of bunnies.",
-    },
-    {
-      index: 4,
-      narration: "Terrifié et submergé, le maître de l'Europe doit courir vers son carrosse pour sauver sa peau.",
-      overlay: "L'Empereur en fuite",
-      imagePrompt: "An ornate vintage imperial carriage parked on a dirt trail against a soft sunset sky.",
-      videoPrompt: "Rapid tracking camera following a running military figure diving into an ornate carriage and slamming the door.",
-    },
-    {
-      index: 5,
-      narration: "Pour découvrir d'autres faits historiques insolites et surprenants, télécharge l'application gratuite Sophia. Deux minutes par jour suffisent pour booster ta culture !",
-      overlay: "Télécharge Sophia",
-      imagePrompt: "a hand holding a simple smartphone showing a clean study app screen, small floating book and lightbulb shapes around it, calm background",
-      videoPrompt: "static frontal shot, the smartphone rises slightly while small book and lightbulb shapes float gently around it",
-    },
-  ],
-  cta: "Pour découvrir d'autres faits historiques insolites et surprenants, télécharge l'application gratuite Sophia. Deux minutes par jour suffisent pour booster ta culture !",
-  hashtags: ["#histoire", "#culturegenerale", "#anecdote", "#napoleon", "#apprendre"],
-};
-const NAPOLEON_MEDIA: Record<number, SceneState> = {
-  0: { videoId: "video_7nm7ydfs1g8bhsqd55mvfqs17h", videoUrl: "/api/video-content/video_7nm7ydfs1g8bhsqd55mvfqs17h" },
-  1: { videoId: "video_3es82ywn3q9gjvg5s26508ehs3", videoUrl: "/api/video-content/video_3es82ywn3q9gjvg5s26508ehs3" },
-  2: { videoId: "video_64vwpwpef781aa0ftjg826bmft", videoUrl: "/api/video-content/video_64vwpwpef781aa0ftjg826bmft" },
-  3: { videoId: "video_5hvfbkjceq9pt8ncv87dgbvpfn", videoUrl: "/api/video-content/video_5hvfbkjceq9pt8ncv87dgbvpfn" },
-  4: { videoId: "video_27rnztawyf9w9tjgs04vkry5ht", videoUrl: "/api/video-content/video_27rnztawyf9w9tjgs04vkry5ht" },
-  5: { videoId: "video_5zqbn6vacv8k3vd549xangg544", videoUrl: "/api/video-content/video_5zqbn6vacv8k3vd549xangg544" },
-};
-
 function readHistory(): HistoryItem[] {
   if (typeof window === "undefined") return [];
   try {
@@ -335,23 +275,9 @@ function Studio() {
 
 
   useEffect(() => {
-    const current = readHistory();
-    const recovered: HistoryItem = {
-      id: NAPOLEON_PROJECT_ID,
-      title: NAPOLEON_SCRIPT.title,
-      date: Date.now(),
-      script: NAPOLEON_SCRIPT,
-    };
-    const restored = current.some((item) => item.id === NAPOLEON_PROJECT_ID)
-      ? current
-      : [recovered, ...current];
-    writeHistory(restored);
-    setHistory(restored);
-    void import("@/lib/project-store").then(async (store) => {
-      const existing = await store.loadProjectMedia(NAPOLEON_PROJECT_ID);
-      if (!Object.keys(existing).length) await store.saveProjectMedia(NAPOLEON_PROJECT_ID, NAPOLEON_MEDIA);
-    });
+    setHistory(readHistory());
   }, []);
+
 
   const saveHistory = useCallback((id: string, next: Script) => {
     const items = readHistory().filter((h) => h.id !== id);
@@ -578,6 +504,16 @@ function Studio() {
     patch(scene.index, { videoLoading: true, progress: 0, videoUrl: undefined });
     try {
       const image = imageOverride ?? states[scene.index]?.image;
+      // En mode « 1:1 dans 9:16 », on compose nous-mêmes le carré au centre d'un
+      // cadre vertical noir : le modèle vidéo ne produit que du 9:16 et
+      // recadrerait sinon l'image à sa guise (sujet coupé, cadrage instable).
+      // L'image carrée d'origine reste celle affichée et servant de référence.
+      let videoInput = image;
+      if (image && orientation === "square" && settings.precomposeSquare !== false) {
+        const { composeSquareInVertical } = await import("@/lib/square-frame");
+        const dims = settings.hd ? { w: 1080, h: 1920 } : { w: 720, h: 1280 };
+        videoInput = await composeSquareInVertical(image, dims.w, dims.h);
+      }
       const story = storyContext(scene, doc);
       const literalVideoPrompt = [
         `Illustrate exactly this spoken narration: ${scene.narration}`,
@@ -595,7 +531,7 @@ function Studio() {
       const { id } = (await runVideo({
         data: {
           videoPrompt: literalVideoPrompt,
-          ...(image ? { imageDataUrl: image } : {}),
+          ...(videoInput ? { imageDataUrl: videoInput } : {}),
           narration: scene.narration,
           ...(seconds ? { seconds } : {}),
           orientation,
@@ -1227,11 +1163,19 @@ function Studio() {
           </Link>
         </div>
 
-        {/* Panneau d'état : étape, avancement, coût estimé et arrêt d'urgence. */}
-        {(busy || stopped || pipelinePaused) && (
+        {/* Panneau d'état, toujours visible : étape, avancement, coût estimé et
+            arrêt d'urgence. Il reste affiché au repos pour pouvoir mettre en
+            pause la file serveur (jobs automatiques) avant même qu'elle parte. */}
           <div className="mt-4 flex flex-wrap items-center gap-4 rounded-lg border border-border bg-secondary/30 px-4 py-3 text-xs">
             <span className="uppercase tracking-widest text-muted-foreground">
-              {currentStep || (busy ? "Génération en cours…" : "Pipeline arrêté")}
+              {currentStep ||
+                (busy
+                  ? "Génération en cours…"
+                  : stopped
+                    ? "Pipeline arrêté"
+                    : pipelinePaused
+                      ? "File en pause"
+                      : "File active — prête")}
             </span>
             {totalScenes > 0 && (
               <span className="text-muted-foreground">
@@ -1243,7 +1187,7 @@ function Studio() {
               {cost.seconds} s
             </span>
             <div className="ml-auto flex items-center gap-2">
-              {busy && !stopped && (
+              {!pipelinePaused && !(busy && stopped) && (
                 <button
                   onClick={onStopAll}
                   className="inline-flex items-center gap-2 rounded-lg border border-destructive px-3 py-1.5 uppercase tracking-widest text-destructive hover:bg-destructive/10"
@@ -1261,7 +1205,6 @@ function Studio() {
               )}
             </div>
           </div>
-        )}
 
 
         {showHistory && (
