@@ -405,6 +405,8 @@ function Studio() {
 
   /** MP4 final par langue. */
   const [finalUrls, setFinalUrls] = useState<Record<string, string>>({});
+  /** Vidéos sauvegardées en ligne, par langue (liens signés 7 jours). */
+  const [exportInfos, setExportInfos] = useState<Record<string, ExportInfo>>({});
   const [translating, setTranslating] = useState(false);
 
   // MODE MANUEL : portes de validation. Rien de payant ne part sans un clic.
