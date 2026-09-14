@@ -1941,10 +1941,14 @@ function Studio() {
                   {!availableVoices.some((v) => v.id === voice) && (
                     <option value={voice}>Narrateur sélectionné</option>
                   )}
-                  {availableVoices.map((v) => (
-                    <option key={v.id} value={v.id}>
-                      {favoriteVoices.includes(v.id) ? `★ ${v.label}` : v.label}
-                    </option>
+                  {voiceGroups.map((g) => (
+                    <optgroup key={g.key} label={g.label}>
+                      {g.voices.map((v) => (
+                        <option key={v.id} value={v.id}>
+                          {favoriteVoices.includes(v.id) ? `★ ${v.label}` : v.label}
+                        </option>
+                      ))}
+                    </optgroup>
                   ))}
                 </select>
 
