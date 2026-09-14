@@ -46,7 +46,7 @@ export function MusicLibrary({
           <Music className="h-3.5 w-3.5" /> Musiques de fond
         </span>
         <span className="text-xs text-muted-foreground">
-          {activeCount} pour ce style · {open ? "fermer" : "gérer"}
+          {activeCount} pour ce style · {tracks.length} au total · {open ? "fermer" : "gérer"}
         </span>
       </button>
 
