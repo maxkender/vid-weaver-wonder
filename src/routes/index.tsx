@@ -263,7 +263,7 @@ function Studio() {
     }
   }, []);
   const voiceForLang = useCallback(
-    (l: string) => voiceByLang[l] ?? defaultVoice(engine),
+    (l: string) => voiceByLang[l] ?? defaultVoiceFor(engine, l),
     [voiceByLang, engine],
   );
   const voice = voiceForLang(voiceLangTab);
