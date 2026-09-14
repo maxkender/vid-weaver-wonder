@@ -67,7 +67,7 @@ export async function saveProjectMedia(
     if (v.image) entry.image = v.image;
     if (v.videoId) entry.videoId = v.videoId;
     if (v.videoUrl) entry.videoUrl = v.videoUrl;
-    if (v.audio) entry.audio = v.audio;
+    if (v.voices && Object.keys(v.voices).length) entry.voices = v.voices;
     if (Object.keys(entry).length) clean[Number(k)] = entry;
   }
   try {
