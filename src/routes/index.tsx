@@ -67,9 +67,16 @@ import {
   startSceneVideo,
   suggestTopic,
   translateScript,
+  verifyTopicFacts,
+  type FactCheck,
 } from "@/lib/studio.functions";
 import { TOPIC_CATEGORIES, type TopicCategory } from "@/lib/topic-categories";
-import { markTopicUsed, nextValidatedTopic, type QueuedTopic } from "@/lib/topics.functions";
+import {
+  markTopicUsed,
+  nextValidatedTopic,
+  setTopicStatus,
+  type QueuedTopic,
+} from "@/lib/topics.functions";
 import { createExportUpload, getExportDownloadUrl } from "@/lib/exports.functions";
 import { pipelineState, resumePipeline, stopPipeline } from "@/lib/jobs/control.functions";
 
@@ -204,6 +211,12 @@ type HistoryItem = {
   scripts?: Record<string, Script>;
   /** Vidéos exportées, par langue : survivent au rechargement et au changement de machine. */
   exports?: Record<string, ExportInfo>;
+  /** Langue d'écriture du projet. */
+  sourceLang?: string;
+  /** Langues de production cochées au moment de la sauvegarde. */
+  langs?: string[];
+  /** Narrateur retenu par langue. */
+  voices?: Record<string, string>;
 };
 
 const HISTORY_KEY = "studio-history-v1";
@@ -261,6 +274,13 @@ function Studio() {
   /** Sujet pris dans la file validée : marqué « utilisé » au lancement de la vidéo. */
   const [queuedTopicId, setQueuedTopicId] = useState<string | null>(null);
   const [takingTopic, setTakingTopic] = useState(false);
+
+  /** Vérification des faits : tourne avant l'écriture, ne coûte que du texte. */
+  const [factCheck, setFactCheck] = useState<FactCheck | null>(null);
+  const [checkingFacts, setCheckingFacts] = useState(false);
+  const factCheckRef = useRef<{ topic: string; data: FactCheck } | null>(null);
+  const runVerifyFacts = useServerFn(verifyTopicFacts);
+  const runSetTopicStatus = useServerFn(setTopicStatus);
 
   const pastTopics = useRef<string[]>([]);
   const runSuggest = useServerFn(suggestTopic);
@@ -549,13 +569,18 @@ function Studio() {
           script: next,
           scripts: allScripts ?? previous?.scripts ?? {},
           ...(previous?.exports ? { exports: previous.exports } : {}),
+          // Réglages multilingues : sans eux, le rechargement d'un projet
+          // retombait sur la seule langue source et relançait les traductions.
+          sourceLang,
+          langs: [...langs],
+          voices: { ...voiceByLang },
         },
         ...items,
       ];
       writeHistory(updated);
       setHistory(updated);
     },
-    [],
+    [sourceLang, langs, voiceByLang],
   );
 
   /** Range le lien d'une vidéo exportée avec le projet (survit au rechargement). */
@@ -674,6 +699,8 @@ function Studio() {
         }
         setTopic(res.topic);
         setAngle(res.angle);
+        setFactCheck(null);
+        factCheckRef.current = null;
         toast.success("Sujet proposé");
       }
 
@@ -695,6 +722,8 @@ function Studio() {
       }
       setTopic(res.topic.topic);
       setAngle(res.topic.angle ?? "");
+      setFactCheck(null);
+      factCheckRef.current = null;
       setQueuedTopicId(res.topic.id);
       setTopicValidated(true);
       toast.success("Sujet pris dans la file");
@@ -705,7 +734,56 @@ function Studio() {
     }
   };
 
+  /**
+   * Vérifie le sujet et ses chiffres AVANT toute écriture. Le résultat est mis
+   * en cache tant que le sujet ne change pas : un seul appel par sujet.
+   */
+  const ensureFactCheck = async (): Promise<FactCheck | null> => {
+    const current = topic.trim();
+    if (!current) {
+      toast.error("Écris d'abord le sujet de la vidéo");
+      return null;
+    }
+    if (factCheckRef.current?.topic === current) return factCheckRef.current.data;
+    setCheckingFacts(true);
+    setCurrentStep("Vérification des faits…");
+    try {
+      const res = (await runVerifyFacts({
+        data: { topic: current, angle, language },
+      })) as FactCheck;
+      setFactCheck(res);
+      const corrected = res.correctedTopic.trim() || current;
+      factCheckRef.current = { topic: corrected, data: res };
+      if (res.verdict === "revoir") {
+        toast.error("Fait central faux ou invérifiable — sujet à revoir");
+        if (queuedTopicId) {
+          void runSetTopicStatus({ data: { id: queuedTopicId, status: "revoir" } }).catch(
+            () => undefined,
+          );
+          setQueuedTopicId(null);
+        }
+        return res;
+      }
+      if (corrected !== current) {
+        setTopic(corrected);
+        toast.success("Sujet corrigé après vérification");
+      } else {
+        toast.success("Faits vérifiés");
+      }
+      return res;
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Vérification impossible");
+      return null;
+    } finally {
+      setCheckingFacts(false);
+      setCurrentStep("");
+    }
+  };
+
   const onScript = async (): Promise<Script | undefined> => {
+    // Aucune écriture (ni dépense ensuite) sur des faits non vérifiés.
+    const checked = await ensureFactCheck();
+    if (!checked || checked.verdict === "revoir") return undefined;
     setLoadingScript(true);
     // Le sujet de la file est consommé au moment où la vidéo part réellement.
     if (queuedTopicId) {
@@ -716,7 +794,8 @@ function Studio() {
     try {
       const result = (await runScript({
         data: {
-          topic,
+          topic: checked.correctedTopic || topic,
+          facts: checked.facts,
           kind,
           sceneCount,
           style,
@@ -1863,13 +1942,41 @@ function Studio() {
                     setFinalUrl(null);
                     setFinalUrls({});
                     setExportInfos(h.exports ?? {});
-                    const saved = { ...(h.scripts ?? {}), [sourceLang]: h.script };
+                    // Langue d'écriture du projet (celle d'origine, pas celle
+                    // affichée au moment du clic).
+                    const src = (MASTER_LANGUAGE_IDS as readonly string[]).includes(
+                      h.sourceLang ?? "",
+                    )
+                      ? (h.sourceLang as LanguageId)
+                      : sourceLang;
+                    const saved = { ...(h.scripts ?? {}), [src]: h.script };
                     setScripts(saved);
                     scriptsRef.current = saved;
                     setShowHistory(false);
                     const { loadProjectMedia } = await import("@/lib/project-store");
                     const media = await loadProjectMedia(h.id);
-                    setStates(migrateStates(media as Record<number, SceneState>, sourceLang));
+                    const restoredStates = migrateStates(
+                      media as Record<number, SceneState>,
+                      src,
+                    );
+                    setStates(restoredStates);
+                    // Langues de production : celles enregistrées, complétées
+                    // par toutes celles qui ont déjà un script traduit ou une
+                    // voix off — pour qu'aucun travail payé ne semble perdu.
+                    const found = new Set<string>([src, ...(h.langs ?? [])]);
+                    for (const l of Object.keys(saved)) found.add(l);
+                    for (const st of Object.values(restoredStates)) {
+                      for (const l of Object.keys(st?.voices ?? {})) found.add(l);
+                    }
+                    const restoredLangs = (MASTER_LANGUAGE_IDS as readonly string[]).filter(
+                      (l) => found.has(l),
+                    ) as LanguageId[];
+                    setSourceLang(src);
+                    setTargetLangs(restoredLangs);
+                    setViewLang(src);
+                    if (h.voices && Object.keys(h.voices).length) {
+                      setVoiceByLang((prev) => ({ ...prev, ...h.voices }));
+                    }
                     const { loadFinalVideo } = await import("@/lib/project-store");
                     const savedFinal = await loadFinalVideo(h.id);
                     if (savedFinal) setFinalUrl(URL.createObjectURL(savedFinal));
@@ -1963,6 +2070,54 @@ function Studio() {
               {angle && <span className="text-xs text-muted-foreground">{angle}</span>}
             </div>
 
+            {/* VÉRIFICATION DES FAITS : ce qui a été rectifié, ce qui servira
+                au script, ce qui a été écarté. Étape gratuite. */}
+            {factCheck && (
+              <div
+                className={`mt-3 rounded-[10px] border p-3 text-xs ${
+                  factCheck.verdict === "revoir"
+                    ? "border-destructive/40 bg-destructive/10"
+                    : "border-border"
+                }`}
+              >
+                <p className="font-medium">
+                  {factCheck.verdict === "revoir"
+                    ? "Sujet à revoir : l'affirmation centrale ne tient pas"
+                    : "Faits vérifiés"}
+                </p>
+                {factCheck.note && (
+                  <p className="mt-1 text-muted-foreground">{factCheck.note}</p>
+                )}
+                {factCheck.correctedTopic && (
+                  <p className="mt-2">
+                    <span className="text-muted-foreground">Sujet retenu : </span>
+                    {factCheck.correctedTopic}
+                  </p>
+                )}
+                {factCheck.facts.length > 0 && (
+                  <>
+                    <p className="mt-2 text-muted-foreground">Faits retenus</p>
+                    <ul className="mt-1 list-disc space-y-0.5 pl-4">
+                      {factCheck.facts.map((f, i) => (
+                        <li key={i}>{f}</li>
+                      ))}
+                    </ul>
+                  </>
+                )}
+                {factCheck.discarded.length > 0 && (
+                  <>
+                    <p className="mt-2 text-muted-foreground">Écarté car douteux</p>
+                    <ul className="mt-1 list-disc space-y-0.5 pl-4 text-muted-foreground">
+                      {factCheck.discarded.map((f, i) => (
+                        <li key={i}>{f}</li>
+                      ))}
+                    </ul>
+                  </>
+                )}
+              </div>
+            )}
+
+
             <p className="label-x mt-5">Style de narration</p>
             <div className="mt-2 grid gap-2 sm:grid-cols-2">
               {STYLES.map((s) => (
@@ -2019,17 +2174,24 @@ function Studio() {
                 {/* MODE MANUEL — porte 1 : le sujet. Rien de payant avant ce clic. */}
                 <button
                   onClick={() => {
-                    if (!topic.trim()) {
-                      toast.error("Écris d'abord le sujet de la vidéo");
-                      return;
-                    }
-                    setTopicValidated(true);
-                    toast.success("Sujet validé — tu peux générer le script");
+                    void (async () => {
+                      const res = await ensureFactCheck();
+                      if (!res || res.verdict === "revoir") return;
+                      setTopicValidated(true);
+                      toast.success("Sujet vérifié — tu peux générer le script");
+                    })();
                   }}
-                  disabled={topicValidated}
+                  disabled={topicValidated || checkingFacts}
                   className="btn-base btn-ghost"
                 >
-                  {topicValidated ? "Sujet validé" : "Valider le sujet"}
+                  {checkingFacts ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : null}
+                  {topicValidated
+                    ? "Sujet validé"
+                    : checkingFacts
+                      ? "Vérification…"
+                      : "Vérifier et valider le sujet"}
                 </button>
 
                 <button

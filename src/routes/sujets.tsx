@@ -78,7 +78,9 @@ function TopicQueuePage() {
     void refresh();
   }, [refresh]);
 
-  const pending = topics.filter((t) => t.status === "propose");
+  // Les sujets marqués « à revoir » par la vérification des faits reviennent
+  // dans la liste à décider, signalés, plutôt que de partir en production.
+  const pending = topics.filter((t) => t.status === "propose" || t.status === "revoir");
   const validated = topics.filter((t) => t.status === "valide");
   const used = topics.filter((t) => t.status === "utilise");
   const rejected = topics.filter((t) => t.status === "rejete");
@@ -243,7 +245,14 @@ function TopicQueuePage() {
               className="flex flex-wrap items-start gap-3 rounded-[10px] border border-border p-3"
             >
               <div className="min-w-0 flex-1">
-                <p className="text-sm">{t.topic}</p>
+                <p className="text-sm">
+                  {t.status === "revoir" && (
+                    <span className="mr-2 rounded-[6px] bg-destructive/15 px-1.5 py-0.5 text-[11px] text-destructive">
+                      à revoir
+                    </span>
+                  )}
+                  {t.topic}
+                </p>
                 {t.angle && <p className="mt-1 text-xs text-muted-foreground">{t.angle}</p>}
               </div>
               <div className="flex items-center gap-2">

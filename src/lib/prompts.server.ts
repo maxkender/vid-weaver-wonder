@@ -79,6 +79,8 @@ export function scriptSystemPrompt(
   totalWords?: number,
   langName = "français de France",
   includeCta = true,
+  /** Faits établis par l'étape de vérification : seule source autorisée. */
+  verifiedFacts: string[] = [],
 ) {
   // Fourchette resserrée : la borne basse ne doit jamais autoriser un plan de 3 s.
   const lo = Math.max(14, Math.round(wordsPerScene - 2));
@@ -146,6 +148,12 @@ export function scriptSystemPrompt(
     "videoPrompt anime uniquement les éléments visibles dans imagePrompt et décrit une action simple qui rend la narration immédiatement compréhensible, avec un mouvement de caméra discret, en 8 secondes maximum. Aucun nouvel objet, personnage ou événement.",
 
     "",
+    verifiedFacts.length
+      ? [
+          "FAITS VÉRIFIÉS (source unique autorisée) : le script n'utilise AUCUN chiffre, AUCUNE date et AUCUNE affirmation qui ne figure pas dans cette liste. Tu peux reformuler, illustrer et simplifier, jamais ajouter un fait nouveau ni arrondir un chiffre dans l'autre sens. Si un détail te manque, tu l'omets.",
+          ...verifiedFacts.map((f) => `- ${f}`),
+        ].join("\n")
+      : "",
     includeCta ? CTA_BRIEF : "",
     includeCta
       ? "UN SEUL CTA : le CTA Sophia est écrit UNIQUEMENT dans le champ cta (texte prêt à être lu à voix haute), adapté au sujet. Aucune scène du tableau scenes ne doit parler de l'appli, de téléchargement ou de cours gratuits. Le mot « Sophia » n'apparaît qu'une seule fois dans TOUT le script."
@@ -289,3 +297,23 @@ export const TOPIC_VIRAL = [
   "Le sujet doit tenir en UNE phrase compréhensible sans aucune connaissance préalable, et ne contenir aucun mot qu'un ado ne dirait pas.",
 ].join("\n");
 
+
+/**
+ * VÉRIFICATION DES FAITS : étape texte, avant toute dépense d'image ou de
+ * vidéo. Le modèle corrige les chiffres faux, écarte le douteux et renvoie la
+ * liste des faits établis dont le script aura le droit de se servir.
+ */
+export function factCheckSystemPrompt(langName: string) {
+  return [
+    `Tu es vérificateur de faits pour une chaîne de vulgarisation. Tu écris en ${langName}.`,
+    "On te donne un sujet de vidéo courte et son angle. Tu vérifies CHAQUE affirmation et CHAQUE chiffre.",
+    "MÉTHODE : recalcule toi-même toute grandeur dérivée (une quantité totale divisée par une population, une moyenne, un pourcentage) au lieu de reprendre le chiffre annoncé. Exemple : 20 millions de tonnes d'or pour 8 milliards d'humains font environ 2,5 kg par personne, pas 4 kg.",
+    "Corrige ce qui est faux, arrondis honnêtement, et donne l'ordre de grandeur quand la valeur exacte est inconnue.",
+    "ÉCARTE tout ce qui est contesté, invérifiable, issu d'une seule source douteuse ou d'une légende urbaine : ces points vont dans discarded, avec la raison en une phrase.",
+    "facts : les faits ÉTABLIS que le script pourra utiliser, un par entrée, chacun autosuffisant et chiffré quand c'est possible. Entre 4 et 10 entrées. N'y mets rien dont tu n'es pas sûr.",
+    "correctedTopic : le sujet reformulé en UNE phrase, exact, sans rien perdre de son intérêt. Si le sujet était déjà exact, recopie-le.",
+    "verdict : « ok » si l'affirmation CENTRALE du sujet tient ; « revoir » si elle est fausse ou invérifiable — dans ce cas, explique pourquoi dans note et ne cherche pas à sauver le sujet.",
+    "note : une phrase en clair sur ce qui a été rectifié.",
+    'Réponds uniquement en JSON: {"correctedTopic":string,"verdict":"ok"|"revoir","note":string,"facts":string[],"discarded":string[]}',
+  ].join("\n");
+}

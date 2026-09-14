@@ -9,7 +9,7 @@ import { z } from "zod";
 
 import { TOPIC_CATEGORY_IDS } from "./topic-categories";
 
-export type TopicStatus = "propose" | "valide" | "rejete" | "utilise";
+export type TopicStatus = "propose" | "valide" | "rejete" | "utilise" | "revoir";
 
 export type QueuedTopic = {
   id: string;
@@ -87,7 +87,7 @@ export const setTopicStatus = createServerFn({ method: "POST" })
     z
       .object({
         id: z.string().uuid(),
-        status: z.enum(["propose", "valide", "rejete", "utilise"]),
+        status: z.enum(["propose", "valide", "rejete", "utilise", "revoir"]),
       })
       .parse(input),
   )
