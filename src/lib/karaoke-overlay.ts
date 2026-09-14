@@ -237,12 +237,15 @@ function popScale(progress: number) {
 const LOGO_STEPS = 6;
 /** Durée du fondu d'apparition d'un groupe (secondes). */
 export const CAPTION_FADE = 0.08;
-const FADE_STEPS = 8;
 
-/** Mot par mot : aucune fusion de groupes trop courts. */
-export const MIN_CAPTION_HOLD = 0;
-/** Nombre maximal de mots affichés ensemble (1 = strictement mot par mot). */
-const MAX_GROUP_WORDS = 1;
+/**
+ * Tenue minimale d'un mot à l'écran. En dessous (micro-mots « a », « de »,
+ * « le »), le mot est FUSIONNÉ avec le suivant : on ne décale jamais son
+ * début, sinon le texte se désynchronise de la voix.
+ */
+export const MIN_CAPTION_HOLD = 0.25;
+/** Nombre maximal de mots affichés ensemble (2 uniquement en cas de fusion). */
+const MAX_GROUP_WORDS = 2;
 /** Longueur maximale d'un groupe (une seule ligne). */
 const MAX_GROUP_CHARS = 18;
 /** Léger devancement : le texte apparaît juste avant la syllabe (perçu comme synchro). */
