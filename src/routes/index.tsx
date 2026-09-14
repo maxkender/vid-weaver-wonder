@@ -538,6 +538,7 @@ function Studio() {
           date: Date.now(),
           script: next,
           scripts: allScripts ?? previous?.scripts ?? {},
+          ...(previous?.exports ? { exports: previous.exports } : {}),
         },
         ...items,
       ];
@@ -546,6 +547,16 @@ function Studio() {
     },
     [],
   );
+
+  /** Range le lien d'une vidéo exportée avec le projet (survit au rechargement). */
+  const saveExportToHistory = useCallback((id: string, lang: string, info: ExportInfo) => {
+    const items = readHistory();
+    const updated = items.map((h) =>
+      h.id === id ? { ...h, exports: { ...(h.exports ?? {}), [lang]: info } } : h,
+    );
+    writeHistory(updated);
+    setHistory(updated);
+  }, []);
 
   const updateScene = useCallback(
     (index: number, field: keyof Scene, value: string) => {
