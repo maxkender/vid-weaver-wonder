@@ -1326,6 +1326,30 @@ function Studio() {
     }
   };
 
+  /**
+   * Renouvelle les liens signés d'un projet rechargé : un lien de 7 jours peut
+   * avoir expiré, le fichier, lui, est toujours dans le stockage.
+   */
+  const refreshExportLinks = async (id: string, saved?: Record<string, ExportInfo>) => {
+    const entries = Object.entries(saved ?? {});
+    if (!entries.length) return;
+    for (const [lang, info] of entries) {
+      if (info.expiresAt && info.expiresAt > Date.now() + 60_000) continue;
+      try {
+        const { url, expiresAt } = (await runExportUrl({
+          data: { path: info.path, days: 7 },
+        })) as { url: string; expiresAt: number };
+        const next: ExportInfo = { ...info, url, expiresAt };
+        setExportInfos((prev) => ({ ...prev, [lang]: next }));
+        saveExportToHistory(id, lang, next);
+      } catch {
+        /* stockage indisponible : on garde l'ancien lien affiché */
+      }
+    }
+  };
+
+
+
   /** Nom de fichier suffixé par la langue : mon-sujet-de.mp4 */
   const downloadLang = (lang: string, url: string, title: string) => {
     const a = document.createElement("a");
