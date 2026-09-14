@@ -1166,7 +1166,6 @@ function Studio() {
         {/* Panneau d'état, toujours visible : étape, avancement, coût estimé et
             arrêt d'urgence. Il reste affiché au repos pour pouvoir mettre en
             pause la file serveur (jobs automatiques) avant même qu'elle parte. */}
-        {true && (
           <div className="mt-4 flex flex-wrap items-center gap-4 rounded-lg border border-border bg-secondary/30 px-4 py-3 text-xs">
             <span className="uppercase tracking-widest text-muted-foreground">
               {currentStep ||
@@ -1206,7 +1205,6 @@ function Studio() {
               )}
             </div>
           </div>
-        )}
 
 
         {showHistory && (
