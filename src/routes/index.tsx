@@ -205,12 +205,64 @@ function Studio() {
   );
 
   const [style, setStyle] = useState<NarrationStyle>("revelation");
-  const [language, setLanguage] = useState<LanguageId>("fr");
   const [visual, setVisual] = useState<VisualStyle>("papercraft");
   const [engine, setEngine] = useState<VoiceEngine>("elevenlabs");
-  const [voice, setVoice] = useState(defaultVoice("elevenlabs"));
   const [accountVoices, setAccountVoices] = useState<{ id: string; label: string }[]>([]);
   const [favoriteVoices, setFavoriteVoices] = useState<string[]>([]);
+
+  // ── MASTER MULTILINGUE ─────────────────────────────────────────────────────
+  // Une langue SOURCE (celle dans laquelle le script est écrit) et les langues
+  // à produire. Les images et les clips sont communs : seule la voix off change.
+  const [sourceLang, setSourceLang] = useState<LanguageId>("fr");
+  const [targetLangs, setTargetLangs] = useState<LanguageId[]>(["fr"]);
+  const language = sourceLang;
+  /** Langues produites, dans l'ordre : la source d'abord. */
+  const langs = useMemo(() => {
+    const rest = MASTER_LANGUAGE_IDS.filter(
+      (l) => l !== sourceLang && targetLangs.includes(l as LanguageId),
+    ) as LanguageId[];
+    return [sourceLang, ...rest];
+  }, [sourceLang, targetLangs]);
+
+  const toggleLang = (id: LanguageId) => {
+    if (id === sourceLang) return; // la langue source n'est jamais décochable
+    setTargetLangs((prev) =>
+      prev.includes(id) ? prev.filter((l) => l !== id) : [...prev, id],
+    );
+  };
+
+  /** Un narrateur ElevenLabs par langue, mémorisé entre les sessions. */
+  const [voiceByLang, setVoiceByLang] = useState<Record<string, string>>({});
+  const [voiceLangTab, setVoiceLangTab] = useState<LanguageId>("fr");
+  useEffect(() => {
+    try {
+      const saved = JSON.parse(
+        localStorage.getItem("studio-voice-by-lang") ?? "{}",
+      ) as Record<string, string>;
+      if (saved && typeof saved === "object") setVoiceByLang(saved);
+    } catch {
+      setVoiceByLang({});
+    }
+  }, []);
+  const voiceForLang = useCallback(
+    (l: string) => voiceByLang[l] ?? defaultVoice(engine),
+    [voiceByLang, engine],
+  );
+  const voice = voiceForLang(voiceLangTab);
+  const setVoice = useCallback(
+    (id: string) =>
+      setVoiceByLang((prev) => {
+        const next = { ...prev, [voiceLangTab]: id };
+        try {
+          localStorage.setItem("studio-voice-by-lang", JSON.stringify(next));
+        } catch {
+          /* quota plein : le choix reste valable pour la session */
+        }
+        return next;
+      }),
+    [voiceLangTab],
+  );
+  useEffect(() => setVoiceLangTab(sourceLang), [sourceLang]);
 
   const runListVoices = useServerFn(listVoices);
   useEffect(() => {
