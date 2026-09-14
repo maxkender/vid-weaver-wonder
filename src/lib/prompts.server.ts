@@ -79,6 +79,8 @@ export function scriptSystemPrompt(
   totalWords?: number,
   langName = "français de France",
   includeCta = true,
+  /** Faits établis par l'étape de vérification : seule source autorisée. */
+  verifiedFacts: string[] = [],
 ) {
   // Fourchette resserrée : la borne basse ne doit jamais autoriser un plan de 3 s.
   const lo = Math.max(14, Math.round(wordsPerScene - 2));
