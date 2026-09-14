@@ -158,6 +158,7 @@ export async function generateElevenSpeechWithTimings(
       apiKey,
       language,
       voiceId,
+      speed,
     );
     json = (await res.json()) as typeof json;
   } catch (e) {
