@@ -8,7 +8,12 @@ import {
 export type VideoKind = "faits" | "culture" | "pub";
 
 /** Ton / structure narrative du script. */
-export type NarrationStyle = "question" | "revelation" | "storytelling" | "listicle";
+export type NarrationStyle =
+  | "question"
+  | "revelation"
+  | "storytelling"
+  | "listicle"
+  | "mecanique";
 
 /** Direction artistique des visuels. */
 export type VisualStyle = "papercraft" | "cinematique" | "documentaire" | "retro";
