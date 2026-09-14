@@ -1969,9 +1969,36 @@ function Studio() {
 
           </div>
 
+          {langs.length > 1 && (
+            <div className="mt-6 flex flex-wrap items-center gap-2">
+              <span className="text-xs uppercase tracking-widest text-muted-foreground">
+                Langue affichée
+              </span>
+              {langs.map((l) => (
+                <button
+                  key={l}
+                  type="button"
+                  onClick={() => setViewLang(l)}
+                  className={`rounded-full border px-3 py-1.5 text-xs uppercase tracking-widest transition-colors ${
+                    viewLang === l
+                      ? "border-primary bg-primary/15 text-foreground"
+                      : "border-border bg-secondary/40 text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {languageLabel(l)}
+                </button>
+              ))}
+              {translating && (
+                <span className="text-xs text-muted-foreground">Traduction en cours…</span>
+              )}
+            </div>
+          )}
+
           <div className="mt-8 grid gap-6 lg:grid-cols-2">
-            {script.scenes.map((scene) => {
+            {(scriptFor(viewLang, script) ?? script).scenes.map((scene) => {
               const st = states[scene.index] ?? {};
+              const take = voiceOf(st, viewLang);
+              const isSource = viewLang === sourceLang;
               return (
                 <article key={scene.index} className="surface-card overflow-hidden">
                   <div
@@ -1991,7 +2018,7 @@ function Studio() {
                         loop
                         playsInline
                         preload="metadata"
-                        muted={Boolean(st.audio)}
+                        muted={Boolean(take?.audio)}
                         {...(st.image ? { poster: st.image } : {})}
                         onPlay={(e) => {
                           const a = audioRefs.current[scene.index];
@@ -2032,7 +2059,7 @@ function Studio() {
                     <KaraokeCaption
                       text={scene.narration}
                       fallback={scene.overlay}
-                      words={st.words}
+                      words={take?.words}
                       showLogo={settings.sophiaLogo}
                       getMedia={() =>
                         audioRefs.current[scene.index] ?? videoRefs.current[scene.index] ?? null
@@ -2061,7 +2088,11 @@ function Studio() {
                       <div className="mt-3 space-y-2">
                         <textarea
                           value={scene.narration}
-                          onChange={(e) => updateScene(scene.index, "narration", e.target.value)}
+                          onChange={(e) =>
+                            isSource
+                              ? updateScene(scene.index, "narration", e.target.value)
+                              : updateTranslatedScene(viewLang, scene.index, e.target.value)
+                          }
                           rows={3}
                           className="w-full rounded-lg border border-border bg-background p-2 text-sm"
                         />
@@ -2090,8 +2121,8 @@ function Studio() {
                       <p className="mt-2 text-sm">{scene.narration}</p>
                     )}
                     <p className="mt-2 text-xs uppercase tracking-widest text-muted-foreground">
-                      ≈ {estimateSpeechSeconds(scene.narration, language).toFixed(1)} s de voix
-                      {estimateSpeechSeconds(scene.narration, language) > 8 && " — plus long que le clip, le plan sera légèrement ralenti"}
+                      ≈ {estimateSpeechSeconds(scene.narration, viewLang).toFixed(1)} s de voix
+                      {estimateSpeechSeconds(scene.narration, viewLang) > 8 && " — plus long que le clip, le plan sera légèrement ralenti"}
                     </p>
 
                     <div className="mt-4 flex flex-wrap gap-2">
@@ -2100,7 +2131,8 @@ function Studio() {
                         disabled={st.imageLoading}
                         className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-xs uppercase tracking-widest hover:border-primary disabled:opacity-50"
                       >
-                        <ImageIcon className="h-3.5 w-3.5" /> Image
+                        <ImageIcon className="h-3.5 w-3.5" />
+                        {st.image ? "Regénérer cette image" : "Image"}
                       </button>
                       <button
                         onClick={() =>
@@ -2119,7 +2151,7 @@ function Studio() {
                         <Play className="h-3.5 w-3.5" /> Animer
                       </button>
                       <button
-                        onClick={() => onVoice(scene)}
+                        onClick={() => onVoice(scene, viewLang)}
                         disabled={st.audioLoading}
                         className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-xs uppercase tracking-widest hover:border-primary disabled:opacity-50"
                       >
@@ -2130,10 +2162,10 @@ function Studio() {
                         )}
                         Voix off
                       </button>
-                      {st.audio && (
+                      {take?.audio && (
                         <a
-                          href={st.audio}
-                          download={`scene-${scene.index + 1}.mp3`}
+                          href={take.audio}
+                          download={`scene-${scene.index + 1}-${viewLang}.mp3`}
                           className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-xs uppercase tracking-widest hover:border-primary"
                         >
                           <Download className="h-3.5 w-3.5" /> MP3
@@ -2165,12 +2197,13 @@ function Studio() {
 
                     </div>
 
-                    {st.audio && (
+                    {take?.audio && (
                       <audio
+                        key={viewLang}
                         ref={(el) => {
                           audioRefs.current[scene.index] = el;
                         }}
-                        src={st.audio}
+                        src={take.audio}
                         controls
                         className="mt-4 w-full"
                       />
