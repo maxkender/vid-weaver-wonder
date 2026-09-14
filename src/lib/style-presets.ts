@@ -91,6 +91,8 @@ export type StudioSettings = {
   draft720: boolean;
   /** Plafond de dépense par vidéo, en secondes de vidéo IA commandées. */
   spendCapSeconds: number;
+  /** Rythme de lecture de la voix off (0,9 à 1,15). */
+  voiceSpeed: number;
 };
 
 export function defaultSettings(): StudioSettings {
@@ -120,6 +122,7 @@ export function defaultSettings(): StudioSettings {
     sophiaCta: false,
     draft720: false,
     spendCapSeconds: 72,
+    voiceSpeed: 1.05,
   };
 }
 

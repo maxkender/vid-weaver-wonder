@@ -5,15 +5,15 @@
  * mesurée (audioDuration / alignement ElevenLabs) qui fait foi.
  */
 const WORDS_PER_SECOND: Record<string, number> = {
-  fr: 2.9,
-  en: 3.1,
-  es: 3.0,
-  de: 2.4,
-  it: 3.0,
-  pt: 3.0,
+  fr: 3.2,
+  en: 3.4,
+  es: 3.3,
+  de: 2.7,
+  it: 3.3,
+  pt: 3.3,
 };
 
-const DEFAULT_WPS = 2.9;
+const DEFAULT_WPS = 3.2;
 
 /** Débit de parole d'une langue (mots par seconde). */
 export function wordsPerSecond(language = "fr") {

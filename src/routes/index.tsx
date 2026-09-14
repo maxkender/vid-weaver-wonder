@@ -1133,7 +1133,13 @@ function Studio() {
     patch(scene.index, { audioLoading: true });
     try {
       const { audioDataUrl, words } = (await runVoice({
-        data: { text, voice: voiceForLang(lang), engine, language: lang as LanguageId },
+        data: {
+          text,
+          voice: voiceForLang(lang),
+          engine,
+          language: lang as LanguageId,
+          speed: settings.voiceSpeed ?? 1.05,
+        },
       })) as { audioDataUrl: string; words?: WordTiming[] };
       const duration = await audioDuration(audioDataUrl);
       const take: VoiceTake = { audio: audioDataUrl, words: words ?? [], duration };
@@ -1253,6 +1259,7 @@ function Studio() {
             voice,
             engine,
             language: voiceLangTab,
+            speed: settings.voiceSpeed ?? 1.05,
           },
         })) as { audioDataUrl: string };
         src = audioDataUrl;

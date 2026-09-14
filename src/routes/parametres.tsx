@@ -299,6 +299,29 @@ function SettingsPage() {
             </span>
           </div>
 
+          <div>
+            <label className="label-x" htmlFor="voice-speed">
+              Rythme de la voix ({(settings.voiceSpeed ?? 1.05).toFixed(2)}×)
+            </label>
+            <input
+              id="voice-speed"
+              type="range"
+              min={0.9}
+              max={1.15}
+              step={0.05}
+              value={settings.voiceSpeed ?? 1.05}
+              onChange={(e) =>
+                persist({ ...settings, voiceSpeed: Number(e.target.value) || 1.05 })
+              }
+              className="field mt-1 w-full"
+            />
+            <span className="mt-1 block text-xs text-muted-foreground">
+              Un débit soutenu retient bien mieux l'attention sur TikTok. 1,05 par défaut ;
+              au-delà de 1,10 la diction commence à se dégrader. Le réglage s'applique à toutes
+              les langues.
+            </span>
+          </div>
+
           <label className="flex items-start gap-3 text-sm">
             <input
               type="checkbox"

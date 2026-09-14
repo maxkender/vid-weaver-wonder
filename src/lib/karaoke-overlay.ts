@@ -445,7 +445,7 @@ export function voiceWindow(
   const first = valid.reduce((a, b) => (b.start < a.start ? b : a));
   const last = valid.reduce((a, b) => (b.end > a.end ? b : a));
   const start = Math.max(0, Math.min(first.start - 0.08, duration - 0.5));
-  const end = Math.min(duration, Math.max(last.end + 0.3, start + 0.6));
+  const end = Math.min(duration, Math.max(last.end + 0.15, start + 0.6));
   return { start, end };
 }
 
