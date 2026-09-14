@@ -115,7 +115,10 @@ export function defaultSettings(): StudioSettings {
     sophiaLogo: true,
     hd: true,
     precomposeSquare: true,
-    sophiaCta: true,
+    // Pas de plan publicitaire par défaut : il coûte un plan animé de plus
+    // (environ 11 % du budget) et la vidéo retient mieux sans lui.
+    sophiaCta: false,
+    draft720: false,
     spendCapSeconds: 72,
   };
 }
