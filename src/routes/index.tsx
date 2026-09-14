@@ -441,7 +441,6 @@ function Studio() {
   const confirmResolverRef = useRef<((value: boolean) => void) | null>(null);
 
   const requestCostConfirmation = (payload: LaunchCost): Promise<boolean> => {
-    console.log("requestCostConfirmation", payload);
     setConfirmPayload(payload);
     setConfirmOpen(true);
     return new Promise((resolve) => {
@@ -1392,7 +1391,6 @@ function Studio() {
   const cost = estimateCost();
 
   const onAutoAll = async () => {
-    console.log("onAutoAll called");
     if (!topic.trim()) {
       toast.error("Écris d'abord le sujet de la vidéo");
       return;
