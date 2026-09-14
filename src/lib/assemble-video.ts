@@ -337,7 +337,10 @@ async function assembleVideoInner(
         "-i",
         "music.mp3",
         "-filter_complex",
-        `[1:a]volume=${musicVolume}[bg];[0:a][bg]amix=inputs=2:duration=first:dropout_transition=0[a]`,
+        // normalize=0 : sans ça, amix divise chaque entrée par 2 et la voix off
+        // perd 6 dB dès qu'une musique est présente. Seule la musique est
+        // atténuée, par son propre filtre volume.
+        `[1:a]volume=${musicVolume}[bg];[0:a][bg]amix=inputs=2:duration=first:dropout_transition=0:normalize=0[a]`,
         "-map",
         "0:v:0",
         "-map",
