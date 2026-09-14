@@ -1903,7 +1903,7 @@ function Studio() {
                     key={e}
                     onClick={() => {
                       setEngine(e);
-                      setVoice(defaultVoice(e));
+                      setVoice(defaultVoiceFor(e, voiceLangTab));
                     }}
                     className={`chip flex-1 justify-center ${engine === e ? "chip-active" : ""}`}
                   >
