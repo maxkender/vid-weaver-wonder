@@ -1354,7 +1354,7 @@ function Studio() {
     let cancelled = false;
     const t = setTimeout(async () => {
       try {
-        const res = await runSearchVoices({ data: { query: q } });
+        const res = await runSearchVoices({ data: { query: q, language: voiceLangTab } });
         if (!cancelled) setRemoteVoices(res.voices);
       } catch {
         /* recherche best-effort */
