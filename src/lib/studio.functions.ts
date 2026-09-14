@@ -248,6 +248,45 @@ export const pollSceneVideo = createServerFn({ method: "POST" })
     };
   });
 
+export type FactCheck = {
+  correctedTopic: string;
+  verdict: "ok" | "revoir";
+  note: string;
+  facts: string[];
+  discarded: string[];
+};
+
+/**
+ * VÉRIFICATION DES FAITS : tourne entre la validation du sujet et l'écriture
+ * du script. Ne coûte que du texte, et évite d'écrire (puis d'illustrer) un
+ * script bâti sur un chiffre faux.
+ */
+export const verifyTopicFacts = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        topic: z.string().min(3).max(2000),
+        angle: z.string().max(2000).default(""),
+        language: z.enum(LANGUAGE_IDS).default("fr"),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data }): Promise<FactCheck> => {
+    const { factCheckSystemPrompt } = await import("./prompts.server");
+    const res = await chatJSON<Partial<FactCheck>>(
+      "google/gemini-3.7-flash",
+      factCheckSystemPrompt(languageName(data.language)),
+      `Sujet : ${data.topic}\nAngle : ${data.angle || "(aucun)"}`,
+    );
+    return {
+      correctedTopic: (res.correctedTopic ?? data.topic).trim(),
+      verdict: res.verdict === "revoir" ? "revoir" : "ok",
+      note: (res.note ?? "").trim(),
+      facts: (res.facts ?? []).filter((f) => typeof f === "string" && f.trim()).slice(0, 20),
+      discarded: (res.discarded ?? []).filter((f) => typeof f === "string" && f.trim()).slice(0, 20),
+    };
+  });
+
 export const suggestTopic = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) =>
     z
