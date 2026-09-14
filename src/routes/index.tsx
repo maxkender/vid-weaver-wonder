@@ -68,6 +68,7 @@ import {
   translateScript,
 } from "@/lib/studio.functions";
 import { TOPIC_CATEGORIES, type TopicCategory } from "@/lib/topic-categories";
+import { markTopicUsed, nextValidatedTopic, type QueuedTopic } from "@/lib/topics.functions";
 import { createExportUpload, getExportDownloadUrl } from "@/lib/exports.functions";
 import { pipelineState, resumePipeline, stopPipeline } from "@/lib/jobs/control.functions";
 
