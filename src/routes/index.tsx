@@ -215,10 +215,12 @@ function Studio() {
 
   // On choisit la DURÉE de la vidéo ; le nombre de plans en découle.
   const [targetSeconds, setTargetSeconds] = useState(50);
-  const sceneCount = useMemo(
-    () => Math.min(8, Math.max(3, Math.round((targetSeconds - 7) / 6))),
-    [targetSeconds],
-  );
+  // Un plan = 7 secondes de voix off en moyenne. Le CTA (≈ 6 s) est une scène
+  // ajoutée à part : on ne la compte pas dans les plans du récit.
+  const sceneCount = useMemo(() => {
+    const cta = settings.sophiaCta !== false ? 6 : 0;
+    return Math.min(8, Math.max(3, Math.round((targetSeconds - cta) / 7)));
+  }, [targetSeconds, settings.sophiaCta]);
 
   const [style, setStyle] = useState<NarrationStyle>("revelation");
   const [visual, setVisual] = useState<VisualStyle>("papercraft");
