@@ -428,6 +428,40 @@ function Studio() {
   const [showHistory, setShowHistory] = useState(false);
   const [editing, setEditing] = useState<Record<number, boolean>>({});
 
+  /** Fenêtre de confirmation modale remplaçant window.confirm. */
+  type LaunchCost = {
+    clips: number;
+    seconds: number;
+    perClip: number;
+    voices: number;
+    languages: number;
+  };
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [confirmPayload, setConfirmPayload] = useState<LaunchCost | null>(null);
+  const confirmResolverRef = useRef<((value: boolean) => void) | null>(null);
+
+  const requestCostConfirmation = (payload: LaunchCost): Promise<boolean> => {
+    setConfirmPayload(payload);
+    setConfirmOpen(true);
+    return new Promise((resolve) => {
+      confirmResolverRef.current = resolve;
+    });
+  };
+
+  const onConfirmLaunch = () => {
+    const resolve = confirmResolverRef.current;
+    confirmResolverRef.current = null;
+    setConfirmOpen(false);
+    resolve?.(true);
+  };
+
+  const onCancelLaunch = () => {
+    const resolve = confirmResolverRef.current;
+    confirmResolverRef.current = null;
+    setConfirmOpen(false);
+    resolve?.(false);
+  };
+
   /** Bible visuelle : personnages + palette répétés sur chaque plan. */
   const bible = useMemo(() => {
     if (!script) return "";
