@@ -67,9 +67,16 @@ import {
   startSceneVideo,
   suggestTopic,
   translateScript,
+  verifyTopicFacts,
+  type FactCheck,
 } from "@/lib/studio.functions";
 import { TOPIC_CATEGORIES, type TopicCategory } from "@/lib/topic-categories";
-import { markTopicUsed, nextValidatedTopic, type QueuedTopic } from "@/lib/topics.functions";
+import {
+  markTopicUsed,
+  nextValidatedTopic,
+  setTopicStatus,
+  type QueuedTopic,
+} from "@/lib/topics.functions";
 import { createExportUpload, getExportDownloadUrl } from "@/lib/exports.functions";
 import { pipelineState, resumePipeline, stopPipeline } from "@/lib/jobs/control.functions";
 
@@ -204,6 +211,12 @@ type HistoryItem = {
   scripts?: Record<string, Script>;
   /** Vidéos exportées, par langue : survivent au rechargement et au changement de machine. */
   exports?: Record<string, ExportInfo>;
+  /** Langue d'écriture du projet. */
+  sourceLang?: string;
+  /** Langues de production cochées au moment de la sauvegarde. */
+  langs?: string[];
+  /** Narrateur retenu par langue. */
+  voices?: Record<string, string>;
 };
 
 const HISTORY_KEY = "studio-history-v1";
