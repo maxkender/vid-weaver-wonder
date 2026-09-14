@@ -48,7 +48,7 @@ export async function buildScript(data: BuildScriptInput): Promise<Script> {
   // le script source à 110 % de la durée demandée (60 s → 66 s).
   const maxTotalSeconds = Math.round(data.targetSeconds * 1.1);
   const sourceCapWords = Math.round(
-    Math.max(8, maxTotalSeconds - (includeCta ? 6 : 0)) * wordsPerSecondSource,
+    Math.max(8, maxTotalSeconds - (includeCta ? 6 : 0)) * speechRate(data.language),
   );
   const totalWords = Math.min(
     Math.round(narrationSeconds * wordsPerSecond),
