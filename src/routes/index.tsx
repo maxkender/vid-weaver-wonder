@@ -77,6 +77,16 @@ export const Route = createFileRoute("/")({
   component: Studio,
 });
 
+/** Phrase d'exemple pour l'aperçu de voix, dans la langue de l'onglet actif. */
+const VOICE_SAMPLE_TEXT: Record<string, string> = {
+  fr: "Et si je te racontais un fait que presque personne ne connaît ? Écoute bien.",
+  en: "Here is a fact almost nobody knows. Listen closely.",
+  es: "Te cuento un dato que casi nadie conoce. Escucha bien.",
+  de: "Hier ist eine Tatsache, die fast niemand kennt. Hör genau zu.",
+  it: "Ecco un fatto che quasi nessuno conosce. Ascolta bene.",
+  pt: "Aqui está um facto que quase ninguém conhece. Escuta com atenção.",
+};
+
 type Kind = "faits" | "culture" | "pub";
 type NarrationStyle =
   | "question"
