@@ -1001,14 +1001,22 @@ function Studio() {
       toast.error("Écris d'abord le sujet de la vidéo");
       return;
     }
+    const perClip = Math.min(8, Math.max(4, Math.round(targetSeconds / Math.max(1, sceneCount))));
+    const ok = window.confirm(
+      `Coût estimé : ${sceneCount} clips × ${perClip} s = ${sceneCount * perClip} s de vidéo IA facturées.\n\nLancer la génération complète ?`,
+    );
+    if (!ok) return;
+    beginRun();
     setAutoRunning(true);
     try {
       setAssembleStep("Écriture du script…");
+      setCurrentStep("Écriture du script…");
       const fresh = await onScript();
-      if (!fresh) return;
-      await onExportEverything(fresh);
+      if (!fresh || cancelledRef.current) return;
+      await onExportEverything(fresh, true);
     } finally {
       setAutoRunning(false);
+      setCurrentStep(cancelledRef.current ? "Pipeline arrêté" : "");
     }
   };
 
