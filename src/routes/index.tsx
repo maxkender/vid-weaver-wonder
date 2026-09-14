@@ -1801,8 +1801,8 @@ function Studio() {
                       <p className="mt-2 text-sm">{scene.narration}</p>
                     )}
                     <p className="mt-2 text-xs uppercase tracking-widest text-muted-foreground">
-                      ≈ {estimateSpeechSeconds(scene.narration).toFixed(1)} s de voix
-                      {estimateSpeechSeconds(scene.narration) > 8 && " — plus long que le clip, l'image sera figée à la fin"}
+                      ≈ {estimateSpeechSeconds(scene.narration, language).toFixed(1)} s de voix
+                      {estimateSpeechSeconds(scene.narration, language) > 8 && " — plus long que le clip, l'image sera figée à la fin"}
                     </p>
 
                     <div className="mt-4 flex flex-wrap gap-2">
