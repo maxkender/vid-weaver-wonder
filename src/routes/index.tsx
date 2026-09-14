@@ -530,6 +530,7 @@ function Studio() {
   };
 
   const onImage = async (scene: Scene, doc: Script | null = script) => {
+    if (cancelledRef.current) return undefined; // appel payant : arrêt demandé
     patch(scene.index, { imageLoading: true });
     try {
       const consistent = settings.useReferenceImage && scene.index > 0;
