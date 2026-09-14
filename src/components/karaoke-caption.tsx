@@ -12,6 +12,11 @@ import {
 
 import sophiaLogo from "@/assets/sophia-logo.png.asset.json";
 
+/** Le conteneur d'aperçu est en 9:16 : le côté du carré vaut cette part de sa largeur. */
+const SIDE_RATIO = 1 - 2 * SQUARE_MARGIN_RATIO;
+/** Taille de police en % de la largeur du conteneur (unité cqw). */
+const CAPTION_CQW = SIDE_RATIO * CAPTION_SIZE_RATIO * 100;
+
 type Timing = { word: string; start: number; end: number };
 
 type Props = {
