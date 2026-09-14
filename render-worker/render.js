@@ -10,7 +10,8 @@ import { join } from "node:path";
 import { drawTextFilters, smoothTimings } from "./captions.js";
 
 const FONT_FILE = process.env.CAPTION_FONT_FILE ?? "/usr/share/fonts/truetype/anton/Anton-Regular.ttf";
-const SQUARE_MARGIN_RATIO = 0.06;
+// Doit rester identique à SQUARE_MARGIN_RATIO de src/lib/karaoke-overlay.ts.
+const SQUARE_MARGIN_RATIO = 0.148;
 const SQUARE_RADIUS_RATIO = 0.07;
 
 function run(args) {
