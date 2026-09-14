@@ -193,7 +193,7 @@ async function stepVoice(job: RenderJob, t0: number) {
     scene.words = words;
     scene.audioDuration = words.length
       ? Math.max(...words.map((w) => w.end)) + 0.3
-      : estimateSpeechSeconds(scene.narration);
+      : estimateSpeechSeconds(scene.narration, job.language);
     await patchJob(job.id, { scenes, progress: 0.42 + 0.18 * ((i + 1) / scenes.length) });
   }
   await patchJob(job.id, { status: "clips", step: "clips", progress: 0.6 });
@@ -216,7 +216,7 @@ async function stepClips(job: RenderJob, t0: number) {
 
     // Un seul clip en vol à la fois : le gateway limite fortement la vidéo.
     if (!scene.clipJobId) {
-      const est = scene.audioDuration ?? estimateSpeechSeconds(scene.narration);
+      const est = scene.audioDuration ?? estimateSpeechSeconds(scene.narration, job.language);
       const seconds: "4" | "6" | "8" = est <= 4 ? "4" : est <= 6 ? "6" : "8";
       const hd = seconds === "8";
       const image = scene.imagePath ? await downloadAsDataUrl(scene.imagePath) : undefined;
@@ -292,7 +292,7 @@ async function stepRender(job: RenderJob, origin: string) {
       imageUrl: s.imagePath ? await signedUrl(s.imagePath, 60 * 60 * 6) : null,
       audioUrl: s.audioPath ? await signedUrl(s.audioPath, 60 * 60 * 6) : null,
       words: s.words ?? [],
-      duration: s.audioDuration ?? estimateSpeechSeconds(s.narration),
+      duration: s.audioDuration ?? estimateSpeechSeconds(s.narration, job.language),
     })),
   );
 
