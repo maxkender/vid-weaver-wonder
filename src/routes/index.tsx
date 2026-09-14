@@ -2549,6 +2549,42 @@ function Studio() {
           </section>
         )}
       </main>
+
+      {/* DIALOGUE DE CONFIRMATION — remplace window.confirm. */}
+      <AlertDialog
+        open={confirmOpen}
+        onOpenChange={(open) => {
+          setConfirmOpen(open);
+          if (!open && confirmResolverRef.current) {
+            const resolve = confirmResolverRef.current;
+            confirmResolverRef.current = null;
+            resolve(false);
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Lancer la génération ?</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-1.5 text-left text-sm text-muted-foreground">
+                <p>
+                  {confirmPayload?.clips} clip{confirmPayload && confirmPayload.clips > 1 ? "s" : ""} ×{" "}
+                  {confirmPayload?.perClip} s payés une seule fois, quel que soit le nombre de langues.
+                </p>
+                <p>{confirmPayload?.seconds} s de vidéo IA au total.</p>
+                <p>
+                  {confirmPayload?.voices} voix off réparties sur {confirmPayload?.languages} langue
+                  {confirmPayload && confirmPayload.languages > 1 ? "s" : ""}.
+                </p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={onCancelLaunch}>Annuler</AlertDialogCancel>
+            <AlertDialogAction onClick={onConfirmLaunch}>Lancer</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
