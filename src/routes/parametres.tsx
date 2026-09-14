@@ -43,6 +43,8 @@ const field = "field mt-2 resize-y";
 function SettingsPage() {
   const [settings, setSettings] = useState<StudioSettings>(defaultSettings());
   const [tab, setTab] = useState<"narration" | "visual" | "general">("narration");
+  /** Avertissement affiché quand on change la définition en cours de projet. */
+  const [draftNotice, setDraftNotice] = useState(false);
 
   useEffect(() => setSettings(loadSettings()), []);
 
