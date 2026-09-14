@@ -1793,13 +1793,14 @@ function Studio() {
               </p>
             )}
             {history.map((h) => (
-              <div key={h.id} className="flex items-center justify-between gap-3">
+              <div key={h.id} className="flex flex-wrap items-center justify-between gap-3">
                 <button
                   onClick={async () => {
                     setScript(h.script);
                     setProjectId(h.id);
                     setFinalUrl(null);
                     setFinalUrls({});
+                    setExportInfos(h.exports ?? {});
                     const saved = { ...(h.scripts ?? {}), [sourceLang]: h.script };
                     setScripts(saved);
                     scriptsRef.current = saved;
@@ -1810,6 +1811,8 @@ function Studio() {
                     const { loadFinalVideo } = await import("@/lib/project-store");
                     const savedFinal = await loadFinalVideo(h.id);
                     if (savedFinal) setFinalUrl(URL.createObjectURL(savedFinal));
+                    // Les liens signés expirent : on les renouvelle au rechargement.
+                    void refreshExportLinks(h.id, h.exports);
                     toast.success("Projet rechargé");
                   }}
                   className="flex-1 truncate text-left text-sm hover:text-primary"
@@ -1819,13 +1822,26 @@ function Studio() {
                     {new Date(h.date).toLocaleString("fr-FR")}
                   </span>
                 </button>
-                <button
-                  onClick={() => deleteHistory(h.id)}
-                  className="text-muted-foreground hover:text-destructive"
-                  aria-label="Supprimer"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </button>
+                <span className="flex flex-wrap items-center gap-2">
+                  {Object.entries(h.exports ?? {}).map(([l, info]) => (
+                    <a
+                      key={l}
+                      href={info.url}
+                      download={`${h.title.replace(/[^\p{L}\p{N}]+/gu, "-").toLowerCase()}-${l}.mp4`}
+                      className="btn-base btn-ghost px-2 py-1 text-[11px]"
+                      title={`${formatSize(info.size)} · lien valable 7 jours`}
+                    >
+                      <Download className="h-3 w-3" /> {l.toUpperCase()}
+                    </a>
+                  ))}
+                  <button
+                    onClick={() => deleteHistory(h.id)}
+                    className="text-muted-foreground hover:text-destructive"
+                    aria-label="Supprimer"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </span>
               </div>
             ))}
           </div>
