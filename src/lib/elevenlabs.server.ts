@@ -22,7 +22,13 @@ const VOICE_SETTINGS = {
 // On tente la meilleure qualité d'abord, puis on dégrade si le plan ne le permet pas.
 const FORMATS = ["mp3_44100_192", "mp3_44100_128", "mp3_44100_96", "mp3_22050_32"];
 
-async function callEleven(path: string, text: string, apiKey: string, language = "fr") {
+async function callEleven(
+  path: string,
+  text: string,
+  apiKey: string,
+  language = "fr",
+  voiceId?: string,
+) {
   let res: Response | null = null;
   let lastErr = "";
   for (const format of FORMATS) {
@@ -41,6 +47,18 @@ async function callEleven(path: string, text: string, apiKey: string, language =
     if (res.status !== 403 && res.status !== 402) break; // erreur non liée au plan
   }
   if (!res || !res.ok) {
+    // 404/400/422 sur une voix partagée = voix non ajoutée à la bibliothèque du compte.
+    const notAccessible =
+      res?.status === 404 ||
+      res?.status === 400 ||
+      res?.status === 422 ||
+      /voice_not_found|voice does not exist|invalid.*voice/i.test(lastErr);
+    if (notAccessible && voiceId) {
+      throw new Error(
+        `La voix ${voiceId} (langue « ${language} ») n'est pas accessible depuis ce compte ElevenLabs. ` +
+          `Ouvre la voix dans la bibliothèque ElevenLabs et ajoute-la à ton compte, puis réessaie.`,
+      );
+    }
     throw new Error(
       `ElevenLabs [${res?.status ?? "?"}] : ${lastErr || "échec de la synthèse vocale"}`,
     );
