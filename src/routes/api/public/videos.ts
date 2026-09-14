@@ -12,7 +12,7 @@ import { sha256Hex, verifySignedBody } from "@/lib/jobs/signing.server";
 import { LANGUAGE_IDS } from "@/lib/languages";
 import { TOPIC_CATEGORY_IDS } from "@/lib/topic-categories";
 
-const NARRATION = ["question", "revelation", "storytelling", "listicle"] as const;
+const NARRATION = ["question", "revelation", "storytelling", "listicle", "mecanique"] as const;
 const VISUAL = ["papercraft", "cinematique", "documentaire", "retro"] as const;
 
 const bodySchema = z.object({

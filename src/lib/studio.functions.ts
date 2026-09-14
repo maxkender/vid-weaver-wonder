@@ -29,7 +29,7 @@ export const generateScript = createServerFn({ method: "POST" })
         topic: z.string().max(5000).default(""),
         kind: z.enum(["faits", "culture", "pub"]),
         style: z
-          .enum(["question", "revelation", "storytelling", "listicle"])
+          .enum(["question", "revelation", "storytelling", "listicle", "mecanique"])
           .default("revelation"),
         sceneCount: z.number().int().min(3).max(8).default(5),
         /** Durée cible de la vidéo finale (secondes), CTA inclus. */
@@ -164,7 +164,7 @@ export const suggestTopic = createServerFn({ method: "POST" })
       .object({
         avoid: z.array(z.string().max(300)).max(60).default([]),
         style: z
-          .enum(["question", "revelation", "storytelling", "listicle"])
+          .enum(["question", "revelation", "storytelling", "listicle", "mecanique"])
           .default("revelation"),
         category: z.enum(TOPIC_CATEGORY_IDS).default("aleatoire"),
         language: z.enum(LANGUAGE_IDS).default("fr"),
