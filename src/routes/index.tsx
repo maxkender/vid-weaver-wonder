@@ -269,13 +269,23 @@ function Studio() {
     [voiceLangTab],
   );
   useEffect(() => setVoiceLangTab(sourceLang), [sourceLang]);
+  // Si la langue de l'onglet actif est décochée, on revient sur la langue source.
+  useEffect(() => {
+    if (!langs.includes(voiceLangTab)) setVoiceLangTab(sourceLang);
+  }, [langs, voiceLangTab, sourceLang]);
+
+  /** Langues cochées sans narrateur choisi : avertissement non bloquant. */
+  const langsWithoutVoice = useMemo(
+    () => langs.filter((l) => !voiceByLang[l]),
+    [langs, voiceByLang],
+  );
 
   const runListVoices = useServerFn(listVoices);
   useEffect(() => {
-    runListVoices({})
+    runListVoices({ data: { language: voiceLangTab } })
       .then((r) => setAccountVoices((r as { voices: { id: string; label: string }[] }).voices))
       .catch(() => setAccountVoices([]));
-  }, [runListVoices]);
+  }, [runListVoices, voiceLangTab]);
 
   useEffect(() => {
     try {
