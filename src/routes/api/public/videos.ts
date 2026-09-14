@@ -31,7 +31,7 @@ const bodySchema = z.object({
   allowedTopicCategories: z.array(z.enum(TOPIC_CATEGORY_IDS)).max(20).optional(),
   /** Direction artistique : fixe par posteur. */
   visualStyle: z.enum(VISUAL).default("papercraft"),
-  durationSec: z.number().int().min(15).max(90).default(45),
+  durationSec: z.number().int().min(60).max(90).default(60),
   voiceId: z.string().min(2).max(60).optional(),
   topic: z.string().max(500).optional(),
   callbackUrl: z.string().url().max(500).optional(),

@@ -33,7 +33,9 @@ export const generateScript = createServerFn({ method: "POST" })
           .default("revelation"),
         sceneCount: z.number().int().min(3).max(8).default(5),
         /** Durée cible de la vidéo finale (secondes), CTA inclus. */
-        targetSeconds: z.number().int().min(15).max(90).default(50),
+        targetSeconds: z.number().int().min(15).max(90).default(60),
+        /** Toutes les langues produites : le budget de mots suit la plus rapide. */
+        productionLanguages: z.array(z.enum(LANGUAGE_IDS)).default([]),
         /** Brief de narration personnalisé (page Paramètres). */
         styleBrief: z.string().max(4000).optional(),
         /** Densité du texte réglée dans Paramètres (mots par plan). */

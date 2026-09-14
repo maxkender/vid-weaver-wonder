@@ -214,7 +214,7 @@ function Studio() {
   const kind: Kind = "faits";
 
   // On choisit la DURÉE de la vidéo ; le nombre de plans en découle.
-  const [targetSeconds, setTargetSeconds] = useState(50);
+  const [targetSeconds, setTargetSeconds] = useState(60);
 
   const [style, setStyle] = useState<NarrationStyle>("revelation");
   const [visual, setVisual] = useState<VisualStyle>("papercraft");
@@ -334,6 +334,24 @@ function Studio() {
       scriptsRef.current[lang] ?? fallback,
     [],
   );
+
+  /**
+   * Durée totale estimée par langue produite : durée réelle de la voix off dès
+   * qu'elle existe, estimation par le débit de la langue sinon.
+   */
+  const langDurations = useMemo(() => {
+    return langs
+      .map((l) => {
+        const s = scripts[l] ?? (l === sourceLang ? script : null);
+        if (!s) return null;
+        const total = (s.scenes ?? []).reduce((sum, sc, i) => {
+          const real = states[i]?.voices?.[l]?.duration ?? 0;
+          return sum + (real > 0 ? real : estimateSpeechSeconds(sc.narration ?? "", l));
+        }, 0);
+        return { lang: l, seconds: total };
+      })
+      .filter((x): x is { lang: LanguageId; seconds: number } => x !== null);
+  }, [langs, scripts, script, sourceLang, states]);
 
   /** MP4 final par langue. */
   const [finalUrls, setFinalUrls] = useState<Record<string, string>>({});
@@ -569,6 +587,7 @@ function Studio() {
           style,
           targetSeconds,
           language,
+          productionLanguages: langs,
           includeCta: settings.sophiaCta !== false,
           styleBrief: settings.narration[style].brief,
           wordsBias: settings.narration[style].wordsBias,
@@ -1784,16 +1803,16 @@ function Studio() {
               <input
                 id="duration"
                 type="range"
-                min={15}
-                max={75}
+                min={60}
+                max={90}
                 step={5}
                 value={targetSeconds}
                 onChange={(e) => setTargetSeconds(Number(e.target.value))}
                 className="mt-2 w-full"
               />
               <p className="mt-1 text-xs text-muted-foreground">
-                {sceneCount} plans{settings.sophiaCta !== false ? " + CTA" : ""} · zone efficace
-                entre 40 et 70 secondes
+                {sceneCount} plans{settings.sophiaCta !== false ? " + CTA" : ""} · 60 secondes est
+                le minimum et la cible du format
               </p>
             </div>
 
@@ -2093,6 +2112,28 @@ function Studio() {
                     playsInline
                     className="mt-3 max-h-[70vh] w-full rounded-[10px] bg-black object-contain"
                   />
+                )}
+              </div>
+            )}
+
+            {langDurations.length > 0 && (
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+                <span className="text-muted-foreground">Durée estimée</span>
+                {langDurations.map(({ lang: l, seconds }) => (
+                  <span
+                    key={l}
+                    className={
+                      seconds < 60 ? "font-medium text-destructive" : "text-muted-foreground"
+                    }
+                    title={seconds < 60 ? "Sous la cible de 60 secondes" : undefined}
+                  >
+                    {l.toUpperCase()} ≈ {Math.round(seconds)} s{seconds < 60 ? " ⚠" : ""}
+                  </span>
+                ))}
+                {langDurations.some((d) => d.seconds < 60) && (
+                  <span className="text-destructive">
+                    Rallonge le script avant d'animer les plans.
+                  </span>
                 )}
               </div>
             )}

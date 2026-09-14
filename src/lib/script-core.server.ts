@@ -6,7 +6,7 @@ import {
   type Script,
 } from "./prompts.server";
 import { languageName } from "./languages";
-import { estimateSpeechSeconds } from "./duration";
+import { fastestWordsPerSecond } from "./duration";
 
 export type BuildScriptInput = {
   topic: string;
@@ -17,6 +17,12 @@ export type BuildScriptInput = {
   styleBrief?: string | undefined;
   wordsBias?: number | undefined;
   language: string;
+  /**
+   * Toutes les langues qui seront produites à partir de ce script (master
+   * multilingue). Le budget de mots est calculé sur la PLUS RAPIDE d'entre
+   * elles pour qu'aucune version ne passe sous la durée cible.
+   */
+  productionLanguages?: string[] | undefined;
   /** Ajouter le plan CTA Sophia à la fin (true par défaut). */
   includeCta?: boolean | undefined;
 };
@@ -30,8 +36,12 @@ export async function buildScript(data: BuildScriptInput): Promise<Script> {
   const includeCta = data.includeCta !== false;
   // Le CTA final ajoute une scène : on ne réserve ses ~6 s que s'il existe.
   const narrationSeconds = Math.max(8, data.targetSeconds - (includeCta ? 6 : 0));
-  // Débit de parole réel de la langue (estimateSpeechSeconds fait foi).
-  const wordsPerSecond = 1 / estimateSpeechSeconds("mot", data.language);
+  // Budget calé sur la langue la PLUS RAPIDE produite : la version la plus
+  // courte atteint quand même la cible, les autres sont un peu plus longues.
+  const wordsPerSecond = fastestWordsPerSecond(
+    (data.productionLanguages?.length ? data.productionLanguages : [data.language]).filter(Boolean),
+    data.language,
+  );
   const totalWords = Math.round(narrationSeconds * wordsPerSecond);
   const wordsBias = data.wordsBias ?? 0;
 
@@ -77,7 +87,9 @@ export async function buildScript(data: BuildScriptInput): Promise<Script> {
   // Rallonge automatique si le script est trop court pour la durée demandée.
   const countWords = (t: string) => t.trim().split(/\s+/).filter(Boolean).length;
   const words = () => script.scenes.reduce((n, s) => n + countWords(s.narration ?? ""), 0);
-  if (words() < totalWords * 0.92 && script.scenes.length) {
+  // Une vidéo trop courte est le défaut n°1 : on vise 100 % du budget et on
+  // n'accepte pas moins de 98 %.
+  if (words() < totalWords * 0.98 && script.scenes.length) {
     const missing = totalWords - words();
     try {
       // On ALLONGE les scènes existantes : ajouter des scènes ajouterait des
