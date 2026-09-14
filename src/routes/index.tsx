@@ -569,6 +569,7 @@ function Studio() {
           style,
           targetSeconds,
           language,
+          productionLanguages: langs,
           includeCta: settings.sophiaCta !== false,
           styleBrief: settings.narration[style].brief,
           wordsBias: settings.narration[style].wordsBias,
