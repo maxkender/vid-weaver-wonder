@@ -1378,17 +1378,20 @@ function Studio() {
         orientation === "horizontal"
           ? { width: settings.hd ? 1920 : 1280, height: settings.hd ? 1080 : 720 }
           : { width: settings.hd ? 1080 : 720, height: settings.hd ? 1920 : 1280 };
-      const rawDuration = st.audio ? await audioDuration(st.audio) : undefined;
-      const win = rawDuration ? voiceWindow(st.words ?? null, rawDuration) : null;
+      // On exporte le plan dans la langue actuellement affichée.
+      const take = voiceOf(st, viewLang);
+      const narration =
+        scriptFor(viewLang, script)?.scenes.find((s) => s.index === scene.index)?.narration ??
+        scene.narration;
+      const rawDuration = take ? take.duration || (await audioDuration(take.audio)) : undefined;
+      const win = rawDuration ? voiceWindow(take?.words ?? null, rawDuration) : null;
       const duration = win ? win.end - win.start : rawDuration;
-      const sceneWords = win ? shiftTimings(st.words ?? null, win.start) : (st.words ?? []);
+      const sceneWords = win ? shiftTimings(take?.words ?? null, win.start) : (take?.words ?? []);
       const logoWin =
-        settings.sophiaLogo && duration
-          ? sophiaWindow(scene.narration, duration, sceneWords)
-          : null;
+        settings.sophiaLogo && duration ? sophiaWindow(narration, duration, sceneWords) : null;
       const cues = duration
         ? await makeCaptionCues(
-            scene.narration,
+            narration,
             dims.width,
             dims.height,
             duration,
@@ -1404,7 +1407,7 @@ function Studio() {
         [
           {
             videoUrl: st.videoUrl,
-            audio: st.audio,
+            audio: take?.audio,
             ...(win ? { trimStart: win.start, trimEnd: win.end } : {}),
             cues,
             mask,
