@@ -228,6 +228,8 @@ export function wordTimings(text: string, duration: number) {
 
 // Paliers d'animation du logo Sophia (le mot, lui, est toujours à l'échelle 1).
 const LOGO_STEPS = 6;
+/** Durée du fondu d'apparition d'un mot (secondes) — utilisée par l'aperçu. */
+export const CAPTION_FADE = 0.08;
 
 /**
  * Tenue minimale d'un mot à l'écran. En dessous (micro-mots « a », « de »,
