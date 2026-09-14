@@ -21,6 +21,7 @@ export type StationTask = {
   title: string;
   language: string;
   visualStyle: string;
+  narrationStyle: string;
   squareMask: boolean;
   uploadUrl: string;
   uploadToken: string;
