@@ -1016,7 +1016,7 @@ function Studio() {
 
   const onGenerateAll = async () => {
     if (!script) return;
-    if (!confirmCost(script)) return;
+    if (!(await confirmCost(script))) return;
     beginRun();
     setGeneratingAll(true);
     setCurrentStep("Génération des plans…");
@@ -1259,7 +1259,7 @@ function Studio() {
   const onExportEverything = async (scriptOverride?: Script, skipConfirm = false) => {
     const doc = scriptOverride ?? script;
     if (!doc) return;
-    if (!skipConfirm && !confirmCost(doc)) return;
+    if (!skipConfirm && !(await confirmCost(doc))) return;
     if (!skipConfirm) beginRun();
     setAssembling(true);
     try {
@@ -1396,9 +1396,13 @@ function Studio() {
       return;
     }
     const perClip = Math.min(8, Math.max(4, Math.round(targetSeconds / Math.max(1, sceneCount))));
-    const ok = window.confirm(
-      `Coût estimé : ${sceneCount} clips × ${perClip} s payés UNE SEULE FOIS (${sceneCount * perClip} s de vidéo IA) + ${sceneCount * langs.length} voix off pour ${langs.length} langue${langs.length > 1 ? "s" : ""}.\n\nLancer la génération complète ?`,
-    );
+    const ok = await requestCostConfirmation({
+      clips: sceneCount,
+      seconds: sceneCount * perClip,
+      perClip,
+      voices: sceneCount * langs.length,
+      languages: langs.length,
+    });
     if (!ok) return;
     beginRun();
     // Mode automatique : mêmes étapes, sans les portes de validation.
