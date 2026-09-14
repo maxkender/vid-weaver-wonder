@@ -275,6 +275,13 @@ function Studio() {
   const [queuedTopicId, setQueuedTopicId] = useState<string | null>(null);
   const [takingTopic, setTakingTopic] = useState(false);
 
+  /** Vérification des faits : tourne avant l'écriture, ne coûte que du texte. */
+  const [factCheck, setFactCheck] = useState<FactCheck | null>(null);
+  const [checkingFacts, setCheckingFacts] = useState(false);
+  const factCheckRef = useRef<{ topic: string; data: FactCheck } | null>(null);
+  const runVerifyFacts = useServerFn(verifyTopicFacts);
+  const runSetTopicStatus = useServerFn(setTopicStatus);
+
   const pastTopics = useRef<string[]>([]);
   const runSuggest = useServerFn(suggestTopic);
   const runNextTopic = useServerFn(nextValidatedTopic);
@@ -692,6 +699,8 @@ function Studio() {
         }
         setTopic(res.topic);
         setAngle(res.angle);
+        setFactCheck(null);
+        factCheckRef.current = null;
         toast.success("Sujet proposé");
       }
 
@@ -713,6 +722,8 @@ function Studio() {
       }
       setTopic(res.topic.topic);
       setAngle(res.topic.angle ?? "");
+      setFactCheck(null);
+      factCheckRef.current = null;
       setQueuedTopicId(res.topic.id);
       setTopicValidated(true);
       toast.success("Sujet pris dans la file");
@@ -723,7 +734,56 @@ function Studio() {
     }
   };
 
+  /**
+   * Vérifie le sujet et ses chiffres AVANT toute écriture. Le résultat est mis
+   * en cache tant que le sujet ne change pas : un seul appel par sujet.
+   */
+  const ensureFactCheck = async (): Promise<FactCheck | null> => {
+    const current = topic.trim();
+    if (!current) {
+      toast.error("Écris d'abord le sujet de la vidéo");
+      return null;
+    }
+    if (factCheckRef.current?.topic === current) return factCheckRef.current.data;
+    setCheckingFacts(true);
+    setCurrentStep("Vérification des faits…");
+    try {
+      const res = (await runVerifyFacts({
+        data: { topic: current, angle, language },
+      })) as FactCheck;
+      setFactCheck(res);
+      const corrected = res.correctedTopic.trim() || current;
+      factCheckRef.current = { topic: corrected, data: res };
+      if (res.verdict === "revoir") {
+        toast.error("Fait central faux ou invérifiable — sujet à revoir");
+        if (queuedTopicId) {
+          void runSetTopicStatus({ data: { id: queuedTopicId, status: "revoir" } }).catch(
+            () => undefined,
+          );
+          setQueuedTopicId(null);
+        }
+        return res;
+      }
+      if (corrected !== current) {
+        setTopic(corrected);
+        toast.success("Sujet corrigé après vérification");
+      } else {
+        toast.success("Faits vérifiés");
+      }
+      return res;
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Vérification impossible");
+      return null;
+    } finally {
+      setCheckingFacts(false);
+      setCurrentStep("");
+    }
+  };
+
   const onScript = async (): Promise<Script | undefined> => {
+    // Aucune écriture (ni dépense ensuite) sur des faits non vérifiés.
+    const checked = await ensureFactCheck();
+    if (!checked || checked.verdict === "revoir") return undefined;
     setLoadingScript(true);
     // Le sujet de la file est consommé au moment où la vidéo part réellement.
     if (queuedTopicId) {
@@ -734,7 +794,8 @@ function Studio() {
     try {
       const result = (await runScript({
         data: {
-          topic,
+          topic: checked.correctedTopic || topic,
+          facts: checked.facts,
           kind,
           sceneCount,
           style,
