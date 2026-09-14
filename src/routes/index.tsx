@@ -707,6 +707,8 @@ function Studio() {
 
       const id = `p${Date.now()}`;
       setProjectId(id);
+      // Nouveau projet : la liste des vidéos exportées repart de zéro.
+      setExportInfos({});
       saveHistory(id, result);
       toast.success("Script généré");
       return result;
