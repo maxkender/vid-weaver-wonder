@@ -158,10 +158,20 @@ async function renderPng(
 }
 
 
-/** Marge latérale de la fenêtre carrée (fraction de la largeur, de chaque côté). */
-export const SQUARE_MARGIN_RATIO = 0.06;
+/**
+ * Marge latérale de la fenêtre carrée (fraction de la largeur, de chaque côté).
+ * SOURCE UNIQUE DE VÉRITÉ : masque du montage, pré-composition avant animation,
+ * aperçu de l'interface et sous-titres en dépendent tous.
+ * 0.148 → côté = 70,4 % de la largeur (carré 20 % plus petit qu'à 0.06).
+ */
+export const SQUARE_MARGIN_RATIO = 0.148;
 /** Rayon des coins de la fenêtre carrée (fraction du côté). */
 export const SQUARE_RADIUS_RATIO = 0.07;
+
+/** Côté de la fenêtre carrée centrée dans un cadre width × height. */
+export function squareSide(width: number, height: number) {
+  return Math.round(Math.min(width * (1 - 2 * SQUARE_MARGIN_RATIO), height));
+}
 
 /**
  * Masque carré à coins arrondis : tout ce qui dépasse du carré centré devient noir.
