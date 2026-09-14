@@ -1655,6 +1655,12 @@ function Studio() {
 
             {/* BARRE D'ACTIONS — une seule action pleine : la génération complète. */}
             <div className="mt-auto space-y-2 pt-5">
+              {langsWithoutVoice.length > 0 && (
+                <p className="text-xs text-muted-foreground">
+                  Voix non choisie pour :{" "}
+                  {langsWithoutVoice.map((l) => languageLabel(l)).join(", ")}
+                </p>
+              )}
               <div className="flex flex-wrap items-center gap-2 border-t border-border pt-4">
                 <button
                   onClick={onAutoAll}
