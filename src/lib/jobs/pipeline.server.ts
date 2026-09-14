@@ -15,6 +15,7 @@ import {
 } from "../ai-gateway.server";
 import { coverPrompt, motionPrompt, TOPIC_BRIEF, type Script } from "../prompts.server";
 import { estimateSpeechSeconds } from "../duration";
+import { defaultVoiceFor } from "../voices";
 import { TOPIC_CATEGORIES } from "../topic-categories";
 import { languageName } from "../languages";
 import { DEFAULT_MOTION, DEFAULT_QUALITY, DEFAULT_VISUAL_BRIEF } from "../style-presets";
@@ -176,7 +177,7 @@ async function stepImages(job: RenderJob, t0: number) {
 async function stepVoice(job: RenderJob, t0: number) {
   const { generateElevenSpeechWithTimings } = await import("../elevenlabs.server");
   const scenes = job.scenes;
-  const voice = job.voice_id ?? "3HZyQcLKlT0a3RDeXVsP";
+  const voice = job.voice_id ?? defaultVoiceFor("elevenlabs", job.language);
 
   for (let i = 0; i < scenes.length; i++) {
     if (outOfTime(t0)) return false;
