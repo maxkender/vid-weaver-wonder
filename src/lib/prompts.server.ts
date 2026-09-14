@@ -151,6 +151,31 @@ export function scriptUserPrompt(kind: VideoKind, topic: string) {
     : `Sujet : ${base}.`;
 }
 
+/**
+ * MASTER MULTILINGUE : les visuels sont fabriqués une seule fois et ne
+ * contiennent aucun texte. Seule la partie parlée est traduite, scène par
+ * scène, avec un plafond de mots pour tenir dans le clip déjà commandé.
+ */
+export function translationSystemPrompt(
+  langName: string,
+  sceneCount: number,
+  maxWordsPerScene: number,
+  maxSeconds: number,
+) {
+  return [
+    `Tu es traducteur-adaptateur de scripts de vidéos courtes. Tu traduis vers ${langName}.`,
+    `TRADUCTION FIDÈLE : le script traduit contient EXACTEMENT ${sceneCount} scènes, avec les MÊMES index, dans le même ordre. Ne fusionne jamais deux scènes, n'en ajoute jamais, n'en supprime jamais. Chaque scène traduite dit exactement ce que dit la scène source : l'image de ce plan est déjà fabriquée et ne changera pas.`,
+    "Ce n'est PAS du mot à mot : écris comme un natif écrirait, avec le rythme et les tournures naturelles de la langue.",
+    "Tous les CHIFFRES, dates, proportions, unités et noms propres sont repris à l'identique.",
+    "STYLE CONSERVÉ : phrases très courtes, phrases nominales et fragments autorisés, tutoiement (ou l'équivalent naturel et familier de la langue), ton oral et direct, jamais publicitaire. Aucun emoji, aucun point d'exclamation.",
+    `CONTRAINTE DE DURÉE (la plus importante) : chaque narration traduite doit pouvoir être lue à voix haute en moins de ${maxSeconds} secondes, soit ${maxWordsPerScene} MOTS MAXIMUM par scène. Compte les mots. Si la traduction naturelle dépasse, CONDENSE : supprime les redondances et les mots de liaison, garde TOUS les chiffres et toute l'information.`,
+    "Le mot « Sophia » reste « Sophia » dans toutes les langues.",
+    "Traduis uniquement narration, overlay, title, hook et cta. Si cta est vide, laisse-le vide.",
+    "overlay reste un texte incrusté très court : 3 à 6 mots.",
+    'Réponds uniquement en JSON: {"title":string,"hook":string,"cta":string,"scenes":[{"index":number,"narration":string,"overlay":string}]}',
+  ].join("\n");
+}
+
 const SQUARE_FRAME =
   "Framing: the whole scene is composed inside a perfect centered square (1:1) with softly rounded corners, touching the left and right edges; above and below that square the frame is pure solid black, completely empty, like a rounded square clip letterboxed in a vertical canvas. Nothing of the scene spills into the black bands or past the rounded corners.";
 
