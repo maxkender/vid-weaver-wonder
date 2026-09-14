@@ -72,6 +72,8 @@ export type StudioSettings = {
   sophiaLogo: boolean;
   /** Export et génération en 1080p (plans de 8 s imposés par le modèle vidéo). */
   hd: boolean;
+  /** Pré-composer le carré au centre d'un cadre 9:16 avant d'animer le plan. */
+  precomposeSquare: boolean;
 };
 
 export function defaultSettings(): StudioSettings {
@@ -88,7 +90,15 @@ export function defaultSettings(): StudioSettings {
       square: k === "papercraft",
     };
   });
-  return { narration, visual, useReferenceImage: true, musicVolume: 0.14, sophiaLogo: true, hd: true };
+  return {
+    narration,
+    visual,
+    useReferenceImage: true,
+    musicVolume: 0.14,
+    sophiaLogo: true,
+    hd: true,
+    precomposeSquare: true,
+  };
 }
 
 const KEY = "studio-settings-v1";
