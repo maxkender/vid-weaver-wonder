@@ -1446,6 +1446,23 @@ function Studio() {
 
 
 
+  /** Saisie manuelle d'un identifiant ElevenLabs pour la langue de l'onglet actif. */
+  const [voiceIdDraft, setVoiceIdDraft] = useState("");
+  const applyVoiceId = () => {
+    const id = voiceIdDraft.trim();
+    if (!id) {
+      toast.error("Colle d'abord un identifiant de voix ElevenLabs.");
+      return;
+    }
+    if (!isValidElevenVoiceId(id)) {
+      toast.error("Cet identifiant ne ressemble pas à un ID ElevenLabs (20 caractères environ).");
+      return;
+    }
+    setVoice(id);
+    setVoiceIdDraft("");
+    toast.success(`Voix appliquée pour ${languageLabel(voiceLangTab)}`);
+  };
+
   const toggleFavoriteVoice = () => {
     const next = favoriteVoices.includes(voice)
       ? favoriteVoices.filter((id) => id !== voice)
