@@ -1,4 +1,4 @@
-import { SQUARE_MARGIN_RATIO } from "./karaoke-overlay";
+import { squareSide } from "./karaoke-overlay";
 
 /**
  * Compose l'image carrée au centre d'un cadre 9:16 entièrement noir, AVANT de
@@ -32,7 +32,7 @@ export async function composeSquareInVertical(
   ctx.fillStyle = "#000000";
   ctx.fillRect(0, 0, width, height);
 
-  const side = Math.round(Math.min(width * (1 - 2 * SQUARE_MARGIN_RATIO), height));
+  const side = squareSide(width, height);
   const x = Math.round((width - side) / 2);
   const y = Math.round((height - side) / 2);
 

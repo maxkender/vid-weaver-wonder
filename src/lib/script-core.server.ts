@@ -6,7 +6,7 @@ import {
   type Script,
 } from "./prompts.server";
 import { languageName } from "./languages";
-import { fastestWordsPerSecond } from "./duration";
+import { fastestWordsPerSecond, wordsPerSecond as speechRate } from "./duration";
 
 export type BuildScriptInput = {
   topic: string;
@@ -42,7 +42,18 @@ export async function buildScript(data: BuildScriptInput): Promise<Script> {
     (data.productionLanguages?.length ? data.productionLanguages : [data.language]).filter(Boolean),
     data.language,
   );
-  const totalWords = Math.round(narrationSeconds * wordsPerSecond);
+  // BORNE HAUTE : le budget est calculé sur la langue la plus rapide, mais il
+  // est lu par la langue SOURCE. Sans plafond, le français dérive (72 s pour
+  // une cible de 60) et on paie des secondes de clip en trop. On plafonne donc
+  // le script source à 110 % de la durée demandée (60 s → 66 s).
+  const maxTotalSeconds = Math.round(data.targetSeconds * 1.1);
+  const sourceCapWords = Math.round(
+    Math.max(8, maxTotalSeconds - (includeCta ? 6 : 0)) * speechRate(data.language),
+  );
+  const totalWords = Math.min(
+    Math.round(narrationSeconds * wordsPerSecond),
+    sourceCapWords,
+  );
   const wordsBias = data.wordsBias ?? 0;
 
   // Le nombre de plans vient de l'interface : il correspond à la durée choisie.

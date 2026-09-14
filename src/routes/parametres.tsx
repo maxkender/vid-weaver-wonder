@@ -258,6 +258,31 @@ function SettingsPage() {
             </span>
           </label>
 
+          <div className="text-sm">
+            <label className="label-x" htmlFor="spend-cap">
+              Plafond de dépense par vidéo (secondes de vidéo IA)
+            </label>
+            <input
+              id="spend-cap"
+              type="number"
+              min={8}
+              max={240}
+              step={4}
+              value={settings.spendCapSeconds ?? 72}
+              onChange={(e) =>
+                persist({
+                  ...settings,
+                  spendCapSeconds: Math.max(8, Math.min(240, Number(e.target.value) || 72)),
+                })
+              }
+              className="field mt-1 w-32"
+            />
+            <span className="mt-1 block text-xs text-muted-foreground">
+              Si l'estimation dépasse ce plafond, la génération refuse de partir et explique
+              pourquoi, au lieu de consommer des crédits. 72 s par défaut.
+            </span>
+          </div>
+
           <label className="flex items-start gap-3 text-sm">
             <input
               type="checkbox"

@@ -84,6 +84,8 @@ export type StudioSettings = {
   precomposeSquare: boolean;
   /** Ajouter le plan CTA Sophia à la fin du script. */
   sophiaCta: boolean;
+  /** Plafond de dépense par vidéo, en secondes de vidéo IA commandées. */
+  spendCapSeconds: number;
 };
 
 export function defaultSettings(): StudioSettings {
@@ -109,6 +111,7 @@ export function defaultSettings(): StudioSettings {
     hd: true,
     precomposeSquare: true,
     sophiaCta: true,
+    spendCapSeconds: 72,
   };
 }
 

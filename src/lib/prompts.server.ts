@@ -116,6 +116,14 @@ export function scriptSystemPrompt(
     "INTERDITS ABSOLUS : « saviez-vous », « incroyable mais vrai », « accrochez-vous », « vous n'allez pas me croire », « dans cette vidéo », les emojis, les points d'exclamation, les superlatifs creux (« absolument fou », « complètement dingue »), et toute annonce de ce qui va arriver.",
 
     "",
+    "RÈGLE N°3 BIS — SIMPLICITÉ (la plus importante après l'accroche) :",
+    "UNE SEULE NOTION NOUVELLE par vidéo. Interdit d'enchaîner plusieurs concepts abstraits : si tu dois expliquer deux mécanismes pour que le récit tienne, choisis-en un et coupe l'autre.",
+    "INTERDITS ABSOLUS : les ratios, les proportions abstraites, les rapports entre grandeurs (« rapport surface/volume », « proportionnel à »), et tout vocabulaire de cours de physique, de chimie ou de biologie (vitesse terminale, frottements de l'air, énergie cinétique, pression osmotique, densité, inertie…). Si une explication demande une formule ou une notion de niveau lycée, remplace-la par une IMAGE CONCRÈTE que tout le monde a déjà vue.",
+    "CHIFFRES PALPABLES : chaque chiffre est immédiatement rendu concret par une comparaison du quotidien (« gros comme un grain de riz », « la hauteur de six étages », « le poids d'une pomme »). Jamais un chiffre brut laissé seul.",
+    "MOT TECHNIQUE : un seul par vidéo, et ce doit être un NOM DE CHOSE (un animal, un objet, un phénomène qui porte un nom), jamais une notion abstraite ni un nom de loi physique.",
+    "TEST DE SIMPLICITÉ, à appliquer sur chaque phrase AVANT de répondre : un enfant de 12 ans doit pouvoir réexpliquer toute la vidéo à quelqu'un d'autre après une seule écoute. Si une phrase ne passe pas ce test, réécris-la plus simplement.",
+
+    "",
     "RÈGLE N°4 — CONTINUITÉ : écris d'abord la narration comme UN SEUL TEXTE SUIVI qui se lit d'une traite, puis découpe-le en scènes aux frontières naturelles. Le découpage en plans est VISUEL, pas narratif : une scène n'est pas un paragraphe autonome, c'est un plan qui illustre un morceau du texte continu. C'est ce qui donne la fluidité.",
     "CLARTÉ : on doit comprendre même sans les images. Nomme explicitement de qui et de quoi on parle (jamais « il », « ça », « cette chose » sans que le nom ait été dit juste avant). Le lieu, l'époque et les protagonistes sont nommés dès qu'ils entrent dans le récit.",
     `LONGUEUR PAR SCÈNE : chaque scène correspond à UN plan vidéo qui dure entre 6 et 8 SECONDES de parole, jamais moins. La narration d'une scène fait entre ${lo} et ${hi} MOTS. Une scène trop COURTE est une erreur aussi grave qu'une scène trop longue : elle produit une coupe toutes les 4 secondes et hache la vidéo. Compte réellement les mots de chaque scène avant de répondre et rallonge celles qui sont sous ${lo} mots.`,
@@ -163,6 +171,7 @@ export function translationSystemPrompt(
   sceneCount: number,
   maxWordsPerScene: number,
   maxSeconds: number,
+  total?: { minSeconds: number; maxSeconds: number; minWords: number; maxWords: number },
 ) {
   return [
     `Tu es traducteur-adaptateur de scripts de vidéos courtes. Tu traduis vers ${langName}.`,
@@ -170,7 +179,10 @@ export function translationSystemPrompt(
     "Ce n'est PAS du mot à mot : écris comme un natif écrirait, avec le rythme et les tournures naturelles de la langue.",
     "Tous les CHIFFRES, dates, proportions, unités et noms propres sont repris à l'identique.",
     "STYLE CONSERVÉ : phrases très courtes, phrases nominales et fragments autorisés, tutoiement (ou l'équivalent naturel et familier de la langue), ton oral et direct, jamais publicitaire. Aucun emoji, aucun point d'exclamation.",
-    `CONTRAINTE DE DURÉE (la plus importante) : chaque narration traduite doit pouvoir être lue à voix haute en moins de ${maxSeconds} secondes, soit ${maxWordsPerScene} MOTS MAXIMUM par scène. Compte les mots. Si la traduction naturelle dépasse, CONDENSE : supprime les redondances et les mots de liaison, garde TOUS les chiffres et toute l'information.`,
+    `CONTRAINTE DE DURÉE PAR PLAN : chaque narration traduite doit pouvoir être lue à voix haute en moins de ${maxSeconds} secondes, soit ${maxWordsPerScene} MOTS MAXIMUM par scène. Compte les mots. Si la traduction naturelle dépasse, CONDENSE : supprime les redondances et les mots de liaison, garde TOUS les chiffres et toute l'information.`,
+    total
+      ? `CIBLE DE DURÉE TOTALE (aussi importante que le plafond par plan) : lue à voix haute en ${langName}, la somme de toutes les narrations doit durer entre ${total.minSeconds} et ${total.maxSeconds} secondes, soit entre ${total.minWords} et ${total.maxWords} mots au total. Compte les mots de l'ensemble avant de répondre. Si tu es en dessous, ÉTOFFE légèrement les scènes (précisions concrètes déjà présentes dans le sens du texte) ; si tu es au-dessus, CONDENSE. Dans les deux cas : même nombre de scènes, mêmes index, tous les chiffres conservés.`
+      : "",
     "Le mot « Sophia » reste « Sophia » dans toutes les langues.",
     "Traduis uniquement narration, overlay, title, hook et cta. Si cta est vide, laisse-le vide.",
     "overlay reste un texte incrusté très court : 3 à 6 mots.",
@@ -246,3 +258,14 @@ export const TOPIC_BRIEF: Record<NarrationStyle, string> = {
   mecanique:
     "Le sujet doit être une chose connue de tous dont on peut expliquer le fonctionnement réel, étape par étape (comment une araignée sent le danger, comment un incendie crée son propre orage, comment le GPS sait où tu es). On part du fait connu et on va jusqu'à une conséquence inattendue.",
 };
+
+/**
+ * Critère d'INTRIGUE commun à tous les styles : un sujet purement explicatif
+ * ne suffit pas, il faut la promesse d'une révélation.
+ */
+export const TOPIC_INTRIGUE = [
+  "EXIGENCE D'INTRIGUE (critère éliminatoire) : le sujet doit donner l'impression que quelque chose d'IMPOSSIBLE, de CACHÉ ou de CONTRAIRE AU BON SENS va être révélé.",
+  "Il faut une tension, un secret, une croyance renversée, ou un détail que personne ne remarque. Un sujet purement explicatif (« pourquoi tel phénomène se produit ») n'est PAS assez accrocheur : reformule-le jusqu'à ce qu'il promette une révélation.",
+  "TEST DE VALIDATION DU SUJET, à appliquer avant de répondre : en lisant le sujet seul, est-ce qu'on a envie de connaître la suite parce qu'on sent qu'on va apprendre quelque chose qui contredit ce qu'on croyait ? Si la réponse est non, propose un autre sujet.",
+  "TEST DE SIMPLICITÉ : le sujet doit pouvoir être expliqué à un enfant de 12 ans sans aucune notion technique, sans formule et sans vocabulaire de cours de sciences.",
+].join("\n");

@@ -15,8 +15,15 @@ async function ensureFont(size: number) {
   }
 }
 
-/** Taille de police relative des sous-titres (2× plus petit qu'avant). */
-export const CAPTION_SIZE_RATIO = 0.062;
+/**
+ * Taille de police des sous-titres, RELATIVE AU CÔTÉ DU CARRÉ (et non à la
+ * largeur du cadre) : la proportion texte/carré reste identique quelle que
+ * soit la marge choisie, et rien ne déborde sur les bandes noires.
+ * Ancienne valeur : 0.062 de la largeur pour un carré de 88 % → 0.062 / 0.88.
+ */
+export const CAPTION_SIZE_RATIO = 0.062 / 0.88;
+/** Largeur maximale d'une ligne, relative au côté du carré (0.86 / 0.88). */
+export const CAPTION_MAX_WIDTH_RATIO = 0.86 / 0.88;
 
 /** On garde la casse d'origine (majuscule de début de phrase, noms propres). */
 const cleanWord = (w: string) =>
@@ -36,8 +43,10 @@ function drawWord(
   const words = cleanWord(word).split(" ").filter(Boolean);
   if (!words.length) return;
   const clean = words.join(" ");
-  let fontSize = Math.round(width * CAPTION_SIZE_RATIO);
-  const maxWidth = width * 0.86;
+  // Tout est calé sur le CÔTÉ DU CARRÉ : le texte ne sort jamais de la fenêtre.
+  const side = squareSide(width, height);
+  let fontSize = Math.round(side * CAPTION_SIZE_RATIO);
+  const maxWidth = side * CAPTION_MAX_WIDTH_RATIO;
   const font = (s: number) => `400 ${s}px "Anton", "Arial Narrow", Impact, sans-serif`;
   ctx.font = font(fontSize);
 
@@ -141,7 +150,7 @@ async function renderPng(
   if (!ctx) return null;
   if (logo) drawLogo(ctx, logo.img, width, height, logo.progress);
   if (word) {
-    await ensureFont(Math.round(width * CAPTION_SIZE_RATIO));
+    await ensureFont(Math.round(squareSide(width, height) * CAPTION_SIZE_RATIO));
     drawWord(ctx, word, width, height, scale, alpha);
   }
 
@@ -149,10 +158,20 @@ async function renderPng(
 }
 
 
-/** Marge latérale de la fenêtre carrée (fraction de la largeur, de chaque côté). */
-export const SQUARE_MARGIN_RATIO = 0.06;
+/**
+ * Marge latérale de la fenêtre carrée (fraction de la largeur, de chaque côté).
+ * SOURCE UNIQUE DE VÉRITÉ : masque du montage, pré-composition avant animation,
+ * aperçu de l'interface et sous-titres en dépendent tous.
+ * 0.148 → côté = 70,4 % de la largeur (carré 20 % plus petit qu'à 0.06).
+ */
+export const SQUARE_MARGIN_RATIO = 0.148;
 /** Rayon des coins de la fenêtre carrée (fraction du côté). */
 export const SQUARE_RADIUS_RATIO = 0.07;
+
+/** Côté de la fenêtre carrée centrée dans un cadre width × height. */
+export function squareSide(width: number, height: number) {
+  return Math.round(Math.min(width * (1 - 2 * SQUARE_MARGIN_RATIO), height));
+}
 
 /**
  * Masque carré à coins arrondis : tout ce qui dépasse du carré centré devient noir.
@@ -168,7 +187,7 @@ export async function makeRoundedSquareMask(
   canvas.height = height;
   const ctx = canvas.getContext("2d");
   if (!ctx) return null;
-  const side = Math.round(Math.min(width * (1 - 2 * SQUARE_MARGIN_RATIO), height));
+  const side = squareSide(width, height);
   const x = Math.round((width - side) / 2);
   const y = Math.round((height - side) / 2);
   const r = side * radiusRatio;

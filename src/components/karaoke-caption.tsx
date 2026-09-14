@@ -2,12 +2,20 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import {
   CAPTION_FADE,
+  CAPTION_MAX_WIDTH_RATIO,
+  CAPTION_SIZE_RATIO,
+  SQUARE_MARGIN_RATIO,
   smoothTimings,
   sophiaWindow,
   wordTimings,
 } from "@/lib/karaoke-overlay";
 
 import sophiaLogo from "@/assets/sophia-logo.png.asset.json";
+
+/** Le conteneur d'aperçu est en 9:16 : le côté du carré vaut cette part de sa largeur. */
+const SIDE_RATIO = 1 - 2 * SQUARE_MARGIN_RATIO;
+/** Taille de police en % de la largeur du conteneur (unité cqw). */
+const CAPTION_CQW = SIDE_RATIO * CAPTION_SIZE_RATIO * 100;
 
 type Timing = { word: string; start: number; end: number };
 
@@ -102,16 +110,20 @@ export function KaraokeCaption({ text, fallback, getMedia, words, showLogo = tru
       >
         {logoNode}
         <span
-          className="max-w-[92%] select-none truncate text-center tracking-tight text-white"
+          className="select-none truncate text-center tracking-tight text-white"
           style={{
             fontFamily: '"Anton", "Arial Narrow", Impact, sans-serif',
-            // Même taille relative que dans l'export MP4 (6,2 % de la largeur).
-            fontSize: "6.2cqw",
+            // Même proportion que dans l'export MP4 : taille et largeur maximale
+            // calculées sur le CÔTÉ DU CARRÉ, pas sur la largeur du cadre.
+            maxWidth: `${(SIDE_RATIO * CAPTION_MAX_WIDTH_RATIO * 100).toFixed(1)}%`,
+            fontSize: `${CAPTION_CQW.toFixed(2)}cqw`,
             lineHeight: 1.08,
             whiteSpace: "nowrap",
-            WebkitTextStroke: "0.28cqw #000",
+            WebkitTextStroke: `${(CAPTION_CQW * 0.045).toFixed(3)}cqw #000`,
             paintOrder: "stroke fill",
-            textShadow: "0 0.28cqw 1.1cqw rgba(0,0,0,0.55)",
+            textShadow: `0 ${(CAPTION_CQW * 0.045).toFixed(3)}cqw ${(CAPTION_CQW * 0.18).toFixed(
+              3,
+            )}cqw rgba(0,0,0,0.55)`,
             opacity: state.pop,
           }}
         >

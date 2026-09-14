@@ -43,6 +43,7 @@ import {
 import { KaraokeCaption } from "@/components/karaoke-caption";
 import { MusicLibrary } from "@/components/music-library";
 import { audioDuration, estimateSpeechSeconds } from "@/lib/duration";
+import { SQUARE_MARGIN_RATIO, SQUARE_RADIUS_RATIO } from "@/lib/karaoke-overlay";
 import {
   
   defaultVoiceFor,
@@ -435,9 +436,13 @@ function Studio() {
     perClip: number;
     voices: number;
     languages: number;
+    /** Secondes de vidéo IA économisées si le plan CTA Sophia était décoché. */
+    ctaSaving: number;
   };
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [confirmPayload, setConfirmPayload] = useState<LaunchCost | null>(null);
+  /** Coût réellement commandé depuis le début de la session (clips payants). */
+  const [spent, setSpent] = useState({ clips: 0, seconds: 0 });
   const confirmResolverRef = useRef<((value: boolean) => void) | null>(null);
 
   const requestCostConfirmation = (payload: LaunchCost): Promise<boolean> => {
@@ -715,6 +720,10 @@ function Studio() {
               })),
               language: lang,
               maxSceneSeconds: 8,
+              // Chaque langue doit tenir dans la même fenêtre de durée que la
+              // source : ni vidéo trop courte, ni secondes de clip payées en trop.
+              minTotalSeconds: targetSeconds,
+              maxTotalSeconds: Math.round(targetSeconds * 1.1),
             },
           })) as {
             title: string;
@@ -875,6 +884,11 @@ function Studio() {
         },
       })) as { id: string };
       patch(scene.index, { videoId: id });
+      // Coût RÉELLEMENT commandé (à comparer avec l'estimation d'avant départ).
+      setSpent((s) => ({
+        clips: s.clips + 1,
+        seconds: s.seconds + Number(seconds ?? 8),
+      }));
 
       for (let attempt = 0; attempt < 90; attempt++) {
         if (cancelledRef.current) {
@@ -933,15 +947,25 @@ function Studio() {
         perClip,
         voices,
         languages: langs.length,
+        // Le plan CTA Sophia est un clip animé comme les autres : le décocher
+        // économise exactement sa durée.
+        ctaSaving: settings.sophiaCta !== false && pending.length ? perClip : 0,
       };
     },
-    [script, states, targetSeconds, langs],
+    [script, states, targetSeconds, langs, settings.sophiaCta],
   );
 
   /** Confirmation obligatoire avant toute dépense de crédits en série. */
   const confirmCost = async (doc: Script | null = script) => {
     const cost = estimateCost(doc);
     if (!cost.clips) return true;
+    const cap = settings.spendCapSeconds ?? 72;
+    if (cost.seconds > cap) {
+      toast.error(
+        `Plafond de dépense dépassé : ${cost.seconds} s de vidéo IA demandées pour un plafond de ${cap} s. Réduis la durée, le nombre de plans, ou relève le plafond dans Paramètres.`,
+      );
+      return false;
+    }
     return requestCostConfirmation(cost);
   };
 
@@ -1396,12 +1420,21 @@ function Studio() {
       return;
     }
     const perClip = Math.min(8, Math.max(4, Math.round(targetSeconds / Math.max(1, sceneCount))));
+    const planned = sceneCount * perClip;
+    const cap = settings.spendCapSeconds ?? 72;
+    if (planned > cap) {
+      toast.error(
+        `Plafond de dépense dépassé : ${planned} s de vidéo IA demandées pour un plafond de ${cap} s. Réduis la durée, le nombre de plans, ou relève le plafond dans Paramètres.`,
+      );
+      return;
+    }
     const ok = await requestCostConfirmation({
       clips: sceneCount,
-      seconds: sceneCount * perClip,
+      seconds: planned,
       perClip,
       voices: sceneCount * langs.length,
       languages: langs.length,
+      ctaSaving: settings.sophiaCta !== false ? perClip : 0,
     });
     if (!ok) return;
     beginRun();
@@ -1629,6 +1662,11 @@ function Studio() {
             seule fois + {cost.voices} voix off ({cost.languages} langue
             {cost.languages > 1 ? "s" : ""})
           </span>
+          {spent.clips > 0 && (
+            <span className="hidden text-xs text-foreground md:inline">
+              · Consommé : {spent.clips} clip{spent.clips > 1 ? "s" : ""} / {spent.seconds} s
+            </span>
+          )}
 
           <div className="ml-auto flex flex-wrap items-center gap-2">
             {!pipelinePaused && !(busy && stopped) && (
@@ -1659,6 +1697,7 @@ function Studio() {
           <span className="text-xs text-muted-foreground">
             Coût estimé : {cost.clips} clip{cost.clips > 1 ? "s" : ""} × {cost.perClip} s + {cost.voices}{" "}
             voix off
+            {spent.clips > 0 ? ` · Consommé : ${spent.clips} clips / ${spent.seconds} s` : ""}
           </span>
         </div>
       </header>
@@ -2349,8 +2388,13 @@ function Studio() {
                       {useSquareMask && (
                         <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
                           <div
-                            className="aspect-square w-[88%] rounded-[7%]"
-                            style={{ boxShadow: "0 0 0 9999px #000" }}
+                            className="aspect-square"
+                            style={{
+                              // Géométrie reprise du montage : aucune valeur en dur ici.
+                              width: `${(1 - 2 * SQUARE_MARGIN_RATIO) * 100}%`,
+                              borderRadius: `${SQUARE_RADIUS_RATIO * 100}%`,
+                              boxShadow: "0 0 0 9999px #000",
+                            }}
                           />
                         </div>
                       )}
@@ -2576,6 +2620,13 @@ function Studio() {
                   {confirmPayload?.voices} voix off réparties sur {confirmPayload?.languages} langue
                   {confirmPayload && confirmPayload.languages > 1 ? "s" : ""}.
                 </p>
+                {!!confirmPayload?.ctaSaving && (
+                  <p className="text-foreground">
+                    En décochant le plan CTA Sophia dans Paramètres, tu économiserais{" "}
+                    {confirmPayload.ctaSaving} s de vidéo IA.
+                  </p>
+                )}
+                <p>Plafond actuel : {settings.spendCapSeconds ?? 72} s de vidéo IA par vidéo.</p>
               </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
