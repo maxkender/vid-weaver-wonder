@@ -971,7 +971,7 @@ function Studio() {
   const onPreviewVoice = async () => {
     setPreviewVoice(true);
     try {
-      const sampleKey = `${engine}:${voice}`;
+      const sampleKey = `${engine}:${voice}:${voiceLangTab}`;
       let src = voiceSamples.current[sampleKey];
       if (!src) {
         const { audioDataUrl } = (await runVoice({
