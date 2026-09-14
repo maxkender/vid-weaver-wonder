@@ -1144,10 +1144,12 @@ function Studio() {
     const { randomTrack } = await import("@/lib/music-store");
     const { makeCaptionCues, makeRoundedSquareMask, sophiaWindow, voiceWindow, shiftTimings } =
       await import("@/lib/karaoke-overlay");
+    // L'export est TOUJOURS en 1080p, même en mode brouillon : les plans 720p
+    // sont simplement agrandis.
     const dims =
       orientation === "horizontal"
-        ? { width: settings.hd ? 1920 : 1280, height: settings.hd ? 1080 : 720 }
-        : { width: settings.hd ? 1080 : 720, height: settings.hd ? 1920 : 1280 };
+        ? { width: 1920, height: 1080 }
+        : { width: 1080, height: 1920 };
     // AUCUN plan n'est écarté : un plan sans clip animé est rendu à partir de
     // son image fixe, pour que l'histoire (et la durée) restent complètes.
     const all = (doc?.scenes ?? [])
