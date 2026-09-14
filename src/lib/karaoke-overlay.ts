@@ -187,7 +187,7 @@ export async function makeRoundedSquareMask(
   canvas.height = height;
   const ctx = canvas.getContext("2d");
   if (!ctx) return null;
-  const side = Math.round(Math.min(width * (1 - 2 * SQUARE_MARGIN_RATIO), height));
+  const side = squareSide(width, height);
   const x = Math.round((width - side) / 2);
   const y = Math.round((height - side) / 2);
   const r = side * radiusRatio;
