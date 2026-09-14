@@ -562,13 +562,18 @@ function Studio() {
           script: next,
           scripts: allScripts ?? previous?.scripts ?? {},
           ...(previous?.exports ? { exports: previous.exports } : {}),
+          // Réglages multilingues : sans eux, le rechargement d'un projet
+          // retombait sur la seule langue source et relançait les traductions.
+          sourceLang,
+          langs: [...langs],
+          voices: { ...voiceByLang },
         },
         ...items,
       ];
       writeHistory(updated);
       setHistory(updated);
     },
-    [],
+    [sourceLang, langs, voiceByLang],
   );
 
   /** Range le lien d'une vidéo exportée avec le projet (survit au rechargement). */
