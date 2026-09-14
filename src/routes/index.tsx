@@ -112,66 +112,6 @@ type SceneState = {
 type HistoryItem = { id: string; title: string; date: number; script: Script };
 
 const HISTORY_KEY = "studio-history-v1";
-const NAPOLEON_PROJECT_ID = "recovered-napoleon-1807";
-const NAPOLEON_SCRIPT: Script = {
-  title: "Le jour où Napoléon a fui face à des lapins",
-  hook: "Le plus grand conquérant de l'Histoire a fui en panique devant la créature la plus inoffensive du monde.",
-  scenes: [
-    {
-      index: 0,
-      narration: "Le plus grand conquérant de l'Histoire a fui en panique devant la créature la plus inoffensive du monde.",
-      overlay: "Vaincu par l'absurde",
-      imagePrompt: "Silhouette of a 19th-century military emperor wearing a bicorne hat, standing alone on a vast empty grassy hill under a dramatic overcast sky.",
-      videoPrompt: "Slow dramatic push-in shot toward the lone silhouette of a military commander standing on a vast green field.",
-    },
-    {
-      index: 1,
-      narration: "En 1807, après une victoire totale, Napoléon organise une gigantesque partie de chasse. Mais l'organisation tourne au désastre.",
-      overlay: "Une chasse royale",
-      imagePrompt: "Row of rustic wooden cages placed on a bright open meadow with a minimalist forest backdrop.",
-      videoPrompt: "Smooth panning camera shot moving past wooden cages in a lush field as the cage doors open.",
-    },
-    {
-      index: 2,
-      narration: "On libère trois mille lapins d'élevage. Au lieu de fuir, ils croient voir arriver leur nourriture.",
-      overlay: "Trois mille lapins",
-      imagePrompt: "A large swarm of fluffy domestic rabbits gathered together on green grass under bright natural lighting.",
-      videoPrompt: "Low-angle dynamic tracking shot moving forward over the grass alongside a large group of hopping rabbits.",
-    },
-    {
-      index: 3,
-      narration: "La marée blanche charge l'empereur, grimpe sur ses bottes et dévore même les boutons de sa veste.",
-      overlay: "L'attaque surprise totale",
-      imagePrompt: "Close-up of tall black leather riding boots on grass, surrounded by dozens of fluffy rabbits climbing upward.",
-      videoPrompt: "Fast downward tilt shot focusing on tall military boots completely overrun by an energetic swarm of bunnies.",
-    },
-    {
-      index: 4,
-      narration: "Terrifié et submergé, le maître de l'Europe doit courir vers son carrosse pour sauver sa peau.",
-      overlay: "L'Empereur en fuite",
-      imagePrompt: "An ornate vintage imperial carriage parked on a dirt trail against a soft sunset sky.",
-      videoPrompt: "Rapid tracking camera following a running military figure diving into an ornate carriage and slamming the door.",
-    },
-    {
-      index: 5,
-      narration: "Pour découvrir d'autres faits historiques insolites et surprenants, télécharge l'application gratuite Sophia. Deux minutes par jour suffisent pour booster ta culture !",
-      overlay: "Télécharge Sophia",
-      imagePrompt: "a hand holding a simple smartphone showing a clean study app screen, small floating book and lightbulb shapes around it, calm background",
-      videoPrompt: "static frontal shot, the smartphone rises slightly while small book and lightbulb shapes float gently around it",
-    },
-  ],
-  cta: "Pour découvrir d'autres faits historiques insolites et surprenants, télécharge l'application gratuite Sophia. Deux minutes par jour suffisent pour booster ta culture !",
-  hashtags: ["#histoire", "#culturegenerale", "#anecdote", "#napoleon", "#apprendre"],
-};
-const NAPOLEON_MEDIA: Record<number, SceneState> = {
-  0: { videoId: "video_7nm7ydfs1g8bhsqd55mvfqs17h", videoUrl: "/api/video-content/video_7nm7ydfs1g8bhsqd55mvfqs17h" },
-  1: { videoId: "video_3es82ywn3q9gjvg5s26508ehs3", videoUrl: "/api/video-content/video_3es82ywn3q9gjvg5s26508ehs3" },
-  2: { videoId: "video_64vwpwpef781aa0ftjg826bmft", videoUrl: "/api/video-content/video_64vwpwpef781aa0ftjg826bmft" },
-  3: { videoId: "video_5hvfbkjceq9pt8ncv87dgbvpfn", videoUrl: "/api/video-content/video_5hvfbkjceq9pt8ncv87dgbvpfn" },
-  4: { videoId: "video_27rnztawyf9w9tjgs04vkry5ht", videoUrl: "/api/video-content/video_27rnztawyf9w9tjgs04vkry5ht" },
-  5: { videoId: "video_5zqbn6vacv8k3vd549xangg544", videoUrl: "/api/video-content/video_5zqbn6vacv8k3vd549xangg544" },
-};
-
 function readHistory(): HistoryItem[] {
   if (typeof window === "undefined") return [];
   try {
