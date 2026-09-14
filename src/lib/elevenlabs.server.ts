@@ -11,13 +11,18 @@ export const ELEVEN_VOICES = [
 
 export type WordTiming = { word: string; start: number; end: number };
 
-const VOICE_SETTINGS = {
-  stability: 0.55,
-  similarity_boost: 0.88,
-  style: 0.05,
-  use_speaker_boost: true,
-  speed: 0.97,
-};
+/** Débit par défaut : soutenu, c'est ce qui retient sur TikTok. */
+export const DEFAULT_VOICE_SPEED = 1.05;
+
+function voiceSettings(speed = DEFAULT_VOICE_SPEED) {
+  return {
+    stability: 0.55,
+    similarity_boost: 0.88,
+    style: 0.05,
+    use_speaker_boost: true,
+    speed: Math.min(1.15, Math.max(0.9, speed)),
+  };
+}
 
 // On tente la meilleure qualité d'abord, puis on dégrade si le plan ne le permet pas.
 const FORMATS = ["mp3_44100_192", "mp3_44100_128", "mp3_44100_96", "mp3_22050_32"];
@@ -28,6 +33,7 @@ async function callEleven(
   apiKey: string,
   language = "fr",
   voiceId?: string,
+  speed = DEFAULT_VOICE_SPEED,
 ) {
   let res: Response | null = null;
   let lastErr = "";
@@ -39,7 +45,7 @@ async function callEleven(
         text,
         language_code: language,
         model_id: "eleven_multilingual_v2",
-        voice_settings: VOICE_SETTINGS,
+        voice_settings: voiceSettings(speed),
       }),
     });
     if (res.ok) break;
@@ -76,6 +82,7 @@ export async function generateElevenSpeechDataUrl(
   text: string,
   voiceId: string,
   language = "fr",
+  speed = DEFAULT_VOICE_SPEED,
 ): Promise<string> {
   const res = await callEleven(
     `/v1/text-to-speech/${voiceId}`,
@@ -83,6 +90,7 @@ export async function generateElevenSpeechDataUrl(
     apiKeyOrThrow(),
     language,
     voiceId,
+    speed,
   );
   const buf = Buffer.from(await res.arrayBuffer());
   return `data:audio/mpeg;base64,${buf.toString("base64")}`;
@@ -133,6 +141,7 @@ export async function generateElevenSpeechWithTimings(
   voiceId: string,
   language = "fr",
   context?: string,
+  speed = DEFAULT_VOICE_SPEED,
 ): Promise<{ audioDataUrl: string; words: WordTiming[] }> {
   const apiKey = apiKeyOrThrow();
   const where = `${context ? `${context} — ` : ""}langue « ${language} »`;
