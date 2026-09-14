@@ -849,9 +849,12 @@ function Studio() {
       // recadrerait sinon l'image à sa guise (sujet coupé, cadrage instable).
       // L'image carrée d'origine reste celle affichée et servant de référence.
       let videoInput = image;
+      // Mode brouillon : plans commandés en 720×1280, durées libres (4/6/8 s).
+      // L'export, lui, reste toujours en 1080×1920 (image simplement agrandie).
+      const draft = settings.draft720 === true;
       if (image && orientation === "square" && settings.precomposeSquare !== false) {
         const { composeSquareInVertical } = await import("@/lib/square-frame");
-        const dims = settings.hd ? { w: 1080, h: 1920 } : { w: 720, h: 1280 };
+        const dims = draft ? { w: 720, h: 1280 } : { w: 1080, h: 1920 };
         videoInput = await composeSquareInVertical(image, dims.w, dims.h);
       }
       const story = storyContext(scene, doc);
