@@ -43,8 +43,10 @@ function drawWord(
   const words = cleanWord(word).split(" ").filter(Boolean);
   if (!words.length) return;
   const clean = words.join(" ");
-  let fontSize = Math.round(width * CAPTION_SIZE_RATIO);
-  const maxWidth = width * 0.86;
+  // Tout est calé sur le CÔTÉ DU CARRÉ : le texte ne sort jamais de la fenêtre.
+  const side = squareSide(width, height);
+  let fontSize = Math.round(side * CAPTION_SIZE_RATIO);
+  const maxWidth = side * CAPTION_MAX_WIDTH_RATIO;
   const font = (s: number) => `400 ${s}px "Anton", "Arial Narrow", Impact, sans-serif`;
   ctx.font = font(fontSize);
 
