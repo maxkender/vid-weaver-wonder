@@ -44,6 +44,7 @@ import {
 
 } from "@/lib/studio.functions";
 import { TOPIC_CATEGORIES, type TopicCategory } from "@/lib/topic-categories";
+import { pipelineState, resumePipeline, stopPipeline } from "@/lib/jobs/control.functions";
 
 
 
