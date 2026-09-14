@@ -15,6 +15,7 @@ import {
 } from "../ai-gateway.server";
 import { coverPrompt, motionPrompt, TOPIC_BRIEF, type Script } from "../prompts.server";
 import { estimateSpeechSeconds } from "../duration";
+import { defaultVoiceFor } from "../voices";
 import { TOPIC_CATEGORIES } from "../topic-categories";
 import { languageName } from "../languages";
 import { DEFAULT_MOTION, DEFAULT_QUALITY, DEFAULT_VISUAL_BRIEF } from "../style-presets";
