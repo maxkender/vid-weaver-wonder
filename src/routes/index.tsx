@@ -297,6 +297,30 @@ function Studio() {
     setStates((prev) => ({ ...prev, [i]: { ...prev[i], ...value } }));
   }, []);
 
+  /** Script traduit par langue ; la langue source pointe sur le script d'origine. */
+  const [scripts, setScripts] = useState<Record<string, Script>>({});
+  const scriptsRef = useRef<Record<string, Script>>({});
+  useEffect(() => {
+    scriptsRef.current = scripts;
+  }, [scripts]);
+  /** Langue affichée dans la liste des plans (texte + sous-titres d'aperçu). */
+  const [viewLang, setViewLang] = useState<LanguageId>("fr");
+  useEffect(() => setViewLang(sourceLang), [sourceLang]);
+  const scriptFor = useCallback(
+    (lang: string, fallback: Script | null = null) =>
+      scriptsRef.current[lang] ?? fallback,
+    [],
+  );
+
+  /** MP4 final par langue. */
+  const [finalUrls, setFinalUrls] = useState<Record<string, string>>({});
+  const [translating, setTranslating] = useState(false);
+
+  // MODE MANUEL : portes de validation. Rien de payant ne part sans un clic.
+  const [topicValidated, setTopicValidated] = useState(false);
+  const [scriptValidated, setScriptValidated] = useState(false);
+  const [imagesValidated, setImagesValidated] = useState(false);
+
   /**
    * Drapeau d'arrêt : vérifié AVANT chaque appel payant (image, clip, voix) et
    * à chaque tour de polling. Rien n'est supprimé, on cesse simplement de
