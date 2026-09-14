@@ -2070,6 +2070,54 @@ function Studio() {
               {angle && <span className="text-xs text-muted-foreground">{angle}</span>}
             </div>
 
+            {/* VÉRIFICATION DES FAITS : ce qui a été rectifié, ce qui servira
+                au script, ce qui a été écarté. Étape gratuite. */}
+            {factCheck && (
+              <div
+                className={`mt-3 rounded-[10px] border p-3 text-xs ${
+                  factCheck.verdict === "revoir"
+                    ? "border-destructive/40 bg-destructive/10"
+                    : "border-border"
+                }`}
+              >
+                <p className="font-medium">
+                  {factCheck.verdict === "revoir"
+                    ? "Sujet à revoir : l'affirmation centrale ne tient pas"
+                    : "Faits vérifiés"}
+                </p>
+                {factCheck.note && (
+                  <p className="mt-1 text-muted-foreground">{factCheck.note}</p>
+                )}
+                {factCheck.correctedTopic && (
+                  <p className="mt-2">
+                    <span className="text-muted-foreground">Sujet retenu : </span>
+                    {factCheck.correctedTopic}
+                  </p>
+                )}
+                {factCheck.facts.length > 0 && (
+                  <>
+                    <p className="mt-2 text-muted-foreground">Faits retenus</p>
+                    <ul className="mt-1 list-disc space-y-0.5 pl-4">
+                      {factCheck.facts.map((f, i) => (
+                        <li key={i}>{f}</li>
+                      ))}
+                    </ul>
+                  </>
+                )}
+                {factCheck.discarded.length > 0 && (
+                  <>
+                    <p className="mt-2 text-muted-foreground">Écarté car douteux</p>
+                    <ul className="mt-1 list-disc space-y-0.5 pl-4 text-muted-foreground">
+                      {factCheck.discarded.map((f, i) => (
+                        <li key={i}>{f}</li>
+                      ))}
+                    </ul>
+                  </>
+                )}
+              </div>
+            )}
+
+
             <p className="label-x mt-5">Style de narration</p>
             <div className="mt-2 grid gap-2 sm:grid-cols-2">
               {STYLES.map((s) => (
