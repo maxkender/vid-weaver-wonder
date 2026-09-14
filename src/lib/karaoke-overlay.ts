@@ -15,8 +15,15 @@ async function ensureFont(size: number) {
   }
 }
 
-/** Taille de police relative des sous-titres (2× plus petit qu'avant). */
-export const CAPTION_SIZE_RATIO = 0.062;
+/**
+ * Taille de police des sous-titres, RELATIVE AU CÔTÉ DU CARRÉ (et non à la
+ * largeur du cadre) : la proportion texte/carré reste identique quelle que
+ * soit la marge choisie, et rien ne déborde sur les bandes noires.
+ * Ancienne valeur : 0.062 de la largeur pour un carré de 88 % → 0.062 / 0.88.
+ */
+export const CAPTION_SIZE_RATIO = 0.062 / 0.88;
+/** Largeur maximale d'une ligne, relative au côté du carré (0.86 / 0.88). */
+export const CAPTION_MAX_WIDTH_RATIO = 0.86 / 0.88;
 
 /** On garde la casse d'origine (majuscule de début de phrase, noms propres). */
 const cleanWord = (w: string) =>
