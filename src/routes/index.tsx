@@ -335,6 +335,24 @@ function Studio() {
     [],
   );
 
+  /**
+   * Durée totale estimée par langue produite : durée réelle de la voix off dès
+   * qu'elle existe, estimation par le débit de la langue sinon.
+   */
+  const langDurations = useMemo(() => {
+    return langs
+      .map((l) => {
+        const s = scripts[l] ?? (l === sourceLang ? script : null);
+        if (!s) return null;
+        const total = (s.scenes ?? []).reduce((sum, sc, i) => {
+          const real = states[i]?.voices?.[l]?.duration ?? 0;
+          return sum + (real > 0 ? real : estimateSpeechSeconds(sc.narration ?? "", l));
+        }, 0);
+        return { lang: l, seconds: total };
+      })
+      .filter((x): x is { lang: LanguageId; seconds: number } => x !== null);
+  }, [langs, scripts, script, sourceLang, states]);
+
   /** MP4 final par langue. */
   const [finalUrls, setFinalUrls] = useState<Record<string, string>>({});
   const [translating, setTranslating] = useState(false);
