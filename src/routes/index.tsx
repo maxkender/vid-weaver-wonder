@@ -1364,7 +1364,7 @@ function Studio() {
       cancelled = true;
       clearTimeout(t);
     };
-  }, [voiceQuery, engine, runSearchVoices]);
+  }, [voiceQuery, engine, runSearchVoices, voiceLangTab]);
 
   const availableVoices = useMemo(() => {
     const base = engine === "elevenlabs" && accountVoices.length ? accountVoices : voicesFor(engine);
