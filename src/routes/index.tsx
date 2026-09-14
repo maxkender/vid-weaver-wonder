@@ -33,7 +33,13 @@ import { Toaster } from "@/components/ui/sonner";
 import { KaraokeCaption } from "@/components/karaoke-caption";
 import { MusicLibrary } from "@/components/music-library";
 import { audioDuration, estimateSpeechSeconds } from "@/lib/duration";
-import { defaultVoice, voicesFor, type VoiceEngine } from "@/lib/voices";
+import {
+  defaultVoice,
+  defaultVoiceFor,
+  isValidElevenVoiceId,
+  voicesFor,
+  type VoiceEngine,
+} from "@/lib/voices";
 import { defaultSettings, loadSettings, type StudioSettings } from "@/lib/style-presets";
 import sophiaLogo from "@/assets/sophia-logo.png.asset.json";
 
