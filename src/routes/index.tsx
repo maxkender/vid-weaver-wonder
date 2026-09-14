@@ -398,15 +398,25 @@ function Studio() {
   }, []);
 
 
-  const saveHistory = useCallback((id: string, next: Script) => {
-    const items = readHistory().filter((h) => h.id !== id);
-    const updated = [
-      { id, title: next.title || "Sans titre", date: Date.now(), script: next },
-      ...items,
-    ];
-    writeHistory(updated);
-    setHistory(updated);
-  }, []);
+  const saveHistory = useCallback(
+    (id: string, next: Script, allScripts?: Record<string, Script>) => {
+      const items = readHistory().filter((h) => h.id !== id);
+      const previous = readHistory().find((h) => h.id === id);
+      const updated = [
+        {
+          id,
+          title: next.title || "Sans titre",
+          date: Date.now(),
+          script: next,
+          scripts: allScripts ?? previous?.scripts ?? {},
+        },
+        ...items,
+      ];
+      writeHistory(updated);
+      setHistory(updated);
+    },
+    [],
+  );
 
   const updateScene = useCallback(
     (index: number, field: keyof Scene, value: string) => {
