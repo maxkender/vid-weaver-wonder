@@ -47,6 +47,8 @@ export const generateScript = createServerFn({ method: "POST" })
         language: z.enum(LANGUAGE_IDS).default("fr"),
         /** Ajouter le plan CTA Sophia à la fin du script. */
         includeCta: z.boolean().default(true),
+        /** Faits établis par la vérification : seule source autorisée. */
+        facts: z.array(z.string().max(600)).max(20).default([]),
       })
       .parse(input),
   )
