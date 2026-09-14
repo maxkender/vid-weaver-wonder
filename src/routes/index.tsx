@@ -1793,8 +1793,8 @@ function Studio() {
                 className="mt-2 w-full"
               />
               <p className="mt-1 text-xs text-muted-foreground">
-                {sceneCount} plans{settings.sophiaCta !== false ? " + CTA" : ""} · zone efficace
-                entre 40 et 70 secondes
+                {sceneCount} plans{settings.sophiaCta !== false ? " + CTA" : ""} · 60 secondes est
+                le minimum et la cible du format
               </p>
             </div>
 
