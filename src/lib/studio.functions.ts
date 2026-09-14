@@ -12,6 +12,7 @@ import {
   coverPrompt,
   motionPrompt,
   TOPIC_BRIEF,
+  TOPIC_INTRIGUE,
   type Script,
 } from "./prompts.server";
 
