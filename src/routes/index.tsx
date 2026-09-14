@@ -1881,13 +1881,41 @@ function Studio() {
                     setFinalUrl(null);
                     setFinalUrls({});
                     setExportInfos(h.exports ?? {});
-                    const saved = { ...(h.scripts ?? {}), [sourceLang]: h.script };
+                    // Langue d'écriture du projet (celle d'origine, pas celle
+                    // affichée au moment du clic).
+                    const src = (MASTER_LANGUAGE_IDS as readonly string[]).includes(
+                      h.sourceLang ?? "",
+                    )
+                      ? (h.sourceLang as LanguageId)
+                      : sourceLang;
+                    const saved = { ...(h.scripts ?? {}), [src]: h.script };
                     setScripts(saved);
                     scriptsRef.current = saved;
                     setShowHistory(false);
                     const { loadProjectMedia } = await import("@/lib/project-store");
                     const media = await loadProjectMedia(h.id);
-                    setStates(migrateStates(media as Record<number, SceneState>, sourceLang));
+                    const restoredStates = migrateStates(
+                      media as Record<number, SceneState>,
+                      src,
+                    );
+                    setStates(restoredStates);
+                    // Langues de production : celles enregistrées, complétées
+                    // par toutes celles qui ont déjà un script traduit ou une
+                    // voix off — pour qu'aucun travail payé ne semble perdu.
+                    const found = new Set<string>([src, ...(h.langs ?? [])]);
+                    for (const l of Object.keys(saved)) found.add(l);
+                    for (const st of Object.values(restoredStates)) {
+                      for (const l of Object.keys(st?.voices ?? {})) found.add(l);
+                    }
+                    const restoredLangs = (MASTER_LANGUAGE_IDS as readonly string[]).filter(
+                      (l) => found.has(l),
+                    ) as LanguageId[];
+                    setSourceLang(src);
+                    setTargetLangs(restoredLangs);
+                    setViewLang(src);
+                    if (h.voices && Object.keys(h.voices).length) {
+                      setVoiceByLang((prev) => ({ ...prev, ...h.voices }));
+                    }
                     const { loadFinalVideo } = await import("@/lib/project-store");
                     const savedFinal = await loadFinalVideo(h.id);
                     if (savedFinal) setFinalUrl(URL.createObjectURL(savedFinal));
