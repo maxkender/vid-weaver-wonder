@@ -1397,17 +1397,43 @@ function Studio() {
     };
   }, [voiceQuery, engine, runSearchVoices, voiceLangTab]);
 
-  const availableVoices = useMemo(() => {
+  /**
+   * Liste utilisable : favoris, puis voix de la langue de l'onglet, puis le reste,
+   * plafonnée à une trentaine d'entrées tant qu'aucune recherche n'est saisie.
+   */
+  const voiceGroups = useMemo(() => {
     const base = engine === "elevenlabs" && accountVoices.length ? accountVoices : voicesFor(engine);
     const q = voiceQuery.trim().toLowerCase();
     const filtered = q ? base.filter((v) => v.label.toLowerCase().includes(q)) : base;
     const seen = new Set(filtered.map((v) => v.id));
-    const extra = remoteVoices.filter((v) => !seen.has(v.id));
-    return [...filtered, ...extra].sort((a, b) => {
-      const favoriteDelta = Number(favoriteVoices.includes(b.id)) - Number(favoriteVoices.includes(a.id));
-      return favoriteDelta || a.label.localeCompare(b.label, "fr");
-    });
-  }, [accountVoices, engine, favoriteVoices, voiceQuery, remoteVoices]);
+    const all = [...filtered, ...remoteVoices.filter((v) => !seen.has(v.id))];
+
+    const mark = LANGUAGE_FLAGS[voiceLangTab] ?? "";
+    const byLabel = (a: { label: string }, b: { label: string }) =>
+      a.label.localeCompare(b.label, "fr");
+
+    const favs = all.filter((v) => favoriteVoices.includes(v.id)).sort(byLabel);
+    const rest = all.filter((v) => !favoriteVoices.includes(v.id));
+    const native = rest.filter((v) => mark && v.label.startsWith(mark)).sort(byLabel);
+    const others = rest.filter((v) => !(mark && v.label.startsWith(mark))).sort(byLabel);
+
+    const cap = q ? 120 : 30;
+    const room = Math.max(0, cap - favs.length);
+    const nativeShown = native.slice(0, room);
+    const othersShown = others.slice(0, Math.max(0, room - nativeShown.length));
+
+    return [
+      { key: "fav", label: "Favoris", voices: favs },
+      { key: "native", label: `Voix ${languageLabel(voiceLangTab)}`, voices: nativeShown },
+      { key: "other", label: "Autres voix", voices: othersShown },
+    ].filter((g) => g.voices.length > 0);
+  }, [accountVoices, engine, favoriteVoices, voiceQuery, remoteVoices, voiceLangTab]);
+
+  const availableVoices = useMemo(
+    () => voiceGroups.flatMap((g) => g.voices),
+    [voiceGroups],
+  );
+
 
 
   const toggleFavoriteVoice = () => {
