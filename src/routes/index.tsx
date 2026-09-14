@@ -1908,11 +1908,39 @@ function Studio() {
               ))}
             </div>
 
+            {/* MODE MANUEL — portes 2 et 3 : script (puis traductions) et images. */}
+            <div className="mt-6 flex flex-wrap items-center gap-3 rounded-lg border border-border bg-secondary/30 p-4">
+              <button
+                onClick={async () => {
+                  setScriptValidated(true);
+                  await onTranslateAll(script);
+                }}
+                disabled={translating}
+                className="inline-flex items-center gap-2 rounded-lg border border-border px-4 py-2 text-xs font-bold uppercase tracking-widest hover:border-primary disabled:opacity-50"
+              >
+                {translating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
+                {scriptValidated ? "Retraduire le script" : "Valider le script (traduire)"}
+              </button>
+              <button
+                onClick={() => {
+                  setImagesValidated(true);
+                  toast.success("Images validées — l'animation est débloquée");
+                }}
+                disabled={imagesValidated || !script.scenes.some((s) => states[s.index]?.image)}
+                className="inline-flex items-center gap-2 rounded-lg border border-border px-4 py-2 text-xs font-bold uppercase tracking-widest hover:border-primary disabled:opacity-50"
+              >
+                {imagesValidated ? "Images validées" : "Valider les images"}
+              </button>
+              <span className="text-xs text-muted-foreground">
+                L'animation, seule étape vraiment coûteuse, ne part qu'après validation des images.
+              </span>
+            </div>
+
             <div className="mt-6 rounded-lg border border-border bg-secondary/30 p-4">
               <div className="flex flex-wrap items-center gap-3">
                 <button
                   onClick={onGenerateAll}
-                  disabled={generatingAll}
+                  disabled={generatingAll || !imagesValidated}
                   className="inline-flex items-center gap-2 rounded-lg border border-border px-4 py-2.5 text-xs font-bold uppercase tracking-widest hover:border-primary disabled:opacity-50"
                 >
                   {generatingAll ? (
