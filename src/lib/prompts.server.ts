@@ -269,3 +269,23 @@ export const TOPIC_INTRIGUE = [
   "TEST DE VALIDATION DU SUJET, à appliquer avant de répondre : en lisant le sujet seul, est-ce qu'on a envie de connaître la suite parce qu'on sent qu'on va apprendre quelque chose qui contredit ce qu'on croyait ? Si la réponse est non, propose un autre sujet.",
   "TEST DE SIMPLICITÉ : le sujet doit pouvoir être expliqué à un enfant de 12 ans sans aucune notion technique, sans formule et sans vocabulaire de cours de sciences.",
 ].join("\n");
+
+/**
+ * LEVIERS VIRAUX : les 9 vidéos de référence qui marchent reposent toutes sur
+ * au moins un de ces cinq ressorts. Un sujet qui n'en active aucun est rejeté.
+ */
+export const TOPIC_VIRAL = [
+  "LEVIERS VIRAUX (critère éliminatoire) : le sujet DOIT activer au moins un de ces cinq leviers. S'il n'en active aucun, recommence.",
+  "1. ANCRAGE POP CULTURE : on part d'un film, d'un héros, d'un jeu vidéo, d'une série ou d'un mythe que tout le monde connaît, et on révèle la réalité derrière. Exemples : « Le Spider Sense de Spider-Man a été copié sur les vraies araignées. », « Le Cyclope de l'Odyssée a une origine bien réelle. »",
+  "2. CROYANCE RENVERSÉE : ce que tout le monde tient pour vrai est faux, ou l'inverse. Exemples : « La ville de Troie a vraiment existé. », « De tous les pouvoirs de Spider-Man, un seul est vraiment impossible. »",
+  "3. ENJEU PERSONNEL : ça parle directement de la vie du spectateur, de son corps, de son temps. Exemple : « Plus tu grandis, plus le temps passe vite — et il existe un moyen de le ralentir. »",
+  "4. IMPOSSIBLE MAIS VRAI : un fait qui paraît absurde jusqu'à ce qu'on l'explique. Exemple : « Un méga feu peut créer son propre nuage d'orage. »",
+  "5. CHIFFRE SIDÉRANT : une proportion ou une mesure qu'on refuse de croire. Exemple : « Chez les plus de 110 ans, cette proportion grimpe à 18 %. »",
+  "À REJETER SYSTÉMATIQUEMENT :",
+  "- Les sujets purement explicatifs du type « pourquoi tel phénomène se produit », sans tension ni révélation. Exemple raté : la chute des fourmis expliquée par la physique — rien à renverser, aucun héros, aucun enjeu pour le spectateur.",
+  "- L'HISTOIRE OBSCURE : un événement, un lieu ou un personnage que le grand public ne connaît pas. Sans point d'accroche connu, le spectateur passe.",
+  "- Tout sujet dont la démonstration exige plusieurs notions abstraites.",
+  "TEST DU SCROLL, obligatoire avant de répondre : formule le sujet comme la PREMIÈRE PHRASE de la vidéo, puis demande-toi si quelqu'un qui scrolle s'arrêterait dessus. S'il faut une phrase de contexte avant que ça devienne intéressant, le sujet est mauvais : recommence.",
+  "Le sujet doit tenir en UNE phrase compréhensible sans aucune connaissance préalable, et ne contenir aucun mot qu'un ado ne dirait pas.",
+].join("\n");
+
