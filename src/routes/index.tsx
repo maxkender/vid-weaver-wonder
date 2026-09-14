@@ -1282,7 +1282,45 @@ function Studio() {
     if (lang === sourceLang) setFinalUrl(url);
     if (autoDownload) downloadLang(lang, url, doc?.title ?? "video");
     toast.success(`Vidéo ${languageLabel(lang)} assemblée`);
+    // Sauvegarde en ligne : jamais bloquante, l'export local reste valide.
+    void saveExportOnline(lang, blob, url);
     return url;
+  };
+
+  /**
+   * Envoie la vidéo sur le stockage du projet via une URL signée (le fichier ne
+   * passe pas par le serveur de l'application) puis range le lien avec le projet.
+   * Un échec de stockage n'invalide JAMAIS l'export : il reste téléchargeable.
+   */
+  const saveExportOnline = async (lang: string, blob: Blob, objectUrl: string) => {
+    if (!projectId) return;
+    try {
+      setAssembleStep(`${languageLabel(lang)} — sauvegarde en ligne…`);
+      const { path, token, bucket } = (await runCreateUpload({
+        data: { projectId, language: lang },
+      })) as { path: string; token: string; bucket: string };
+      const { supabase } = await import("@/integrations/supabase/client");
+      const { error } = await supabase.storage
+        .from(bucket)
+        .uploadToSignedUrl(path, token, blob, { contentType: "video/mp4" });
+      if (error) throw new Error(error.message);
+      const { url, expiresAt } = (await runExportUrl({ data: { path, days: 7 } })) as {
+        url: string;
+        expiresAt: number;
+      };
+      const { videoDuration } = await import("@/lib/duration");
+      const duration = await videoDuration(objectUrl);
+      const info: ExportInfo = { path, url, expiresAt, size: blob.size, duration };
+      setExportInfos((prev) => ({ ...prev, [lang]: info }));
+      saveExportToHistory(projectId, lang, info);
+    } catch (e) {
+      console.error(e);
+      toast.warning(
+        `Vidéo ${languageLabel(lang)} : la sauvegarde en ligne a échoué (${
+          e instanceof Error ? e.message : "stockage indisponible"
+        }). La vidéo reste téléchargeable ici.`,
+      );
+    }
   };
 
   /** Nom de fichier suffixé par la langue : mon-sujet-de.mp4 */
