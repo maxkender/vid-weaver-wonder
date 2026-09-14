@@ -6,7 +6,7 @@ import {
   type Script,
 } from "./prompts.server";
 import { languageName } from "./languages";
-import { estimateSpeechSeconds } from "./duration";
+import { fastestWordsPerSecond } from "./duration";
 
 export type BuildScriptInput = {
   topic: string;
