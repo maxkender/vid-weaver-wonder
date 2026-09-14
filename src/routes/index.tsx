@@ -436,9 +436,13 @@ function Studio() {
     perClip: number;
     voices: number;
     languages: number;
+    /** Secondes de vidéo IA économisées si le plan CTA Sophia était décoché. */
+    ctaSaving: number;
   };
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [confirmPayload, setConfirmPayload] = useState<LaunchCost | null>(null);
+  /** Coût réellement commandé depuis le début de la session (clips payants). */
+  const [spent, setSpent] = useState({ clips: 0, seconds: 0 });
   const confirmResolverRef = useRef<((value: boolean) => void) | null>(null);
 
   const requestCostConfirmation = (payload: LaunchCost): Promise<boolean> => {
@@ -880,6 +884,11 @@ function Studio() {
         },
       })) as { id: string };
       patch(scene.index, { videoId: id });
+      // Coût RÉELLEMENT commandé (à comparer avec l'estimation d'avant départ).
+      setSpent((s) => ({
+        clips: s.clips + 1,
+        seconds: s.seconds + Number(seconds ?? 8),
+      }));
 
       for (let attempt = 0; attempt < 90; attempt++) {
         if (cancelledRef.current) {
