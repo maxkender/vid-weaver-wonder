@@ -322,6 +322,7 @@ export const suggestTopic = createServerFn({ method: "POST" })
         "Tu proposes des sujets de vidéos courtes de culture générale.",
         `LANGUE DE SORTIE : écris topic et angle en ${languageName(data.language)}. Adapte les références au public de cette langue.`,
         TOPIC_BRIEF[data.style],
+        TOPIC_INTRIGUE,
         `DOMAINE IMPOSÉ POUR CETTE PROPOSITION : ${domain}. Reste dans ce domaine.`,
         `TYPE D'ANGLE IMPOSÉ : ${angle}.`,
         `ÉPOQUE PRIVILÉGIÉE : ${era}. ZONE PRIVILÉGIÉE : ${place}.`,
