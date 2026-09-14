@@ -886,7 +886,7 @@ function Studio() {
           bible: bibleFor(doc),
           ...(story ? { story } : {}),
           motion: settings.visual[visual].motion,
-          hd: settings.hd,
+          hd: !draft,
         },
       })) as { id: string };
       patch(scene.index, { videoId: id });
