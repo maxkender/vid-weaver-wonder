@@ -578,6 +578,16 @@ function Studio() {
     patch(scene.index, { videoLoading: true, progress: 0, videoUrl: undefined });
     try {
       const image = imageOverride ?? states[scene.index]?.image;
+      // En mode « 1:1 dans 9:16 », on compose nous-mêmes le carré au centre d'un
+      // cadre vertical noir : le modèle vidéo ne produit que du 9:16 et
+      // recadrerait sinon l'image à sa guise (sujet coupé, cadrage instable).
+      // L'image carrée d'origine reste celle affichée et servant de référence.
+      let videoInput = image;
+      if (image && orientation === "square" && settings.precomposeSquare !== false) {
+        const { composeSquareInVertical } = await import("@/lib/square-frame");
+        const dims = settings.hd ? { w: 1080, h: 1920 } : { w: 720, h: 1280 };
+        videoInput = await composeSquareInVertical(image, dims.w, dims.h);
+      }
       const story = storyContext(scene, doc);
       const literalVideoPrompt = [
         `Illustrate exactly this spoken narration: ${scene.narration}`,
