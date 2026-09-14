@@ -13,6 +13,8 @@ import {
   motionPrompt,
   TOPIC_BRIEF,
   TOPIC_INTRIGUE,
+  TOPIC_VIRAL,
+
   type Script,
 } from "./prompts.server";
 
