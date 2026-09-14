@@ -20,6 +20,7 @@ import {
   Pencil,
   Star,
   Trash2,
+  Square,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Toaster } from "@/components/ui/sonner";
@@ -44,6 +45,7 @@ import {
 
 } from "@/lib/studio.functions";
 import { TOPIC_CATEGORIES, type TopicCategory } from "@/lib/topic-categories";
+import { pipelineState, resumePipeline, stopPipeline } from "@/lib/jobs/control.functions";
 
 
 
@@ -260,6 +262,29 @@ function Studio() {
     setStates((prev) => ({ ...prev, [i]: { ...prev[i], ...value } }));
   }, []);
 
+  /**
+   * Drapeau d'arrêt : vérifié AVANT chaque appel payant (image, clip, voix) et
+   * à chaque tour de polling. Rien n'est supprimé, on cesse simplement de
+   * commander de nouveaux appels.
+   */
+  const cancelledRef = useRef(false);
+  const [stopped, setStopped] = useState(false);
+  const [currentStep, setCurrentStep] = useState("");
+
+  const beginRun = useCallback(() => {
+    cancelledRef.current = false;
+    setStopped(false);
+  }, []);
+
+  const stopRun = useCallback(() => {
+    cancelledRef.current = true;
+    setStopped(true);
+    setCurrentStep("Pipeline arrêté");
+    toast.warning("Pipeline arrêté");
+  }, []);
+
+
+
   
   const audioRefs = useRef<Record<number, HTMLAudioElement | null>>({});
   const videoRefs = useRef<Record<number, HTMLVideoElement | null>>({});
@@ -375,9 +400,11 @@ function Studio() {
     resumed.current = true;
     void (async () => {
       for (const [key, st] of pending) {
+        if (cancelledRef.current) return;
         const index = Number(key);
         const id = st!.videoId!;
         for (let attempt = 0; attempt < 60; attempt++) {
+          if (cancelledRef.current) return;
           const job = (await runPoll({ data: { id } }).catch(() => null)) as
             | { status: string; progress: number; error: string | null }
             | null;
@@ -505,6 +532,7 @@ function Studio() {
   };
 
   const onImage = async (scene: Scene, doc: Script | null = script) => {
+    if (cancelledRef.current) return undefined; // appel payant : arrêt demandé
     patch(scene.index, { imageLoading: true });
     try {
       const consistent = settings.useReferenceImage && scene.index > 0;
@@ -546,6 +574,7 @@ function Studio() {
     // Économie de crédits : on ne relance pas un plan déjà généré.
     const done = states[scene.index]?.videoUrl;
     if (done && !imageOverride) return done;
+    if (cancelledRef.current) return undefined; // appel payant : arrêt demandé
     patch(scene.index, { videoLoading: true, progress: 0, videoUrl: undefined });
     try {
       const image = imageOverride ?? states[scene.index]?.image;
@@ -581,7 +610,15 @@ function Studio() {
       patch(scene.index, { videoId: id });
 
       for (let attempt = 0; attempt < 90; attempt++) {
+        if (cancelledRef.current) {
+          patch(scene.index, { videoLoading: false });
+          return undefined;
+        }
         await new Promise((r) => setTimeout(r, 6000));
+        if (cancelledRef.current) {
+          patch(scene.index, { videoLoading: false });
+          return undefined;
+        }
         const job = (await runPoll({ data: { id } })) as {
           status: string;
           progress: number;
@@ -613,9 +650,32 @@ function Studio() {
 
   const [generatingAll, setGeneratingAll] = useState(false);
 
+  /** Coût estimé : plans encore à animer × secondes commandées par plan. */
+  const estimateCost = useCallback(
+    (doc: Script | null = script) => {
+      const scenes = doc?.scenes ?? [];
+      const pending = scenes.filter((s) => !states[s.index]?.videoUrl);
+      const perClip = Math.min(8, Math.max(4, Math.round(targetSeconds / Math.max(1, scenes.length))));
+      return { clips: pending.length, seconds: pending.length * perClip, perClip };
+    },
+    [script, states, targetSeconds],
+  );
+
+  /** Confirmation obligatoire avant toute dépense de crédits en série. */
+  const confirmCost = (doc: Script | null = script) => {
+    const { clips, seconds, perClip } = estimateCost(doc);
+    if (!clips) return true;
+    return window.confirm(
+      `Coût estimé : ${clips} clip${clips > 1 ? "s" : ""} × ${perClip} s = ${seconds} s de vidéo IA facturées.\n\nLancer la génération ?`,
+    );
+  };
+
   const onGenerateAll = async () => {
     if (!script) return;
+    if (!confirmCost(script)) return;
+    beginRun();
     setGeneratingAll(true);
+    setCurrentStep("Génération des plans…");
     try {
       // Les images sont générées EN CHAÎNE (chaque plan voit le plan d'ouverture
       // + le plan précédent) pour que la vidéo se lise comme une seule histoire.
@@ -623,27 +683,33 @@ function Studio() {
       // dépensé deux fois : on saute les plans déjà générés).
       const videoJobs: Promise<unknown>[] = [];
       for (const scene of script.scenes) {
+        if (cancelledRef.current) break;
         const existing = states[scene.index]?.image;
         const image = existing ?? (await onImage(scene));
         if (scene.index === 0 && image) referenceImage.current = image;
         if (image) previousImage.current = image;
         if (states[scene.index]?.videoUrl) continue;
+        if (cancelledRef.current) break;
         // La voix (peu coûteuse) est produite AVANT le clip : on commande alors
         // la durée exacte (4/6/8 s) au lieu de payer 8 s systématiquement.
         const audio = states[scene.index]?.audio ?? (await onVoice(scene))?.audioDataUrl;
         const voiceSeconds = audio ? await audioDuration(audio) : undefined;
+        if (cancelledRef.current) break;
         videoJobs.push(onVideo(scene, image, script, voiceSeconds));
       }
       await Promise.all(videoJobs);
-      toast.success("Toutes les scènes sont prêtes");
+      if (cancelledRef.current) toast.warning("Pipeline arrêté");
+      else toast.success("Toutes les scènes sont prêtes");
     } finally {
       setGeneratingAll(false);
+      setCurrentStep(cancelledRef.current ? "Pipeline arrêté" : "");
     }
   };
 
 
 
   const onVoice = async (scene: Scene) => {
+    if (cancelledRef.current) return undefined; // appel payant : arrêt demandé
     patch(scene.index, { audioLoading: true });
     try {
       const { audioDataUrl, words } = (await runVoice({
@@ -658,6 +724,7 @@ function Studio() {
       return undefined;
     }
   };
+
 
 
 
@@ -842,30 +909,44 @@ function Studio() {
   };
 
   /** Tout d'un coup : images + vidéos + voix off manquantes, puis export MP4. */
-  const onExportEverything = async (scriptOverride?: Script) => {
+  const onExportEverything = async (scriptOverride?: Script, skipConfirm = false) => {
     const doc = scriptOverride ?? script;
     if (!doc) return;
+    if (!skipConfirm && !confirmCost(doc)) return;
+    if (!skipConfirm) beginRun();
     setAssembling(true);
     try {
       setAssembleStep("Génération des scènes manquantes…");
+      setCurrentStep("Images…");
       // Images obligatoirement en chaîne : le plan précédent est la référence
       // visuelle du suivant. Les clips peuvent ensuite être générés en parallèle.
       const prepared: { scene: Scene; st: SceneState; image?: string }[] = [];
       for (const scene of doc.scenes) {
+        if (cancelledRef.current) break;
         const st = states[scene.index] ?? {};
         const image = st.image ?? (await onImage(scene, doc));
         if (scene.index === 0 && image) referenceImage.current = image;
         if (image) previousImage.current = image;
         prepared.push({ scene, st, ...(image ? { image } : {}) });
       }
+      if (cancelledRef.current) {
+        setAssembleStep("Pipeline arrêté");
+        return;
+      }
+      setCurrentStep("Voix off et plans animés…");
       const results = await Promise.all(
         prepared.map(async ({ scene, st, image }) => {
           let audio = st.audio;
           let words = st.words;
-          if (!audio) {
+          if (!audio && !cancelledRef.current) {
             const res = (await runVoice({
               data: { text: scene.narration, voice, engine, language },
-            }).catch(() => null)) as
+            }).catch((e: unknown) => {
+              toast.error(
+                e instanceof Error ? e.message : `Voix off impossible (plan ${scene.index + 1})`,
+              );
+              return null;
+            })) as
               | { audioDataUrl: string; words?: { word: string; start: number; end: number }[] }
               | null;
             if (res) {
@@ -875,22 +956,30 @@ function Studio() {
             }
           }
           const voiceSeconds = audio ? await audioDuration(audio) : undefined;
-          // Un clip raté fait disparaître un plan entier : on retente une fois
-          // avant de laisser l'assemblage retomber sur l'image fixe.
-          let videoUrl = st.videoUrl ?? (await onVideo(scene, image, doc, voiceSeconds));
-          if (!videoUrl) videoUrl = await onVideo(scene, image, doc, voiceSeconds);
+          // AUCUNE relance payante : un clip raté reste en échec (signalé ici)
+          // et l'assemblage retombe sur l'image fixe du plan.
+          const videoUrl = st.videoUrl ?? (await onVideo(scene, image, doc, voiceSeconds));
+          if (!videoUrl && !cancelledRef.current) {
+            toast.warning(`Plan ${scene.index + 1} : clip animé en échec → image fixe`);
+          }
           return [scene.index, { ...st, image, videoUrl, audio, words }] as const;
 
         }),
       );
+      if (cancelledRef.current) {
+        setAssembleStep("Pipeline arrêté");
+        return;
+      }
       const snapshot: Record<number, SceneState | undefined> = { ...states };
       for (const [i, st] of results) snapshot[i] = st as SceneState;
+      setCurrentStep("Montage…");
       await buildFinalVideo(snapshot, true, doc);
     } catch (e) {
       console.error(e);
       toast.error(e instanceof Error ? e.message : "Échec de l'export complet");
     } finally {
       setAssembling(false);
+      setCurrentStep(cancelledRef.current ? "Pipeline arrêté" : "");
     }
   };
 
@@ -909,19 +998,71 @@ function Studio() {
     return () => window.removeEventListener("beforeunload", onBeforeUnload);
   }, [busy]);
 
+  // Coupe-circuit de la file serveur (jobs automatiques de l'OS).
+  const runStopPipeline = useServerFn(stopPipeline);
+  const runResumePipeline = useServerFn(resumePipeline);
+  const runPipelineState = useServerFn(pipelineState);
+  const [pipelinePaused, setPipelinePaused] = useState(false);
+  useEffect(() => {
+    void (async () => {
+      try {
+        const r = (await runPipelineState({})) as { paused: boolean };
+        setPipelinePaused(Boolean(r.paused));
+      } catch {
+        setPipelinePaused(false);
+      }
+    })();
+  }, [runPipelineState]);
+
+  /** STOP global : arrête le navigateur ET la file serveur. */
+  const onStopAll = async () => {
+    stopRun();
+    try {
+      await runStopPipeline({ data: { reason: "Arrêt manuel depuis le studio" } });
+      setPipelinePaused(true);
+    } catch {
+      /* la file serveur peut être indisponible : l'arrêt local reste effectif */
+    }
+  };
+
+  const onResumePipeline = async () => {
+    try {
+      await runResumePipeline({});
+      setPipelinePaused(false);
+      setStopped(false);
+      cancelledRef.current = false;
+      toast.success("File relancée");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Reprise impossible");
+    }
+  };
+
+  /** Panneau d'état : plans prêts / total et coût estimé. */
+  const totalScenes = script?.scenes.length ?? 0;
+  const doneScenes = (script?.scenes ?? []).filter((s) => states[s.index]?.videoUrl).length;
+  const cost = estimateCost();
+
   const onAutoAll = async () => {
     if (!topic.trim()) {
       toast.error("Écris d'abord le sujet de la vidéo");
       return;
     }
+    const perClip = Math.min(8, Math.max(4, Math.round(targetSeconds / Math.max(1, sceneCount))));
+    const ok = window.confirm(
+      `Coût estimé : ${sceneCount} clips × ${perClip} s = ${sceneCount * perClip} s de vidéo IA facturées.\n\nLancer la génération complète ?`,
+    );
+    if (!ok) return;
+    beginRun();
     setAutoRunning(true);
     try {
       setAssembleStep("Écriture du script…");
+      setCurrentStep("Écriture du script…");
       const fresh = await onScript();
-      if (!fresh) return;
-      await onExportEverything(fresh);
+      if (!fresh || cancelledRef.current) return;
+      await onExportEverything(fresh, true);
     } finally {
       setAutoRunning(false);
+      setCurrentStep(cancelledRef.current ? "Pipeline arrêté" : "");
     }
   };
 
@@ -1087,6 +1228,43 @@ function Studio() {
             <Settings className="h-3.5 w-3.5" /> Paramètres
           </Link>
         </div>
+
+        {/* Panneau d'état : étape, avancement, coût estimé et arrêt d'urgence. */}
+        {(busy || stopped || pipelinePaused) && (
+          <div className="mt-4 flex flex-wrap items-center gap-4 rounded-lg border border-border bg-secondary/30 px-4 py-3 text-xs">
+            <span className="uppercase tracking-widest text-muted-foreground">
+              {currentStep || (busy ? "Génération en cours…" : "Pipeline arrêté")}
+            </span>
+            {totalScenes > 0 && (
+              <span className="text-muted-foreground">
+                Plans : {doneScenes}/{totalScenes}
+              </span>
+            )}
+            <span className="text-muted-foreground">
+              Coût estimé : {cost.clips} clip{cost.clips > 1 ? "s" : ""} × {cost.perClip} s ={" "}
+              {cost.seconds} s
+            </span>
+            <div className="ml-auto flex items-center gap-2">
+              {busy && !stopped && (
+                <button
+                  onClick={onStopAll}
+                  className="inline-flex items-center gap-2 rounded-lg border border-destructive px-3 py-1.5 uppercase tracking-widest text-destructive hover:bg-destructive/10"
+                >
+                  <Square className="h-3 w-3" /> Stop
+                </button>
+              )}
+              {pipelinePaused && (
+                <button
+                  onClick={onResumePipeline}
+                  className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-1.5 uppercase tracking-widest hover:border-primary"
+                >
+                  <Play className="h-3 w-3" /> Reprendre
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
 
         {showHistory && (
           <div className="mt-4 space-y-2 rounded-lg border border-border bg-secondary/30 p-4">

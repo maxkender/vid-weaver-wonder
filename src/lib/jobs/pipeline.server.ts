@@ -187,6 +187,7 @@ async function stepVoice(job: RenderJob, t0: number) {
       scene.narration,
       voice,
       job.language,
+      `plan ${i + 1}`,
     );
     scene.audioPath = await uploadDataUrl(`jobs/${job.id}/voice-${i}.mp3`, audioDataUrl);
     scene.words = words;
@@ -318,6 +319,21 @@ async function stepRender(job: RenderJob, origin: string) {
 
 // ---------------------------------------------------------------- boucle
 
+/** Sentinelle d'arrêt : levée si le job est annulé ou la file mise en pause. */
+class Stopped extends Error {}
+
+/**
+ * Vérifié ENTRE CHAQUE ÉTAPE : dès qu'un arrêt est demandé, on rend la main
+ * sans lancer le moindre appel IA payant supplémentaire. Rien n'est effacé :
+ * les images, voix et clips déjà produits sont conservés en base.
+ */
+async function assertRunning(jobId: string) {
+  const control = await isPaused();
+  if (control.paused) throw new Stopped(control.reason ?? "Pipeline en pause");
+  const fresh = await getJob(jobId);
+  if (!fresh || fresh.status === "cancelled") throw new Stopped("Job annulé");
+}
+
 export async function runTick(origin: string) {
   const control = await isPaused();
   if (control.paused) {
@@ -331,30 +347,42 @@ export async function runTick(origin: string) {
   const t0 = started();
   try {
     if (job.status === "queued") {
+      await assertRunning(job.id);
       await stepTopic(job);
       await patchJob(job.id, { status: "scripting", step: "scripting", progress: 0.05 });
       job.status = "scripting";
     }
     if (job.status === "scripting") {
+      await assertRunning(job.id);
       await stepScript(job);
       const fresh = await getJob(job.id);
       if (fresh) Object.assign(job, fresh);
     }
     if (job.status === "images" && !outOfTime(t0)) {
+      await assertRunning(job.id);
       if (await stepImages(job, t0)) job.status = "voice";
     }
     if (job.status === "voice" && !outOfTime(t0)) {
+      await assertRunning(job.id);
       if (await stepVoice(job, t0)) job.status = "clips";
     }
     if (job.status === "clips" && !outOfTime(t0)) {
+      await assertRunning(job.id);
       if (await stepClips(job, t0)) job.status = "rendering";
     }
     if (job.status === "rendering" && !outOfTime(t0)) {
+      await assertRunning(job.id);
       await stepRender(job, origin);
     }
     await releaseJob(job.id);
     return { jobId: job.id, status: job.status };
   } catch (e) {
+    if (e instanceof Stopped) {
+      // Arrêt propre : le bail est libéré, aucun actif n'est supprimé.
+      await patchJob(job.id, { lease_until: null });
+      await logEvent(job.id, job.status, `Arrêt : ${e.message}`, "warn");
+      return { jobId: job.id, stopped: true, reason: e.message };
+    }
     const message = e instanceof Error ? e.message : String(e);
     await logEvent(job.id, job.status, message, "error");
     if (isBlockingError(message)) {
@@ -362,19 +390,15 @@ export async function runTick(origin: string) {
       await patchJob(job.id, { error: message.slice(0, 1000), lease_until: null });
       return { jobId: job.id, paused: true, error: message };
     }
-    // 3 tentatives, puis échec définitif (l'OS est prévenu par le webhook).
-    if (job.attempts >= 3) {
-      await patchJob(job.id, {
-        status: "failed",
-        step: "failed",
-        error: message.slice(0, 1000),
-        lease_until: null,
-      });
-      const { notifyClient } = await import("./notify.server");
-      await notifyClient(job.id);
-    } else {
-      await patchJob(job.id, { error: message.slice(0, 1000), lease_until: null });
-    }
+    // Une seule tentative payante par job : au premier échec, on s'arrête.
+    await patchJob(job.id, {
+      status: "failed",
+      step: "failed",
+      error: message.slice(0, 1000),
+      lease_until: null,
+    });
+    const { notifyClient } = await import("./notify.server");
+    await notifyClient(job.id);
     return { jobId: job.id, error: message };
   }
 }

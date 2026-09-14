@@ -104,13 +104,25 @@ function alignmentToWords(alignment: Alignment | undefined): WordTiming[] {
 /**
  * Synthèse + alignement temporel exact mot par mot : le karaoké est ainsi
  * calé sur la voix réelle et ne peut plus défiler trop vite.
+ *
+ * Pas de repli silencieux : sans alignement réel, les sous-titres seraient
+ * calés sur une estimation et la vidéo sortirait désynchronisée. On remonte
+ * donc une erreur explicite (scène + langue) plutôt que de monter du faux.
  */
 export async function generateElevenSpeechWithTimings(
   text: string,
   voiceId: string,
   language = "fr",
+  context?: string,
 ): Promise<{ audioDataUrl: string; words: WordTiming[] }> {
   const apiKey = apiKeyOrThrow();
+  const where = `${context ? `${context} — ` : ""}langue « ${language} »`;
+
+  let json: {
+    audio_base64?: string;
+    alignment?: Alignment;
+    normalized_alignment?: Alignment;
+  };
   try {
     const res = await callEleven(
       `/v1/text-to-speech/${voiceId}/with-timestamps`,
@@ -118,21 +130,25 @@ export async function generateElevenSpeechWithTimings(
       apiKey,
       language,
     );
-    const json = (await res.json()) as {
-      audio_base64?: string;
-      alignment?: Alignment;
-      normalized_alignment?: Alignment;
-    };
-    if (!json.audio_base64) throw new Error("Réponse ElevenLabs sans audio.");
-    return {
-      audioDataUrl: `data:audio/mpeg;base64,${json.audio_base64}`,
-      words: alignmentToWords(json.alignment ?? json.normalized_alignment),
-    };
-  } catch {
-    // Repli : audio sans alignement (le karaoké estimera les durées).
-    const audioDataUrl = await generateElevenSpeechDataUrl(text, voiceId, language);
-    return { audioDataUrl, words: [] };
+    json = (await res.json()) as typeof json;
+  } catch (e) {
+    throw new Error(
+      `Alignement mot à mot indisponible (${where}) : ${
+        e instanceof Error ? e.message : String(e)
+      }. Aucune vidéo n'est montée sans sous-titres calés sur la voix réelle.`,
+    );
   }
+
+  if (!json.audio_base64) {
+    throw new Error(`Réponse ElevenLabs sans audio (${where}).`);
+  }
+  const words = alignmentToWords(json.alignment ?? json.normalized_alignment);
+  if (!words.length) {
+    throw new Error(
+      `Alignement mot à mot vide (${where}). Aucune vidéo n'est montée sans sous-titres calés sur la voix réelle.`,
+    );
+  }
+  return { audioDataUrl: `data:audio/mpeg;base64,${json.audio_base64}`, words };
 }
 
 /** Voix FR recommandées, épinglées en tête de liste. */
