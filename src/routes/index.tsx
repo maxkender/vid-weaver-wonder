@@ -907,30 +907,44 @@ function Studio() {
   };
 
   /** Tout d'un coup : images + vidéos + voix off manquantes, puis export MP4. */
-  const onExportEverything = async (scriptOverride?: Script) => {
+  const onExportEverything = async (scriptOverride?: Script, skipConfirm = false) => {
     const doc = scriptOverride ?? script;
     if (!doc) return;
+    if (!skipConfirm && !confirmCost(doc)) return;
+    if (!skipConfirm) beginRun();
     setAssembling(true);
     try {
       setAssembleStep("Génération des scènes manquantes…");
+      setCurrentStep("Images…");
       // Images obligatoirement en chaîne : le plan précédent est la référence
       // visuelle du suivant. Les clips peuvent ensuite être générés en parallèle.
       const prepared: { scene: Scene; st: SceneState; image?: string }[] = [];
       for (const scene of doc.scenes) {
+        if (cancelledRef.current) break;
         const st = states[scene.index] ?? {};
         const image = st.image ?? (await onImage(scene, doc));
         if (scene.index === 0 && image) referenceImage.current = image;
         if (image) previousImage.current = image;
         prepared.push({ scene, st, ...(image ? { image } : {}) });
       }
+      if (cancelledRef.current) {
+        setAssembleStep("Pipeline arrêté");
+        return;
+      }
+      setCurrentStep("Voix off et plans animés…");
       const results = await Promise.all(
         prepared.map(async ({ scene, st, image }) => {
           let audio = st.audio;
           let words = st.words;
-          if (!audio) {
+          if (!audio && !cancelledRef.current) {
             const res = (await runVoice({
               data: { text: scene.narration, voice, engine, language },
-            }).catch(() => null)) as
+            }).catch((e: unknown) => {
+              toast.error(
+                e instanceof Error ? e.message : `Voix off impossible (plan ${scene.index + 1})`,
+              );
+              return null;
+            })) as
               | { audioDataUrl: string; words?: { word: string; start: number; end: number }[] }
               | null;
             if (res) {
@@ -940,22 +954,30 @@ function Studio() {
             }
           }
           const voiceSeconds = audio ? await audioDuration(audio) : undefined;
-          // Un clip raté fait disparaître un plan entier : on retente une fois
-          // avant de laisser l'assemblage retomber sur l'image fixe.
-          let videoUrl = st.videoUrl ?? (await onVideo(scene, image, doc, voiceSeconds));
-          if (!videoUrl) videoUrl = await onVideo(scene, image, doc, voiceSeconds);
+          // AUCUNE relance payante : un clip raté reste en échec (signalé ici)
+          // et l'assemblage retombe sur l'image fixe du plan.
+          const videoUrl = st.videoUrl ?? (await onVideo(scene, image, doc, voiceSeconds));
+          if (!videoUrl && !cancelledRef.current) {
+            toast.warning(`Plan ${scene.index + 1} : clip animé en échec → image fixe`);
+          }
           return [scene.index, { ...st, image, videoUrl, audio, words }] as const;
 
         }),
       );
+      if (cancelledRef.current) {
+        setAssembleStep("Pipeline arrêté");
+        return;
+      }
       const snapshot: Record<number, SceneState | undefined> = { ...states };
       for (const [i, st] of results) snapshot[i] = st as SceneState;
+      setCurrentStep("Montage…");
       await buildFinalVideo(snapshot, true, doc);
     } catch (e) {
       console.error(e);
       toast.error(e instanceof Error ? e.message : "Échec de l'export complet");
     } finally {
       setAssembling(false);
+      setCurrentStep(cancelledRef.current ? "Pipeline arrêté" : "");
     }
   };
 
