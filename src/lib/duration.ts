@@ -15,6 +15,16 @@ const WORDS_PER_SECOND: Record<string, number> = {
 
 const DEFAULT_WPS = 2.9;
 
+/** Débit de parole d'une langue (mots par seconde). */
+export function wordsPerSecond(language = "fr") {
+  return WORDS_PER_SECOND[language.slice(0, 2).toLowerCase()] ?? DEFAULT_WPS;
+}
+
+/** Nombre de mots maximum tenant dans `seconds` secondes de voix off. */
+export function maxWordsForSeconds(seconds: number, language = "fr") {
+  return Math.max(4, Math.floor(seconds * wordsPerSecond(language)));
+}
+
 /** Durée de lecture ESTIMÉE d'un texte, selon la langue (repli uniquement). */
 export function estimateSpeechSeconds(text: string, language = "fr") {
   const words = text.trim().split(/\s+/).filter(Boolean).length;

@@ -1,6 +1,12 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { LANGUAGES, type LanguageId } from "@/lib/languages";
+import {
+  LANGUAGES,
+  MASTER_LANGUAGES,
+  MASTER_LANGUAGE_IDS,
+  languageLabel,
+  type LanguageId,
+} from "@/lib/languages";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Clapperboard,
@@ -42,7 +48,7 @@ import {
   searchVoices,
   startSceneVideo,
   suggestTopic,
-
+  translateScript,
 } from "@/lib/studio.functions";
 import { TOPIC_CATEGORIES, type TopicCategory } from "@/lib/topic-categories";
 import { pipelineState, resumePipeline, stopPipeline } from "@/lib/jobs/control.functions";
@@ -98,23 +104,54 @@ type Script = {
   palette?: string;
 };
 
+type WordTiming = { word: string; start: number; end: number };
+
+/** Voix off d'UNE langue pour un plan : audio + alignement mot à mot + durée. */
+type VoiceTake = { audio: string; words: WordTiming[]; duration: number };
+
 type SceneState = {
+  /** MÉDIAS VISUELS — communs à toutes les langues du master, payés une fois. */
   image?: string | undefined;
   imageLoading?: boolean | undefined;
   videoId?: string | undefined;
   videoUrl?: string | undefined;
   videoLoading?: boolean | undefined;
   progress?: number | undefined;
-  audio?: string | undefined;
+  /** MÉDIAS PARLÉS — un enregistrement par langue produite. */
+  voices?: Record<string, VoiceTake> | undefined;
   audioLoading?: boolean | undefined;
-  /** Alignement exact mot par mot renvoyé par la voix off (ElevenLabs). */
-  words?: { word: string; start: number; end: number }[] | undefined;
 };
 
+function voiceOf(st: SceneState | undefined, lang: string): VoiceTake | undefined {
+  return st?.voices?.[lang];
+}
 
+/** Projets d'avant le master : une seule voix, rangée dans la langue source. */
+function migrateStates(
+  raw: Record<number, SceneState & { audio?: string; words?: WordTiming[] }>,
+  sourceLang: string,
+): Record<number, SceneState> {
+  const out: Record<number, SceneState> = {};
+  for (const [k, v] of Object.entries(raw)) {
+    const { audio, words, ...rest } = v;
+    out[Number(k)] = audio
+      ? {
+          ...rest,
+          voices: { ...(rest.voices ?? {}), [sourceLang]: { audio, words: words ?? [], duration: 0 } },
+        }
+      : rest;
+  }
+  return out;
+}
 
-
-type HistoryItem = { id: string; title: string; date: number; script: Script };
+type HistoryItem = {
+  id: string;
+  title: string;
+  date: number;
+  script: Script;
+  /** Script traduit par langue (la langue source pointe sur le script d'origine). */
+  scripts?: Record<string, Script>;
+};
 
 const HISTORY_KEY = "studio-history-v1";
 function readHistory(): HistoryItem[] {
@@ -174,12 +211,64 @@ function Studio() {
   );
 
   const [style, setStyle] = useState<NarrationStyle>("revelation");
-  const [language, setLanguage] = useState<LanguageId>("fr");
   const [visual, setVisual] = useState<VisualStyle>("papercraft");
   const [engine, setEngine] = useState<VoiceEngine>("elevenlabs");
-  const [voice, setVoice] = useState(defaultVoice("elevenlabs"));
   const [accountVoices, setAccountVoices] = useState<{ id: string; label: string }[]>([]);
   const [favoriteVoices, setFavoriteVoices] = useState<string[]>([]);
+
+  // ── MASTER MULTILINGUE ─────────────────────────────────────────────────────
+  // Une langue SOURCE (celle dans laquelle le script est écrit) et les langues
+  // à produire. Les images et les clips sont communs : seule la voix off change.
+  const [sourceLang, setSourceLang] = useState<LanguageId>("fr");
+  const [targetLangs, setTargetLangs] = useState<LanguageId[]>(["fr"]);
+  const language = sourceLang;
+  /** Langues produites, dans l'ordre : la source d'abord. */
+  const langs = useMemo(() => {
+    const rest = MASTER_LANGUAGE_IDS.filter(
+      (l) => l !== sourceLang && targetLangs.includes(l as LanguageId),
+    ) as LanguageId[];
+    return [sourceLang, ...rest];
+  }, [sourceLang, targetLangs]);
+
+  const toggleLang = (id: LanguageId) => {
+    if (id === sourceLang) return; // la langue source n'est jamais décochable
+    setTargetLangs((prev) =>
+      prev.includes(id) ? prev.filter((l) => l !== id) : [...prev, id],
+    );
+  };
+
+  /** Un narrateur ElevenLabs par langue, mémorisé entre les sessions. */
+  const [voiceByLang, setVoiceByLang] = useState<Record<string, string>>({});
+  const [voiceLangTab, setVoiceLangTab] = useState<LanguageId>("fr");
+  useEffect(() => {
+    try {
+      const saved = JSON.parse(
+        localStorage.getItem("studio-voice-by-lang") ?? "{}",
+      ) as Record<string, string>;
+      if (saved && typeof saved === "object") setVoiceByLang(saved);
+    } catch {
+      setVoiceByLang({});
+    }
+  }, []);
+  const voiceForLang = useCallback(
+    (l: string) => voiceByLang[l] ?? defaultVoice(engine),
+    [voiceByLang, engine],
+  );
+  const voice = voiceForLang(voiceLangTab);
+  const setVoice = useCallback(
+    (id: string) =>
+      setVoiceByLang((prev) => {
+        const next = { ...prev, [voiceLangTab]: id };
+        try {
+          localStorage.setItem("studio-voice-by-lang", JSON.stringify(next));
+        } catch {
+          /* quota plein : le choix reste valable pour la session */
+        }
+        return next;
+      }),
+    [voiceLangTab],
+  );
+  useEffect(() => setVoiceLangTab(sourceLang), [sourceLang]);
 
   const runListVoices = useServerFn(listVoices);
   useEffect(() => {
@@ -207,6 +296,30 @@ function Studio() {
   const patch = useCallback((i: number, value: SceneState) => {
     setStates((prev) => ({ ...prev, [i]: { ...prev[i], ...value } }));
   }, []);
+
+  /** Script traduit par langue ; la langue source pointe sur le script d'origine. */
+  const [scripts, setScripts] = useState<Record<string, Script>>({});
+  const scriptsRef = useRef<Record<string, Script>>({});
+  useEffect(() => {
+    scriptsRef.current = scripts;
+  }, [scripts]);
+  /** Langue affichée dans la liste des plans (texte + sous-titres d'aperçu). */
+  const [viewLang, setViewLang] = useState<LanguageId>("fr");
+  useEffect(() => setViewLang(sourceLang), [sourceLang]);
+  const scriptFor = useCallback(
+    (lang: string, fallback: Script | null = null) =>
+      scriptsRef.current[lang] ?? fallback,
+    [],
+  );
+
+  /** MP4 final par langue. */
+  const [finalUrls, setFinalUrls] = useState<Record<string, string>>({});
+  const [translating, setTranslating] = useState(false);
+
+  // MODE MANUEL : portes de validation. Rien de payant ne part sans un clic.
+  const [topicValidated, setTopicValidated] = useState(false);
+  const [scriptValidated, setScriptValidated] = useState(false);
+  const [imagesValidated, setImagesValidated] = useState(false);
 
   /**
    * Drapeau d'arrêt : vérifié AVANT chaque appel payant (image, clip, voix) et
@@ -285,15 +398,25 @@ function Studio() {
   }, []);
 
 
-  const saveHistory = useCallback((id: string, next: Script) => {
-    const items = readHistory().filter((h) => h.id !== id);
-    const updated = [
-      { id, title: next.title || "Sans titre", date: Date.now(), script: next },
-      ...items,
-    ];
-    writeHistory(updated);
-    setHistory(updated);
-  }, []);
+  const saveHistory = useCallback(
+    (id: string, next: Script, allScripts?: Record<string, Script>) => {
+      const items = readHistory().filter((h) => h.id !== id);
+      const previous = readHistory().find((h) => h.id === id);
+      const updated = [
+        {
+          id,
+          title: next.title || "Sans titre",
+          date: Date.now(),
+          script: next,
+          scripts: allScripts ?? previous?.scripts ?? {},
+        },
+        ...items,
+      ];
+      writeHistory(updated);
+      setHistory(updated);
+    },
+    [],
+  );
 
   const updateScene = useCallback(
     (index: number, field: keyof Scene, value: string) => {
@@ -430,6 +553,11 @@ function Studio() {
       })) as Script;
       setScript(result);
       setStates({});
+      setScripts({ [sourceLang]: result });
+      scriptsRef.current = { [sourceLang]: result };
+      setFinalUrls({});
+      setScriptValidated(false);
+      setImagesValidated(false);
       referenceImage.current = null;
       previousImage.current = null;
 
@@ -444,6 +572,97 @@ function Studio() {
     } finally {
       setLoadingScript(false);
     }
+  };
+
+  const runTranslate = useServerFn(translateScript);
+
+  /**
+   * MASTER : traduit le script source dans chaque autre langue cochée.
+   * Les visuels ne sont jamais régénérés — seuls les textes parlés changent.
+   */
+  const onTranslateAll = async (
+    doc: Script | null = script,
+  ): Promise<Record<string, Script> | undefined> => {
+    if (!doc) return undefined;
+    const others = langs.filter((l) => l !== sourceLang);
+    const next: Record<string, Script> = { ...scriptsRef.current, [sourceLang]: doc };
+    if (!others.length) {
+      setScripts(next);
+      scriptsRef.current = next;
+      return next;
+    }
+    setTranslating(true);
+    try {
+      for (const lang of others) {
+        if (cancelledRef.current) break; // arrêt demandé avant une traduction
+        setCurrentStep(`Traduction — ${languageLabel(lang)}…`);
+        setAssembleStep(`Traduction — ${languageLabel(lang)}…`);
+        try {
+          const res = (await runTranslate({
+            data: {
+              title: doc.title ?? "",
+              hook: doc.hook ?? "",
+              cta: doc.cta ?? "",
+              scenes: doc.scenes.map((s) => ({
+                index: s.index,
+                narration: s.narration,
+                overlay: s.overlay ?? "",
+              })),
+              language: lang,
+              maxSceneSeconds: 8,
+            },
+          })) as {
+            title: string;
+            hook: string;
+            cta: string;
+            scenes: { index: number; narration: string; overlay: string }[];
+          };
+          // Les prompts visuels sont repris À L'IDENTIQUE : ils ont déjà servi.
+          const byIndex = new Map(res.scenes.map((s) => [s.index, s]));
+          next[lang] = {
+            ...doc,
+            title: res.title || doc.title,
+            hook: res.hook || doc.hook,
+            cta: res.cta,
+            scenes: doc.scenes.map((s) => ({
+              ...s,
+              narration: byIndex.get(s.index)?.narration ?? s.narration,
+              overlay: byIndex.get(s.index)?.overlay ?? s.overlay,
+            })),
+          };
+          toast.success(`Script traduit — ${languageLabel(lang)}`);
+        } catch (e) {
+          toast.error(
+            e instanceof Error ? e.message : `Traduction impossible (${languageLabel(lang)})`,
+          );
+        }
+      }
+      setScripts(next);
+      scriptsRef.current = next;
+      if (projectId) saveHistory(projectId, doc, next);
+      return next;
+    } finally {
+      setTranslating(false);
+    }
+  };
+
+  /** Met à jour la narration traduite d'un plan (traductions éditables). */
+  const updateTranslatedScene = (lang: string, index: number, value: string) => {
+    setScripts((prev) => {
+      const doc = prev[lang];
+      if (!doc) return prev;
+      const next = {
+        ...prev,
+        [lang]: {
+          ...doc,
+          scenes: doc.scenes.map((s) =>
+            s.index === index ? { ...s, narration: value } : s,
+          ),
+        },
+      };
+      scriptsRef.current = next;
+      return next;
+    });
   };
 
   /** Résumé narratif : ce qui vient d'être raconté et ce qui suit. */
@@ -593,24 +812,103 @@ function Studio() {
 
   const [generatingAll, setGeneratingAll] = useState(false);
 
-  /** Coût estimé : plans encore à animer × secondes commandées par plan. */
+  /**
+   * Coût estimé du MASTER : les clips animés sont payés UNE SEULE FOIS quel que
+   * soit le nombre de langues. Seules les voix off se multiplient par langue.
+   */
   const estimateCost = useCallback(
     (doc: Script | null = script) => {
       const scenes = doc?.scenes ?? [];
       const pending = scenes.filter((s) => !states[s.index]?.videoUrl);
       const perClip = Math.min(8, Math.max(4, Math.round(targetSeconds / Math.max(1, scenes.length))));
-      return { clips: pending.length, seconds: pending.length * perClip, perClip };
+      const voices = scenes.length * langs.length;
+      return {
+        clips: pending.length,
+        seconds: pending.length * perClip,
+        perClip,
+        voices,
+        languages: langs.length,
+      };
     },
-    [script, states, targetSeconds],
+    [script, states, targetSeconds, langs],
   );
 
   /** Confirmation obligatoire avant toute dépense de crédits en série. */
   const confirmCost = (doc: Script | null = script) => {
-    const { clips, seconds, perClip } = estimateCost(doc);
+    const { clips, seconds, perClip, voices, languages } = estimateCost(doc);
     if (!clips) return true;
     return window.confirm(
-      `Coût estimé : ${clips} clip${clips > 1 ? "s" : ""} × ${perClip} s = ${seconds} s de vidéo IA facturées.\n\nLancer la génération ?`,
+      `Coût estimé : ${clips} clip${clips > 1 ? "s" : ""} × ${perClip} s payés UNE SEULE FOIS (${seconds} s de vidéo IA) + ${voices} voix off réparties sur ${languages} langue${languages > 1 ? "s" : ""}.\n\nLancer la génération ?`,
     );
+  };
+
+  /** Voix off d'UN plan dans UNE langue. Rangée dans states[i].voices[lang]. */
+  const onVoice = async (scene: Scene, lang: string = sourceLang) => {
+    if (cancelledRef.current) return undefined; // appel payant : arrêt demandé
+    const doc = scriptFor(lang, script);
+    const text = doc?.scenes.find((s) => s.index === scene.index)?.narration ?? scene.narration;
+    patch(scene.index, { audioLoading: true });
+    try {
+      const { audioDataUrl, words } = (await runVoice({
+        data: { text, voice: voiceForLang(lang), engine, language: lang as LanguageId },
+      })) as { audioDataUrl: string; words?: WordTiming[] };
+      const duration = await audioDuration(audioDataUrl);
+      const take: VoiceTake = { audio: audioDataUrl, words: words ?? [], duration };
+      setStates((prev) => ({
+        ...prev,
+        [scene.index]: {
+          ...prev[scene.index],
+          audioLoading: false,
+          voices: { ...(prev[scene.index]?.voices ?? {}), [lang]: take },
+        },
+      }));
+      return take;
+    } catch (e) {
+      patch(scene.index, { audioLoading: false });
+      toast.error(
+        e instanceof Error
+          ? `${languageLabel(lang)} — ${e.message}`
+          : `Échec de la voix off (${languageLabel(lang)})`,
+      );
+      return undefined;
+    }
+  };
+
+  /**
+   * ÉTAPE d : toutes les voix off, toutes les langues, tous les plans.
+   * Peu coûteux, et c'est ce qui donne la durée réelle de chaque plan dans
+   * chaque langue — donc la longueur de clip à commander une seule fois.
+   */
+  const generateAllVoices = async (
+    doc: Script,
+    snapshot: Record<number, SceneState>,
+  ): Promise<Record<number, SceneState>> => {
+    const out: Record<number, SceneState> = { ...snapshot };
+    for (const lang of langs) {
+      for (const scene of doc.scenes) {
+        if (cancelledRef.current) return out; // arrêt vérifié avant CHAQUE voix
+        if (out[scene.index]?.voices?.[lang]) continue;
+        setCurrentStep(`Voix off ${languageLabel(lang)} — plan ${scene.index + 1}…`);
+        setAssembleStep(`Voix off ${languageLabel(lang)} — plan ${scene.index + 1}…`);
+        const take = await onVoice(scene, lang);
+        if (take) {
+          out[scene.index] = {
+            ...out[scene.index],
+            voices: { ...(out[scene.index]?.voices ?? {}), [lang]: take },
+          };
+        }
+      }
+    }
+    return out;
+  };
+
+  /** Longueur de clip à commander : la langue la plus bavarde décide. */
+  const clipSecondsFor = (st: SceneState | undefined) => {
+    const longest = Math.max(
+      0,
+      ...langs.map((l) => st?.voices?.[l]?.duration ?? 0),
+    );
+    return longest || undefined;
   };
 
   const onGenerateAll = async () => {
@@ -620,56 +918,45 @@ function Studio() {
     setGeneratingAll(true);
     setCurrentStep("Génération des plans…");
     try {
-      // Les images sont générées EN CHAÎNE (chaque plan voit le plan d'ouverture
-      // + le plan précédent) pour que la vidéo se lise comme une seule histoire.
-      // Les vidéos, elles, partent dès que leur image est prête (pas de crédit
-      // dépensé deux fois : on saute les plans déjà générés).
-      const videoJobs: Promise<unknown>[] = [];
+      // a/b — script source déjà écrit, on traduit dans les autres langues.
+      await onTranslateAll(script);
+      if (cancelledRef.current) return;
+
+      // c — images EN CHAÎNE (chaque plan voit le plan d'ouverture + le précédent).
+      let snapshot: Record<number, SceneState> = { ...states };
       for (const scene of script.scenes) {
         if (cancelledRef.current) break;
-        const existing = states[scene.index]?.image;
+        setCurrentStep(`Image — plan ${scene.index + 1}…`);
+        const existing = snapshot[scene.index]?.image;
         const image = existing ?? (await onImage(scene));
         if (scene.index === 0 && image) referenceImage.current = image;
         if (image) previousImage.current = image;
-        if (states[scene.index]?.videoUrl) continue;
+        if (image) snapshot[scene.index] = { ...snapshot[scene.index], image };
+      }
+      if (cancelledRef.current) return;
+
+      // d — voix off de TOUTES les langues.
+      snapshot = await generateAllVoices(script, snapshot);
+      if (cancelledRef.current) return;
+
+      // e/f — un seul clip par plan, dimensionné sur la langue la plus longue.
+      const videoJobs: Promise<unknown>[] = [];
+      for (const scene of script.scenes) {
         if (cancelledRef.current) break;
-        // La voix (peu coûteuse) est produite AVANT le clip : on commande alors
-        // la durée exacte (4/6/8 s) au lieu de payer 8 s systématiquement.
-        const audio = states[scene.index]?.audio ?? (await onVoice(scene))?.audioDataUrl;
-        const voiceSeconds = audio ? await audioDuration(audio) : undefined;
-        if (cancelledRef.current) break;
-        videoJobs.push(onVideo(scene, image, script, voiceSeconds));
+        if (snapshot[scene.index]?.videoUrl) continue;
+        setCurrentStep(`Animation — plan ${scene.index + 1}…`);
+        videoJobs.push(
+          onVideo(scene, snapshot[scene.index]?.image, script, clipSecondsFor(snapshot[scene.index])),
+        );
       }
       await Promise.all(videoJobs);
       if (cancelledRef.current) toast.warning("Pipeline arrêté");
-      else toast.success("Toutes les scènes sont prêtes");
+      else toast.success("Master prêt : plans animés et voix de toutes les langues");
     } finally {
       setGeneratingAll(false);
       setCurrentStep(cancelledRef.current ? "Pipeline arrêté" : "");
     }
   };
-
-
-
-  const onVoice = async (scene: Scene) => {
-    if (cancelledRef.current) return undefined; // appel payant : arrêt demandé
-    patch(scene.index, { audioLoading: true });
-    try {
-      const { audioDataUrl, words } = (await runVoice({
-        data: { text: scene.narration, voice, engine, language },
-      })) as { audioDataUrl: string; words?: { word: string; start: number; end: number }[] };
-      patch(scene.index, { audio: audioDataUrl, words: words ?? [], audioLoading: false });
-      toast.success(`Voix off scène ${scene.index + 1}`);
-      return { audioDataUrl, words: words ?? [] };
-    } catch (e) {
-      patch(scene.index, { audioLoading: false });
-      toast.error(e instanceof Error ? e.message : "Échec de la voix off");
-      return undefined;
-    }
-  };
-
-
-
 
   const onPreviewVoice = async () => {
     setPreviewVoice(true);
@@ -682,7 +969,7 @@ function Studio() {
             text: "Et si je te racontais un fait que presque personne ne connaît ? Écoute bien.",
             voice,
             engine,
-            language,
+            language: voiceLangTab,
           },
         })) as { audioDataUrl: string };
         src = audioDataUrl;
@@ -708,13 +995,17 @@ function Studio() {
     [script, states],
   );
 
-
+  /**
+   * Montage d'UNE langue : les mêmes clips animés, la voix et les sous-titres
+   * de cette langue. Aucun visuel n'est régénéré.
+   */
   const buildFinalVideo = async (
     snapshot: Record<number, SceneState | undefined>,
     autoDownload: boolean,
     scriptOverride?: Script,
+    lang: string = sourceLang,
   ) => {
-    const doc = scriptOverride ?? script;
+    const doc = scriptFor(lang, scriptOverride ?? script);
 
     const { assembleVideo } = await import("@/lib/assemble-video");
     const { randomTrack } = await import("@/lib/music-store");
@@ -731,44 +1022,41 @@ function Studio() {
       .filter((x) => Boolean(x.st.videoUrl || x.st.image));
     if (!all.length) throw new Error("Aucune scène à assembler.");
 
-    // Un plan sans voix off produirait un blanc silencieux (typiquement le hook
-    // du début) : on refabrique la voix manquante AVANT d'assembler, pour ne
-    // jamais perdre le début de l'histoire.
+    // Un plan sans voix off produirait un blanc silencieux : on refabrique la
+    // voix manquante de CETTE langue avant d'assembler.
     for (const item of all) {
-      if (item.st.audio) continue;
-      setAssembleStep(`Voix off manquante — scène ${item.scene.index + 1}…`);
-      const res = await onVoice(item.scene);
+      if (voiceOf(item.st, lang)) continue;
+      setAssembleStep(`Voix off manquante — ${languageLabel(lang)}, scène ${item.scene.index + 1}…`);
+      const res = await onVoice(item.scene, lang);
       if (!res) {
         throw new Error(
-          `La voix off de la scène ${item.scene.index + 1} n'a pas pu être générée : relance l'export.`,
+          `La voix off de la scène ${item.scene.index + 1} (${languageLabel(lang)}) n'a pas pu être générée : relance l'export.`,
         );
       }
-      item.st = { ...item.st, audio: res.audioDataUrl, words: res.words };
-
+      item.st = { ...item.st, voices: { ...(item.st.voices ?? {}), [lang]: res } };
     }
     const ordered = all;
-
-
-
 
     // Papier découpé : masque carré à coins arrondis, toujours présent.
     const mask = useSquareMask
       ? await makeRoundedSquareMask(dims.width, dims.height)
       : null;
 
-    setAssembleStep("Préparation des sous-titres…");
+    setAssembleStep(`Préparation des sous-titres — ${languageLabel(lang)}…`);
     const withDurations = await Promise.all(
       ordered.map(async ({ scene, st }) => {
-        const raw = st.audio ? await audioDuration(st.audio) : undefined;
+        const take = voiceOf(st, lang);
+        const raw = take ? take.duration || (await audioDuration(take.audio)) : undefined;
         // Silences de tête/queue retirés : la voix démarre tout de suite et le
         // plan s'arrête au dernier mot.
-        const win = raw ? voiceWindow(st.words ?? null, raw) : null;
+        const win = raw ? voiceWindow(take?.words ?? null, raw) : null;
         const duration = win ? win.end - win.start : raw;
-        const words = win ? shiftTimings(st.words ?? null, win.start) : (st.words ?? []);
+        const words = win ? shiftTimings(take?.words ?? null, win.start) : (take?.words ?? []);
+        const narration = scene.narration;
         return {
           ...(st.videoUrl ? { videoUrl: st.videoUrl } : {}),
           ...(st.image ? { imageUrl: st.image } : {}),
-          audio: st.audio,
+          audio: take?.audio,
           ...(win ? { trimStart: win.start, trimEnd: win.end } : {}),
           mask,
 
@@ -778,14 +1066,14 @@ function Studio() {
           cues: duration
             ? () =>
                 makeCaptionCues(
-                  scene.narration,
+                  narration,
                   dims.width,
                   dims.height,
                   duration,
                   words,
                   settings.sophiaLogo
                     ? (() => {
-                        const w = sophiaWindow(scene.narration, duration, words);
+                        const w = sophiaWindow(narration, duration, words);
                         return w ? { url: sophiaLogo.url, ...w } : null;
                       })()
                     : null,
@@ -794,12 +1082,9 @@ function Studio() {
           // Jamais de gros titre en majuscules : pas d'overlay de secours.
           overlay: null,
           duration,
-
         };
       }),
     );
-
-
 
     const track = await randomTrack(style);
     if (track) setAssembleStep(`Musique : ${track.name}`);
@@ -812,28 +1097,42 @@ function Studio() {
       ...dims,
       music: track?.blob,
       musicVolume: settings.musicVolume,
-      onProgress: (step) => setAssembleStep(step),
+      onProgress: (step) => setAssembleStep(`${languageLabel(lang)} — ${step}`),
     });
 
-    if (projectId) {
+    if (projectId && lang === sourceLang) {
       const { saveFinalVideo } = await import("@/lib/project-store");
       await saveFinalVideo(projectId, blob);
     }
 
     const url = URL.createObjectURL(blob);
-    setFinalUrl((prev) => {
-      if (prev) URL.revokeObjectURL(prev);
-      return url;
+    setFinalUrls((prev) => {
+      const old = prev[lang];
+      if (old) URL.revokeObjectURL(old);
+      return { ...prev, [lang]: url };
     });
-    if (autoDownload) {
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `${(doc?.title ?? "video").replace(/[^\p{L}\p{N}]+/gu, "-").toLowerCase()}.mp4`;
-      a.click();
-    }
-    toast.success(
-      track ? `Vidéo assemblée (musique : ${track.name})` : "Vidéo finale assemblée",
-    );
+    if (lang === sourceLang) setFinalUrl(url);
+    if (autoDownload) downloadLang(lang, url, doc?.title ?? "video");
+    toast.success(`Vidéo ${languageLabel(lang)} assemblée`);
+    return url;
+  };
+
+  /** Nom de fichier suffixé par la langue : mon-sujet-de.mp4 */
+  const downloadLang = (lang: string, url: string, title: string) => {
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${title.replace(/[^\p{L}\p{N}]+/gu, "-").toLowerCase()}-${lang}.mp4`;
+    a.click();
+  };
+
+  const onDownloadAll = () => {
+    const title = script?.title ?? "video";
+    langs.forEach((lang, i) => {
+      const url = finalUrls[lang];
+      if (!url) return;
+      // Les navigateurs bloquent les téléchargements simultanés : on les espace.
+      setTimeout(() => downloadLang(lang, url, title), i * 700);
+    });
   };
 
   const onAssemble = async () => {
@@ -841,7 +1140,10 @@ function Studio() {
     setAssembling(true);
     setAssembleStep("Préparation…");
     try {
-      await buildFinalVideo(states, false);
+      for (const lang of langs) {
+        if (cancelledRef.current) break; // arrêt vérifié entre chaque langue
+        await buildFinalVideo(states, false, undefined, lang);
+      }
     } catch (e) {
       console.error(e);
       toast.error(e instanceof Error ? e.message : "Échec de l'assemblage");
@@ -850,7 +1152,7 @@ function Studio() {
     }
   };
 
-  /** Tout d'un coup : images + vidéos + voix off manquantes, puis export MP4. */
+  /** MASTER complet : traductions → images → voix de toutes les langues → clips → un MP4 par langue. */
   const onExportEverything = async (scriptOverride?: Script, skipConfirm = false) => {
     const doc = scriptOverride ?? script;
     if (!doc) return;
@@ -858,64 +1160,65 @@ function Studio() {
     if (!skipConfirm) beginRun();
     setAssembling(true);
     try {
-      setAssembleStep("Génération des scènes manquantes…");
+      // b — traductions.
+      setCurrentStep("Traductions…");
+      await onTranslateAll(doc);
+      if (cancelledRef.current) {
+        setAssembleStep("Pipeline arrêté");
+        return;
+      }
+
+      // c — images en chaîne : le plan précédent est la référence du suivant.
+      setAssembleStep("Génération des images…");
       setCurrentStep("Images…");
-      // Images obligatoirement en chaîne : le plan précédent est la référence
-      // visuelle du suivant. Les clips peuvent ensuite être générés en parallèle.
-      const prepared: { scene: Scene; st: SceneState; image?: string }[] = [];
+      let snapshot: Record<number, SceneState> = { ...states };
       for (const scene of doc.scenes) {
         if (cancelledRef.current) break;
-        const st = states[scene.index] ?? {};
+        const st = snapshot[scene.index] ?? {};
         const image = st.image ?? (await onImage(scene, doc));
         if (scene.index === 0 && image) referenceImage.current = image;
         if (image) previousImage.current = image;
-        prepared.push({ scene, st, ...(image ? { image } : {}) });
+        snapshot[scene.index] = { ...st, ...(image ? { image } : {}) };
       }
       if (cancelledRef.current) {
         setAssembleStep("Pipeline arrêté");
         return;
       }
-      setCurrentStep("Voix off et plans animés…");
+
+      // d — voix off de toutes les langues (c'est elles qui donnent les durées).
+      snapshot = await generateAllVoices(doc, snapshot);
+      if (cancelledRef.current) {
+        setAssembleStep("Pipeline arrêté");
+        return;
+      }
+
+      // e/f — clips animés, une seule fois, calibrés sur la langue la plus longue.
+      setCurrentStep("Plans animés…");
       const results = await Promise.all(
-        prepared.map(async ({ scene, st, image }) => {
-          let audio = st.audio;
-          let words = st.words;
-          if (!audio && !cancelledRef.current) {
-            const res = (await runVoice({
-              data: { text: scene.narration, voice, engine, language },
-            }).catch((e: unknown) => {
-              toast.error(
-                e instanceof Error ? e.message : `Voix off impossible (plan ${scene.index + 1})`,
-              );
-              return null;
-            })) as
-              | { audioDataUrl: string; words?: { word: string; start: number; end: number }[] }
-              | null;
-            if (res) {
-              audio = res.audioDataUrl;
-              words = res.words ?? [];
-              patch(scene.index, { audio, words });
-            }
-          }
-          const voiceSeconds = audio ? await audioDuration(audio) : undefined;
+        doc.scenes.map(async (scene) => {
+          const st = snapshot[scene.index] ?? {};
           // AUCUNE relance payante : un clip raté reste en échec (signalé ici)
           // et l'assemblage retombe sur l'image fixe du plan.
-          const videoUrl = st.videoUrl ?? (await onVideo(scene, image, doc, voiceSeconds));
+          const videoUrl =
+            st.videoUrl ?? (await onVideo(scene, st.image, doc, clipSecondsFor(st)));
           if (!videoUrl && !cancelledRef.current) {
             toast.warning(`Plan ${scene.index + 1} : clip animé en échec → image fixe`);
           }
-          return [scene.index, { ...st, image, videoUrl, audio, words }] as const;
-
+          return [scene.index, { ...st, ...(videoUrl ? { videoUrl } : {}) }] as const;
         }),
       );
       if (cancelledRef.current) {
         setAssembleStep("Pipeline arrêté");
         return;
       }
-      const snapshot: Record<number, SceneState | undefined> = { ...states };
       for (const [i, st] of results) snapshot[i] = st as SceneState;
-      setCurrentStep("Montage…");
-      await buildFinalVideo(snapshot, true, doc);
+
+      // g — montage : une vidéo par langue, avec les MÊMES clips.
+      for (const lang of langs) {
+        if (cancelledRef.current) break; // arrêt vérifié entre chaque langue
+        setCurrentStep(`Montage — ${languageLabel(lang)}…`);
+        await buildFinalVideo(snapshot, true, doc, lang);
+      }
     } catch (e) {
       console.error(e);
       toast.error(e instanceof Error ? e.message : "Échec de l'export complet");
@@ -991,10 +1294,14 @@ function Studio() {
     }
     const perClip = Math.min(8, Math.max(4, Math.round(targetSeconds / Math.max(1, sceneCount))));
     const ok = window.confirm(
-      `Coût estimé : ${sceneCount} clips × ${perClip} s = ${sceneCount * perClip} s de vidéo IA facturées.\n\nLancer la génération complète ?`,
+      `Coût estimé : ${sceneCount} clips × ${perClip} s payés UNE SEULE FOIS (${sceneCount * perClip} s de vidéo IA) + ${sceneCount * langs.length} voix off pour ${langs.length} langue${langs.length > 1 ? "s" : ""}.\n\nLancer la génération complète ?`,
     );
     if (!ok) return;
     beginRun();
+    // Mode automatique : mêmes étapes, sans les portes de validation.
+    setTopicValidated(true);
+    setScriptValidated(true);
+    setImagesValidated(true);
     setAutoRunning(true);
     try {
       setAssembleStep("Écriture du script…");
@@ -1075,17 +1382,20 @@ function Studio() {
         orientation === "horizontal"
           ? { width: settings.hd ? 1920 : 1280, height: settings.hd ? 1080 : 720 }
           : { width: settings.hd ? 1080 : 720, height: settings.hd ? 1920 : 1280 };
-      const rawDuration = st.audio ? await audioDuration(st.audio) : undefined;
-      const win = rawDuration ? voiceWindow(st.words ?? null, rawDuration) : null;
+      // On exporte le plan dans la langue actuellement affichée.
+      const take = voiceOf(st, viewLang);
+      const narration =
+        scriptFor(viewLang, script)?.scenes.find((s) => s.index === scene.index)?.narration ??
+        scene.narration;
+      const rawDuration = take ? take.duration || (await audioDuration(take.audio)) : undefined;
+      const win = rawDuration ? voiceWindow(take?.words ?? null, rawDuration) : null;
       const duration = win ? win.end - win.start : rawDuration;
-      const sceneWords = win ? shiftTimings(st.words ?? null, win.start) : (st.words ?? []);
+      const sceneWords = win ? shiftTimings(take?.words ?? null, win.start) : (take?.words ?? []);
       const logoWin =
-        settings.sophiaLogo && duration
-          ? sophiaWindow(scene.narration, duration, sceneWords)
-          : null;
+        settings.sophiaLogo && duration ? sophiaWindow(narration, duration, sceneWords) : null;
       const cues = duration
         ? await makeCaptionCues(
-            scene.narration,
+            narration,
             dims.width,
             dims.height,
             duration,
@@ -1101,7 +1411,7 @@ function Studio() {
         [
           {
             videoUrl: st.videoUrl,
-            audio: st.audio,
+            audio: take?.audio,
             ...(win ? { trimStart: win.start, trimEnd: win.end } : {}),
             cues,
             mask,
@@ -1190,8 +1500,9 @@ function Studio() {
               </span>
             )}
             <span className="text-muted-foreground">
-              Coût estimé : {cost.clips} clip{cost.clips > 1 ? "s" : ""} × {cost.perClip} s ={" "}
-              {cost.seconds} s
+              Coût estimé : {cost.clips} clip{cost.clips > 1 ? "s" : ""} × {cost.perClip} s payés une
+              seule fois + {cost.voices} voix off ({cost.languages} langue
+              {cost.languages > 1 ? "s" : ""})
             </span>
             <div className="ml-auto flex items-center gap-2">
               {!pipelinePaused && !(busy && stopped) && (
@@ -1226,10 +1537,14 @@ function Studio() {
                     setScript(h.script);
                     setProjectId(h.id);
                     setFinalUrl(null);
+                    setFinalUrls({});
+                    const saved = { ...(h.scripts ?? {}), [sourceLang]: h.script };
+                    setScripts(saved);
+                    scriptsRef.current = saved;
                     setShowHistory(false);
                     const { loadProjectMedia } = await import("@/lib/project-store");
                     const media = await loadProjectMedia(h.id);
-                    setStates(media);
+                    setStates(migrateStates(media as Record<number, SceneState>, sourceLang));
                     const { loadFinalVideo } = await import("@/lib/project-store");
                     const savedFinal = await loadFinalVideo(h.id);
                     if (savedFinal) setFinalUrl(URL.createObjectURL(savedFinal));
@@ -1344,12 +1659,16 @@ function Studio() {
                 htmlFor="video-language"
                 className="text-xs uppercase tracking-widest text-muted-foreground"
               >
-                Langue de la vidéo
+                Langue d'écriture
               </label>
               <select
                 id="video-language"
-                value={language}
-                onChange={(e) => setLanguage(e.target.value as LanguageId)}
+                value={sourceLang}
+                onChange={(e) => {
+                  const next = e.target.value as LanguageId;
+                  setSourceLang(next);
+                  setTargetLangs((prev) => (prev.includes(next) ? prev : [...prev, next]));
+                }}
                 className="mt-2 w-full rounded-lg border border-input bg-background/60 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
               >
                 {LANGUAGES.map((l) => (
@@ -1359,7 +1678,36 @@ function Studio() {
                 ))}
               </select>
               <p className="mt-1 text-xs text-muted-foreground">
-                Script, voix off et sous-titres sont générés dans cette langue.
+                Le script est écrit dans cette langue, puis traduit dans les autres.
+              </p>
+
+              <p className="mt-4 text-xs uppercase tracking-widest text-muted-foreground">
+                Langues à produire
+              </p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {MASTER_LANGUAGES.map((l) => {
+                  const active = l.id === sourceLang || targetLangs.includes(l.id as LanguageId);
+                  return (
+                    <button
+                      key={l.id}
+                      type="button"
+                      onClick={() => toggleLang(l.id as LanguageId)}
+                      disabled={l.id === sourceLang}
+                      className={`rounded-full border px-4 py-2 text-sm transition-colors ${
+                        active
+                          ? "border-primary bg-primary/15 text-foreground"
+                          : "border-border bg-secondary/40 text-muted-foreground hover:text-foreground"
+                      } ${l.id === sourceLang ? "opacity-70" : ""}`}
+                    >
+                      {l.label}
+                      {l.id === sourceLang ? " · source" : ""}
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Images et plans animés sont payés une seule fois : seules les voix off
+                se multiplient.
               </p>
             </div>
 
@@ -1498,10 +1846,25 @@ function Studio() {
               <p className="-mt-1 text-center text-xs text-muted-foreground">{assembleStep}</p>
             )}
 
+            {/* MODE MANUEL — porte 1 : le sujet. Rien de payant avant ce clic. */}
+            <button
+              onClick={() => {
+                if (!topic.trim()) {
+                  toast.error("Écris d'abord le sujet de la vidéo");
+                  return;
+                }
+                setTopicValidated(true);
+                toast.success("Sujet validé — tu peux générer le script");
+              }}
+              disabled={topicValidated}
+              className="inline-flex items-center justify-center gap-2 rounded-lg border border-border px-5 py-3 text-xs font-bold uppercase tracking-widest hover:border-primary disabled:opacity-50"
+            >
+              {topicValidated ? "Sujet validé" : "Valider le sujet"}
+            </button>
+
             <button
               onClick={() => void onScript()}
-
-              disabled={loadingScript}
+              disabled={loadingScript || !topicValidated}
               className="btn-gold inline-flex items-center justify-center gap-2 rounded-lg px-5 py-3 text-sm font-bold uppercase tracking-wider disabled:opacity-60"
             >
               {loadingScript ? (
@@ -1511,6 +1874,18 @@ function Studio() {
               )}
               Générer le script
             </button>
+            <p className="-mt-1 text-center text-xs text-muted-foreground">
+              Étape suivante :{" "}
+              {!topicValidated
+                ? "valider le sujet"
+                : !script
+                  ? "écrire le script (gratuit)"
+                  : !scriptValidated
+                    ? "valider le script pour lancer les traductions"
+                    : !imagesValidated
+                      ? "générer puis valider les images"
+                      : "animer les plans (payant)"}
+            </p>
           </div>
         </div>
       </section>
@@ -1537,11 +1912,39 @@ function Studio() {
               ))}
             </div>
 
+            {/* MODE MANUEL — portes 2 et 3 : script (puis traductions) et images. */}
+            <div className="mt-6 flex flex-wrap items-center gap-3 rounded-lg border border-border bg-secondary/30 p-4">
+              <button
+                onClick={async () => {
+                  setScriptValidated(true);
+                  await onTranslateAll(script);
+                }}
+                disabled={translating}
+                className="inline-flex items-center gap-2 rounded-lg border border-border px-4 py-2 text-xs font-bold uppercase tracking-widest hover:border-primary disabled:opacity-50"
+              >
+                {translating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
+                {scriptValidated ? "Retraduire le script" : "Valider le script (traduire)"}
+              </button>
+              <button
+                onClick={() => {
+                  setImagesValidated(true);
+                  toast.success("Images validées — l'animation est débloquée");
+                }}
+                disabled={imagesValidated || !script.scenes.some((s) => states[s.index]?.image)}
+                className="inline-flex items-center gap-2 rounded-lg border border-border px-4 py-2 text-xs font-bold uppercase tracking-widest hover:border-primary disabled:opacity-50"
+              >
+                {imagesValidated ? "Images validées" : "Valider les images"}
+              </button>
+              <span className="text-xs text-muted-foreground">
+                L'animation, seule étape vraiment coûteuse, ne part qu'après validation des images.
+              </span>
+            </div>
+
             <div className="mt-6 rounded-lg border border-border bg-secondary/30 p-4">
               <div className="flex flex-wrap items-center gap-3">
                 <button
                   onClick={onGenerateAll}
-                  disabled={generatingAll}
+                  disabled={generatingAll || !imagesValidated}
                   className="inline-flex items-center gap-2 rounded-lg border border-border px-4 py-2.5 text-xs font-bold uppercase tracking-widest hover:border-primary disabled:opacity-50"
                 >
                   {generatingAll ? (
@@ -1581,17 +1984,44 @@ function Studio() {
                     ? assembleStep
                     : `${readyScenes.length}/${script.scenes.length} scènes animées`}
                 </span>
-                {finalUrl && (
-                  <a
-                    href={finalUrl}
-                    download="video-finale.mp4"
+                {Object.keys(finalUrls).length > 1 && (
+                  <button
+                    onClick={onDownloadAll}
                     className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-xs uppercase tracking-widest hover:border-primary"
                   >
-                    <Download className="h-3.5 w-3.5" /> MP4 final
-                  </a>
+                    <Download className="h-3.5 w-3.5" /> Tout télécharger
+                  </button>
                 )}
               </div>
-              {finalUrl && (
+
+              {/* Une vidéo par langue : mêmes clips, voix et sous-titres différents. */}
+              <div className="mt-4 grid gap-4 md:grid-cols-2">
+                {langs
+                  .filter((l) => finalUrls[l])
+                  .map((l) => (
+                    <div key={l} className="rounded-lg border border-border p-3">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-xs uppercase tracking-widest text-muted-foreground">
+                          {languageLabel(l)} · {l}
+                        </span>
+                        <a
+                          href={finalUrls[l]}
+                          download={`${(script.title || "video").replace(/[^\p{L}\p{N}]+/gu, "-").toLowerCase()}-${l}.mp4`}
+                          className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-1.5 text-xs uppercase tracking-widest hover:border-primary"
+                        >
+                          <Download className="h-3.5 w-3.5" /> MP4
+                        </a>
+                      </div>
+                      <video
+                        src={finalUrls[l]}
+                        controls
+                        playsInline
+                        className="mt-3 max-h-[60vh] w-full rounded-lg bg-black object-contain"
+                      />
+                    </div>
+                  ))}
+              </div>
+              {!Object.keys(finalUrls).length && finalUrl && (
                 <video
                   src={finalUrl}
                   controls
@@ -1630,9 +2060,36 @@ function Studio() {
 
           </div>
 
+          {langs.length > 1 && (
+            <div className="mt-6 flex flex-wrap items-center gap-2">
+              <span className="text-xs uppercase tracking-widest text-muted-foreground">
+                Langue affichée
+              </span>
+              {langs.map((l) => (
+                <button
+                  key={l}
+                  type="button"
+                  onClick={() => setViewLang(l)}
+                  className={`rounded-full border px-3 py-1.5 text-xs uppercase tracking-widest transition-colors ${
+                    viewLang === l
+                      ? "border-primary bg-primary/15 text-foreground"
+                      : "border-border bg-secondary/40 text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {languageLabel(l)}
+                </button>
+              ))}
+              {translating && (
+                <span className="text-xs text-muted-foreground">Traduction en cours…</span>
+              )}
+            </div>
+          )}
+
           <div className="mt-8 grid gap-6 lg:grid-cols-2">
-            {script.scenes.map((scene) => {
+            {(scriptFor(viewLang, script) ?? script).scenes.map((scene) => {
               const st = states[scene.index] ?? {};
+              const take = voiceOf(st, viewLang);
+              const isSource = viewLang === sourceLang;
               return (
                 <article key={scene.index} className="surface-card overflow-hidden">
                   <div
@@ -1652,7 +2109,7 @@ function Studio() {
                         loop
                         playsInline
                         preload="metadata"
-                        muted={Boolean(st.audio)}
+                        muted={Boolean(take?.audio)}
                         {...(st.image ? { poster: st.image } : {})}
                         onPlay={(e) => {
                           const a = audioRefs.current[scene.index];
@@ -1693,7 +2150,7 @@ function Studio() {
                     <KaraokeCaption
                       text={scene.narration}
                       fallback={scene.overlay}
-                      words={st.words}
+                      words={take?.words}
                       showLogo={settings.sophiaLogo}
                       getMedia={() =>
                         audioRefs.current[scene.index] ?? videoRefs.current[scene.index] ?? null
@@ -1722,7 +2179,11 @@ function Studio() {
                       <div className="mt-3 space-y-2">
                         <textarea
                           value={scene.narration}
-                          onChange={(e) => updateScene(scene.index, "narration", e.target.value)}
+                          onChange={(e) =>
+                            isSource
+                              ? updateScene(scene.index, "narration", e.target.value)
+                              : updateTranslatedScene(viewLang, scene.index, e.target.value)
+                          }
                           rows={3}
                           className="w-full rounded-lg border border-border bg-background p-2 text-sm"
                         />
@@ -1751,8 +2212,8 @@ function Studio() {
                       <p className="mt-2 text-sm">{scene.narration}</p>
                     )}
                     <p className="mt-2 text-xs uppercase tracking-widest text-muted-foreground">
-                      ≈ {estimateSpeechSeconds(scene.narration, language).toFixed(1)} s de voix
-                      {estimateSpeechSeconds(scene.narration, language) > 8 && " — plus long que le clip, le plan sera légèrement ralenti"}
+                      ≈ {estimateSpeechSeconds(scene.narration, viewLang).toFixed(1)} s de voix
+                      {estimateSpeechSeconds(scene.narration, viewLang) > 8 && " — plus long que le clip, le plan sera légèrement ralenti"}
                     </p>
 
                     <div className="mt-4 flex flex-wrap gap-2">
@@ -1761,7 +2222,8 @@ function Studio() {
                         disabled={st.imageLoading}
                         className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-xs uppercase tracking-widest hover:border-primary disabled:opacity-50"
                       >
-                        <ImageIcon className="h-3.5 w-3.5" /> Image
+                        <ImageIcon className="h-3.5 w-3.5" />
+                        {st.image ? "Regénérer cette image" : "Image"}
                       </button>
                       <button
                         onClick={() =>
@@ -1774,13 +2236,13 @@ function Studio() {
                       </button>
                       <button
                         onClick={() => onVideo(scene)}
-                        disabled={st.videoLoading}
+                        disabled={st.videoLoading || !imagesValidated}
                         className="btn-gold inline-flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-bold uppercase tracking-widest disabled:opacity-50"
                       >
                         <Play className="h-3.5 w-3.5" /> Animer
                       </button>
                       <button
-                        onClick={() => onVoice(scene)}
+                        onClick={() => onVoice(scene, viewLang)}
                         disabled={st.audioLoading}
                         className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-xs uppercase tracking-widest hover:border-primary disabled:opacity-50"
                       >
@@ -1791,10 +2253,10 @@ function Studio() {
                         )}
                         Voix off
                       </button>
-                      {st.audio && (
+                      {take?.audio && (
                         <a
-                          href={st.audio}
-                          download={`scene-${scene.index + 1}.mp3`}
+                          href={take.audio}
+                          download={`scene-${scene.index + 1}-${viewLang}.mp3`}
                           className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-xs uppercase tracking-widest hover:border-primary"
                         >
                           <Download className="h-3.5 w-3.5" /> MP3
@@ -1826,12 +2288,13 @@ function Studio() {
 
                     </div>
 
-                    {st.audio && (
+                    {take?.audio && (
                       <audio
+                        key={viewLang}
                         ref={(el) => {
                           audioRefs.current[scene.index] = el;
                         }}
-                        src={st.audio}
+                        src={take.audio}
                         controls
                         className="mt-4 w-full"
                       />

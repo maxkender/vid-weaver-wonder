@@ -51,6 +51,78 @@ export const generateScript = createServerFn({ method: "POST" })
   });
 
 
+/**
+ * MASTER MULTILINGUE : traduit UNIQUEMENT la partie parlée d'un script.
+ * imagePrompt / videoPrompt / characters / palette ne sont même pas envoyés :
+ * ils ont déjà servi à fabriquer les visuels et restent en anglais, inchangés.
+ */
+export const translateScript = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        title: z.string().max(300).default(""),
+        hook: z.string().max(1000).default(""),
+        cta: z.string().max(1000).default(""),
+        scenes: z
+          .array(
+            z.object({
+              index: z.number().int(),
+              narration: z.string().max(2000),
+              overlay: z.string().max(300).default(""),
+            }),
+          )
+          .min(1)
+          .max(20),
+        language: z.enum(LANGUAGE_IDS),
+        /** Durée maximale d'un plan (secondes) : plafond de mots par scène. */
+        maxSceneSeconds: z.number().min(2).max(12).default(8),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data }) => {
+    const { translationSystemPrompt } = await import("./prompts.server");
+    const { maxWordsForSeconds } = await import("./duration");
+    const maxWords = maxWordsForSeconds(data.maxSceneSeconds, data.language);
+    const res = await chatJSON<{
+      title?: string;
+      hook?: string;
+      cta?: string;
+      scenes?: { index: number; narration: string; overlay?: string }[];
+    }>(
+      "google/gemini-3.7-flash",
+      translationSystemPrompt(
+        languageName(data.language),
+        data.scenes.length,
+        maxWords,
+        data.maxSceneSeconds,
+      ),
+      JSON.stringify({
+        title: data.title,
+        hook: data.hook,
+        cta: data.cta,
+        scenes: data.scenes,
+      }),
+      0.4,
+    );
+    // Sécurité : on réaligne sur les index source, jamais sur l'ordre du modèle.
+    const byIndex = new Map((res.scenes ?? []).map((s) => [s.index, s]));
+    const scenes = data.scenes.map((s, i) => {
+      const t = byIndex.get(s.index) ?? (res.scenes ?? [])[i];
+      return {
+        index: s.index,
+        narration: (t?.narration ?? s.narration).trim(),
+        overlay: (t?.overlay ?? s.overlay).trim(),
+      };
+    });
+    return {
+      title: res.title?.trim() || data.title,
+      hook: res.hook?.trim() || data.hook,
+      cta: data.cta ? (res.cta?.trim() || data.cta) : "",
+      scenes,
+    };
+  });
+
+
 export const generateSceneImage = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) =>
     z
