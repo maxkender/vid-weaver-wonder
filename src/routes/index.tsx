@@ -648,9 +648,32 @@ function Studio() {
 
   const [generatingAll, setGeneratingAll] = useState(false);
 
+  /** Coût estimé : plans encore à animer × secondes commandées par plan. */
+  const estimateCost = useCallback(
+    (doc: Script | null = script) => {
+      const scenes = doc?.scenes ?? [];
+      const pending = scenes.filter((s) => !states[s.index]?.videoUrl);
+      const perClip = Math.min(8, Math.max(4, Math.round(targetSeconds / Math.max(1, scenes.length))));
+      return { clips: pending.length, seconds: pending.length * perClip, perClip };
+    },
+    [script, states, targetSeconds],
+  );
+
+  /** Confirmation obligatoire avant toute dépense de crédits en série. */
+  const confirmCost = (doc: Script | null = script) => {
+    const { clips, seconds, perClip } = estimateCost(doc);
+    if (!clips) return true;
+    return window.confirm(
+      `Coût estimé : ${clips} clip${clips > 1 ? "s" : ""} × ${perClip} s = ${seconds} s de vidéo IA facturées.\n\nLancer la génération ?`,
+    );
+  };
+
   const onGenerateAll = async () => {
     if (!script) return;
+    if (!confirmCost(script)) return;
+    beginRun();
     setGeneratingAll(true);
+    setCurrentStep("Génération des plans…");
     try {
       // Les images sont générées EN CHAÎNE (chaque plan voit le plan d'ouverture
       // + le plan précédent) pour que la vidéo se lise comme une seule histoire.
@@ -658,27 +681,33 @@ function Studio() {
       // dépensé deux fois : on saute les plans déjà générés).
       const videoJobs: Promise<unknown>[] = [];
       for (const scene of script.scenes) {
+        if (cancelledRef.current) break;
         const existing = states[scene.index]?.image;
         const image = existing ?? (await onImage(scene));
         if (scene.index === 0 && image) referenceImage.current = image;
         if (image) previousImage.current = image;
         if (states[scene.index]?.videoUrl) continue;
+        if (cancelledRef.current) break;
         // La voix (peu coûteuse) est produite AVANT le clip : on commande alors
         // la durée exacte (4/6/8 s) au lieu de payer 8 s systématiquement.
         const audio = states[scene.index]?.audio ?? (await onVoice(scene))?.audioDataUrl;
         const voiceSeconds = audio ? await audioDuration(audio) : undefined;
+        if (cancelledRef.current) break;
         videoJobs.push(onVideo(scene, image, script, voiceSeconds));
       }
       await Promise.all(videoJobs);
-      toast.success("Toutes les scènes sont prêtes");
+      if (cancelledRef.current) toast.warning("Pipeline arrêté");
+      else toast.success("Toutes les scènes sont prêtes");
     } finally {
       setGeneratingAll(false);
+      setCurrentStep(cancelledRef.current ? "Pipeline arrêté" : "");
     }
   };
 
 
 
   const onVoice = async (scene: Scene) => {
+    if (cancelledRef.current) return undefined; // appel payant : arrêt demandé
     patch(scene.index, { audioLoading: true });
     try {
       const { audioDataUrl, words } = (await runVoice({
@@ -693,6 +722,7 @@ function Studio() {
       return undefined;
     }
   };
+
 
 
 
