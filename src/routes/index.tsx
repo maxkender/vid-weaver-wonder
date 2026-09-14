@@ -214,7 +214,7 @@ function Studio() {
   const kind: Kind = "faits";
 
   // On choisit la DURÉE de la vidéo ; le nombre de plans en découle.
-  const [targetSeconds, setTargetSeconds] = useState(50);
+  const [targetSeconds, setTargetSeconds] = useState(60);
 
   const [style, setStyle] = useState<NarrationStyle>("revelation");
   const [visual, setVisual] = useState<VisualStyle>("papercraft");
