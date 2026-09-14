@@ -1228,6 +1228,43 @@ function Studio() {
           </Link>
         </div>
 
+        {/* Panneau d'état : étape, avancement, coût estimé et arrêt d'urgence. */}
+        {(busy || stopped || pipelinePaused) && (
+          <div className="mt-4 flex flex-wrap items-center gap-4 rounded-lg border border-border bg-secondary/30 px-4 py-3 text-xs">
+            <span className="uppercase tracking-widest text-muted-foreground">
+              {currentStep || (busy ? "Génération en cours…" : "Pipeline arrêté")}
+            </span>
+            {totalScenes > 0 && (
+              <span className="text-muted-foreground">
+                Plans : {doneScenes}/{totalScenes}
+              </span>
+            )}
+            <span className="text-muted-foreground">
+              Coût estimé : {cost.clips} clip{cost.clips > 1 ? "s" : ""} × {cost.perClip} s ={" "}
+              {cost.seconds} s
+            </span>
+            <div className="ml-auto flex items-center gap-2">
+              {busy && !stopped && (
+                <button
+                  onClick={onStopAll}
+                  className="inline-flex items-center gap-2 rounded-lg border border-destructive px-3 py-1.5 uppercase tracking-widest text-destructive hover:bg-destructive/10"
+                >
+                  <Square className="h-3 w-3" /> Stop
+                </button>
+              )}
+              {pipelinePaused && (
+                <button
+                  onClick={onResumePipeline}
+                  className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-1.5 uppercase tracking-widest hover:border-primary"
+                >
+                  <Play className="h-3 w-3" /> Reprendre
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
+
         {showHistory && (
           <div className="mt-4 space-y-2 rounded-lg border border-border bg-secondary/30 p-4">
             {history.length === 0 && (
