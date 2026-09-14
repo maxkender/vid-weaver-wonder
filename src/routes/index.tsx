@@ -1003,9 +1003,14 @@ function Studio() {
   const runPipelineState = useServerFn(pipelineState);
   const [pipelinePaused, setPipelinePaused] = useState(false);
   useEffect(() => {
-    runPipelineState({})
-      .then((r) => setPipelinePaused(Boolean((r as { paused: boolean }).paused)))
-      .catch(() => setPipelinePaused(false));
+    void (async () => {
+      try {
+        const r = (await runPipelineState({})) as { paused: boolean };
+        setPipelinePaused(Boolean(r.paused));
+      } catch {
+        setPipelinePaused(false);
+      }
+    })();
   }, [runPipelineState]);
 
   /** STOP global : arrête le navigateur ET la file serveur. */
