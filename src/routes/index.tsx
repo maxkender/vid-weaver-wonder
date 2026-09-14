@@ -1,6 +1,12 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { LANGUAGES, type LanguageId } from "@/lib/languages";
+import {
+  LANGUAGES,
+  MASTER_LANGUAGES,
+  MASTER_LANGUAGE_IDS,
+  languageLabel,
+  type LanguageId,
+} from "@/lib/languages";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Clapperboard,
@@ -42,7 +48,7 @@ import {
   searchVoices,
   startSceneVideo,
   suggestTopic,
-
+  translateScript,
 } from "@/lib/studio.functions";
 import { TOPIC_CATEGORIES, type TopicCategory } from "@/lib/topic-categories";
 import { pipelineState, resumePipeline, stopPipeline } from "@/lib/jobs/control.functions";
