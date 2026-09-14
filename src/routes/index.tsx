@@ -1785,8 +1785,8 @@ function Studio() {
               <input
                 id="duration"
                 type="range"
-                min={15}
-                max={75}
+                min={60}
+                max={90}
                 step={5}
                 value={targetSeconds}
                 onChange={(e) => setTargetSeconds(Number(e.target.value))}
