@@ -2334,44 +2334,77 @@ function Studio() {
               </div>
             </div>
 
-            {/* Une vidéo par langue : mêmes clips, voix et sous-titres différents. */}
-            {(Object.keys(finalUrls).length > 0 || finalUrl) && (
+            {/* Une vidéo par langue : mêmes clips, voix et sous-titres différents.
+                La liste survit au rechargement grâce aux liens sauvegardés en ligne. */}
+            {(Object.keys(finalUrls).length > 0 ||
+              Object.keys(exportInfos).length > 0 ||
+              finalUrl) && (
               <div className="surface-card p-4">
-                <p className="label-x">Exports</p>
+                <p className="label-x">Vidéos exportées</p>
                 <div className="mt-3 grid gap-3 md:grid-cols-2">
-                  {langs
-                    .filter((l) => finalUrls[l])
-                    .map((l) => (
+                  {Array.from(
+                    new Set([...Object.keys(finalUrls), ...Object.keys(exportInfos)]),
+                  ).map((l) => {
+                    const info = exportInfos[l];
+                    const playable = finalUrls[l] ?? info?.url;
+                    const fileName = `${(script.title || "video")
+                      .replace(/[^\p{L}\p{N}]+/gu, "-")
+                      .toLowerCase()}-${l}.mp4`;
+                    return (
                       <div key={l} className="rounded-[10px] border border-border p-3">
-                        <div className="flex items-center justify-between gap-2">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
                           <span className="text-xs text-muted-foreground">
-                            {languageLabel(l)} · {l}
+                            {LANGUAGE_FLAGS[l] ?? ""} {l.toUpperCase()}
+                            {info?.duration ? ` · ${Math.round(info.duration)} s` : ""}
+                            {info?.size ? ` · ${formatSize(info.size)}` : ""}
+                            {!info && " · non sauvegardée en ligne"}
                           </span>
-                          <a
-                            href={finalUrls[l]}
-                            download={`${(script.title || "video").replace(/[^\p{L}\p{N}]+/gu, "-").toLowerCase()}-${l}.mp4`}
-                            className="btn-base btn-ghost px-2.5 py-1.5 text-xs"
-                          >
-                            <Download className="h-3.5 w-3.5" /> MP4
-                          </a>
+                          <span className="flex flex-wrap items-center gap-2">
+                            <a
+                              href={playable}
+                              download={fileName}
+                              className="btn-base btn-ghost px-2.5 py-1.5 text-xs"
+                            >
+                              <Download className="h-3.5 w-3.5" /> Télécharger
+                            </a>
+                            {info?.url && (
+                              <button
+                                onClick={() => {
+                                  void navigator.clipboard
+                                    .writeText(info.url)
+                                    .then(() => toast.success("Lien copié"))
+                                    .catch(() => toast.error("Copie impossible"));
+                                }}
+                                className="btn-base btn-ghost px-2.5 py-1.5 text-xs"
+                              >
+                                Copier le lien
+                              </button>
+                            )}
+                          </span>
                         </div>
-                        <video
-                          src={finalUrls[l]}
-                          controls
-                          playsInline
-                          className="mt-3 max-h-[60vh] w-full rounded-[10px] bg-black object-contain"
-                        />
+                        {playable && (
+                          <video
+                            src={playable}
+                            controls
+                            playsInline
+                            preload="metadata"
+                            className="mt-3 max-h-[60vh] w-full rounded-[10px] bg-black object-contain"
+                          />
+                        )}
                       </div>
-                    ))}
+                    );
+                  })}
                 </div>
-                {!Object.keys(finalUrls).length && finalUrl && (
-                  <video
-                    src={finalUrl}
-                    controls
-                    playsInline
-                    className="mt-3 max-h-[70vh] w-full rounded-[10px] bg-black object-contain"
-                  />
-                )}
+                {!Object.keys(finalUrls).length &&
+                  !Object.keys(exportInfos).length &&
+                  finalUrl && (
+                    <video
+                      src={finalUrl}
+                      controls
+                      playsInline
+                      className="mt-3 max-h-[70vh] w-full rounded-[10px] bg-black object-contain"
+                    />
+                  )}
               </div>
             )}
 
