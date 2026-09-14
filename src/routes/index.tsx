@@ -1828,6 +1828,9 @@ function Studio() {
             >
               <History className="h-3.5 w-3.5" /> Historique ({history.length})
             </button>
+            <Link to="/sujets" className="btn-base btn-ghost px-2.5 py-1.5 text-xs">
+              <ListChecks className="h-3.5 w-3.5" /> Sujets
+            </Link>
             <Link to="/parametres" className="btn-base btn-ghost px-2.5 py-1.5 text-xs">
               <Settings className="h-3.5 w-3.5" /> Paramètres
             </Link>
@@ -1943,6 +1946,18 @@ function Studio() {
                   <Sparkles className="h-3.5 w-3.5" />
                 )}
                 Proposer un sujet
+              </button>
+              <button
+                onClick={onTakeQueuedTopic}
+                disabled={takingTopic}
+                className="btn-base btn-ghost text-xs"
+              >
+                {takingTopic ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <ListChecks className="h-3.5 w-3.5" />
+                )}
+                Prendre le prochain sujet de la file
               </button>
               {angle && <span className="text-xs text-muted-foreground">{angle}</span>}
             </div>
