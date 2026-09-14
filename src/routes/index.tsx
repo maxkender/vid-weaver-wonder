@@ -1842,10 +1842,25 @@ function Studio() {
               <p className="-mt-1 text-center text-xs text-muted-foreground">{assembleStep}</p>
             )}
 
+            {/* MODE MANUEL — porte 1 : le sujet. Rien de payant avant ce clic. */}
+            <button
+              onClick={() => {
+                if (!topic.trim()) {
+                  toast.error("Écris d'abord le sujet de la vidéo");
+                  return;
+                }
+                setTopicValidated(true);
+                toast.success("Sujet validé — tu peux générer le script");
+              }}
+              disabled={topicValidated}
+              className="inline-flex items-center justify-center gap-2 rounded-lg border border-border px-5 py-3 text-xs font-bold uppercase tracking-widest hover:border-primary disabled:opacity-50"
+            >
+              {topicValidated ? "Sujet validé" : "Valider le sujet"}
+            </button>
+
             <button
               onClick={() => void onScript()}
-
-              disabled={loadingScript}
+              disabled={loadingScript || !topicValidated}
               className="btn-gold inline-flex items-center justify-center gap-2 rounded-lg px-5 py-3 text-sm font-bold uppercase tracking-wider disabled:opacity-60"
             >
               {loadingScript ? (
@@ -1855,6 +1870,18 @@ function Studio() {
               )}
               Générer le script
             </button>
+            <p className="-mt-1 text-center text-xs text-muted-foreground">
+              Étape suivante :{" "}
+              {!topicValidated
+                ? "valider le sujet"
+                : !script
+                  ? "écrire le script (gratuit)"
+                  : !scriptValidated
+                    ? "valider le script pour lancer les traductions"
+                    : !imagesValidated
+                      ? "générer puis valider les images"
+                      : "animer les plans (payant)"}
+            </p>
           </div>
         </div>
       </section>
