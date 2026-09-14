@@ -1294,10 +1294,14 @@ function Studio() {
     }
     const perClip = Math.min(8, Math.max(4, Math.round(targetSeconds / Math.max(1, sceneCount))));
     const ok = window.confirm(
-      `Coût estimé : ${sceneCount} clips × ${perClip} s = ${sceneCount * perClip} s de vidéo IA facturées.\n\nLancer la génération complète ?`,
+      `Coût estimé : ${sceneCount} clips × ${perClip} s payés UNE SEULE FOIS (${sceneCount * perClip} s de vidéo IA) + ${sceneCount * langs.length} voix off pour ${langs.length} langue${langs.length > 1 ? "s" : ""}.\n\nLancer la génération complète ?`,
     );
     if (!ok) return;
     beginRun();
+    // Mode automatique : mêmes étapes, sans les portes de validation.
+    setTopicValidated(true);
+    setScriptValidated(true);
+    setImagesValidated(true);
     setAutoRunning(true);
     try {
       setAssembleStep("Écriture du script…");
