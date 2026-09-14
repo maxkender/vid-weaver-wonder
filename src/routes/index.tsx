@@ -257,9 +257,14 @@ function Studio() {
   const [angle, setAngle] = useState("");
   const [suggesting, setSuggesting] = useState(false);
   const [topicCategory, setTopicCategory] = useState<TopicCategory>("aleatoire");
+  /** Sujet pris dans la file validée : marqué « utilisé » au lancement de la vidéo. */
+  const [queuedTopicId, setQueuedTopicId] = useState<string | null>(null);
+  const [takingTopic, setTakingTopic] = useState(false);
 
   const pastTopics = useRef<string[]>([]);
   const runSuggest = useServerFn(suggestTopic);
+  const runNextTopic = useServerFn(nextValidatedTopic);
+  const runMarkUsed = useServerFn(markTopicUsed);
   const kind: Kind = "faits";
 
   // On choisit la DURÉE de la vidéo ; le nombre de plans en découle.
