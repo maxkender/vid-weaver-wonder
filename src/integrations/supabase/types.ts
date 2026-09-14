@@ -189,6 +189,45 @@ export type Database = {
           },
         ]
       }
+      topic_queue: {
+        Row: {
+          angle: string | null
+          category: string
+          created_at: string
+          id: string
+          narration_style: string
+          position: number
+          status: string
+          topic: string
+          used_at: string | null
+          video_job_id: string | null
+        }
+        Insert: {
+          angle?: string | null
+          category?: string
+          created_at?: string
+          id?: string
+          narration_style?: string
+          position?: number
+          status?: string
+          topic: string
+          used_at?: string | null
+          video_job_id?: string | null
+        }
+        Update: {
+          angle?: string | null
+          category?: string
+          created_at?: string
+          id?: string
+          narration_style?: string
+          position?: number
+          status?: string
+          topic?: string
+          used_at?: string | null
+          video_job_id?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
