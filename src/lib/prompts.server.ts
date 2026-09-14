@@ -171,6 +171,7 @@ export function translationSystemPrompt(
   sceneCount: number,
   maxWordsPerScene: number,
   maxSeconds: number,
+  total?: { minSeconds: number; maxSeconds: number; minWords: number; maxWords: number },
 ) {
   return [
     `Tu es traducteur-adaptateur de scripts de vidéos courtes. Tu traduis vers ${langName}.`,
@@ -178,7 +179,10 @@ export function translationSystemPrompt(
     "Ce n'est PAS du mot à mot : écris comme un natif écrirait, avec le rythme et les tournures naturelles de la langue.",
     "Tous les CHIFFRES, dates, proportions, unités et noms propres sont repris à l'identique.",
     "STYLE CONSERVÉ : phrases très courtes, phrases nominales et fragments autorisés, tutoiement (ou l'équivalent naturel et familier de la langue), ton oral et direct, jamais publicitaire. Aucun emoji, aucun point d'exclamation.",
-    `CONTRAINTE DE DURÉE (la plus importante) : chaque narration traduite doit pouvoir être lue à voix haute en moins de ${maxSeconds} secondes, soit ${maxWordsPerScene} MOTS MAXIMUM par scène. Compte les mots. Si la traduction naturelle dépasse, CONDENSE : supprime les redondances et les mots de liaison, garde TOUS les chiffres et toute l'information.`,
+    `CONTRAINTE DE DURÉE PAR PLAN : chaque narration traduite doit pouvoir être lue à voix haute en moins de ${maxSeconds} secondes, soit ${maxWordsPerScene} MOTS MAXIMUM par scène. Compte les mots. Si la traduction naturelle dépasse, CONDENSE : supprime les redondances et les mots de liaison, garde TOUS les chiffres et toute l'information.`,
+    total
+      ? `CIBLE DE DURÉE TOTALE (aussi importante que le plafond par plan) : lue à voix haute en ${langName}, la somme de toutes les narrations doit durer entre ${total.minSeconds} et ${total.maxSeconds} secondes, soit entre ${total.minWords} et ${total.maxWords} mots au total. Compte les mots de l'ensemble avant de répondre. Si tu es en dessous, ÉTOFFE légèrement les scènes (précisions concrètes déjà présentes dans le sens du texte) ; si tu es au-dessus, CONDENSE. Dans les deux cas : même nombre de scènes, mêmes index, tous les chiffres conservés.`
+      : "",
     "Le mot « Sophia » reste « Sophia » dans toutes les langues.",
     "Traduis uniquement narration, overlay, title, hook et cta. Si cta est vide, laisse-le vide.",
     "overlay reste un texte incrusté très court : 3 à 6 mots.",
@@ -254,3 +258,14 @@ export const TOPIC_BRIEF: Record<NarrationStyle, string> = {
   mecanique:
     "Le sujet doit être une chose connue de tous dont on peut expliquer le fonctionnement réel, étape par étape (comment une araignée sent le danger, comment un incendie crée son propre orage, comment le GPS sait où tu es). On part du fait connu et on va jusqu'à une conséquence inattendue.",
 };
+
+/**
+ * Critère d'INTRIGUE commun à tous les styles : un sujet purement explicatif
+ * ne suffit pas, il faut la promesse d'une révélation.
+ */
+export const TOPIC_INTRIGUE = [
+  "EXIGENCE D'INTRIGUE (critère éliminatoire) : le sujet doit donner l'impression que quelque chose d'IMPOSSIBLE, de CACHÉ ou de CONTRAIRE AU BON SENS va être révélé.",
+  "Il faut une tension, un secret, une croyance renversée, ou un détail que personne ne remarque. Un sujet purement explicatif (« pourquoi tel phénomène se produit ») n'est PAS assez accrocheur : reformule-le jusqu'à ce qu'il promette une révélation.",
+  "TEST DE VALIDATION DU SUJET, à appliquer avant de répondre : en lisant le sujet seul, est-ce qu'on a envie de connaître la suite parce qu'on sent qu'on va apprendre quelque chose qui contredit ce qu'on croyait ? Si la réponse est non, propose un autre sujet.",
+  "TEST DE SIMPLICITÉ : le sujet doit pouvoir être expliqué à un enfant de 12 ans sans aucune notion technique, sans formule et sans vocabulaire de cours de sciences.",
+].join("\n");
