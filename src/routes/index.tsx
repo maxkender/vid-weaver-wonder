@@ -812,24 +812,103 @@ function Studio() {
 
   const [generatingAll, setGeneratingAll] = useState(false);
 
-  /** Coût estimé : plans encore à animer × secondes commandées par plan. */
+  /**
+   * Coût estimé du MASTER : les clips animés sont payés UNE SEULE FOIS quel que
+   * soit le nombre de langues. Seules les voix off se multiplient par langue.
+   */
   const estimateCost = useCallback(
     (doc: Script | null = script) => {
       const scenes = doc?.scenes ?? [];
       const pending = scenes.filter((s) => !states[s.index]?.videoUrl);
       const perClip = Math.min(8, Math.max(4, Math.round(targetSeconds / Math.max(1, scenes.length))));
-      return { clips: pending.length, seconds: pending.length * perClip, perClip };
+      const voices = scenes.length * langs.length;
+      return {
+        clips: pending.length,
+        seconds: pending.length * perClip,
+        perClip,
+        voices,
+        languages: langs.length,
+      };
     },
-    [script, states, targetSeconds],
+    [script, states, targetSeconds, langs],
   );
 
   /** Confirmation obligatoire avant toute dépense de crédits en série. */
   const confirmCost = (doc: Script | null = script) => {
-    const { clips, seconds, perClip } = estimateCost(doc);
+    const { clips, seconds, perClip, voices, languages } = estimateCost(doc);
     if (!clips) return true;
     return window.confirm(
-      `Coût estimé : ${clips} clip${clips > 1 ? "s" : ""} × ${perClip} s = ${seconds} s de vidéo IA facturées.\n\nLancer la génération ?`,
+      `Coût estimé : ${clips} clip${clips > 1 ? "s" : ""} × ${perClip} s payés UNE SEULE FOIS (${seconds} s de vidéo IA) + ${voices} voix off réparties sur ${languages} langue${languages > 1 ? "s" : ""}.\n\nLancer la génération ?`,
     );
+  };
+
+  /** Voix off d'UN plan dans UNE langue. Rangée dans states[i].voices[lang]. */
+  const onVoice = async (scene: Scene, lang: string = sourceLang) => {
+    if (cancelledRef.current) return undefined; // appel payant : arrêt demandé
+    const doc = scriptFor(lang, script);
+    const text = doc?.scenes.find((s) => s.index === scene.index)?.narration ?? scene.narration;
+    patch(scene.index, { audioLoading: true });
+    try {
+      const { audioDataUrl, words } = (await runVoice({
+        data: { text, voice: voiceForLang(lang), engine, language: lang as LanguageId },
+      })) as { audioDataUrl: string; words?: WordTiming[] };
+      const duration = await audioDuration(audioDataUrl);
+      const take: VoiceTake = { audio: audioDataUrl, words: words ?? [], duration };
+      setStates((prev) => ({
+        ...prev,
+        [scene.index]: {
+          ...prev[scene.index],
+          audioLoading: false,
+          voices: { ...(prev[scene.index]?.voices ?? {}), [lang]: take },
+        },
+      }));
+      return take;
+    } catch (e) {
+      patch(scene.index, { audioLoading: false });
+      toast.error(
+        e instanceof Error
+          ? `${languageLabel(lang)} — ${e.message}`
+          : `Échec de la voix off (${languageLabel(lang)})`,
+      );
+      return undefined;
+    }
+  };
+
+  /**
+   * ÉTAPE d : toutes les voix off, toutes les langues, tous les plans.
+   * Peu coûteux, et c'est ce qui donne la durée réelle de chaque plan dans
+   * chaque langue — donc la longueur de clip à commander une seule fois.
+   */
+  const generateAllVoices = async (
+    doc: Script,
+    snapshot: Record<number, SceneState>,
+  ): Promise<Record<number, SceneState>> => {
+    const out: Record<number, SceneState> = { ...snapshot };
+    for (const lang of langs) {
+      for (const scene of doc.scenes) {
+        if (cancelledRef.current) return out; // arrêt vérifié avant CHAQUE voix
+        if (out[scene.index]?.voices?.[lang]) continue;
+        setCurrentStep(`Voix off ${languageLabel(lang)} — plan ${scene.index + 1}…`);
+        setAssembleStep(`Voix off ${languageLabel(lang)} — plan ${scene.index + 1}…`);
+        const take = await onVoice(scene, lang);
+        if (take) {
+          out[scene.index] = {
+            ...out[scene.index],
+            voices: { ...(out[scene.index]?.voices ?? {}), [lang]: take },
+          };
+        }
+      }
+    }
+    return out;
+  };
+
+  /** Longueur de clip à commander : la langue la plus bavarde décide. */
+  const clipSecondsFor = (st: SceneState | undefined) => {
+    const longest = Math.max(
+      0,
+      ...langs.map((l) => st?.voices?.[l]?.duration ?? 0),
+    );
+    return longest || undefined;
   };
 
   const onGenerateAll = async () => {
@@ -839,56 +918,45 @@ function Studio() {
     setGeneratingAll(true);
     setCurrentStep("Génération des plans…");
     try {
-      // Les images sont générées EN CHAÎNE (chaque plan voit le plan d'ouverture
-      // + le plan précédent) pour que la vidéo se lise comme une seule histoire.
-      // Les vidéos, elles, partent dès que leur image est prête (pas de crédit
-      // dépensé deux fois : on saute les plans déjà générés).
-      const videoJobs: Promise<unknown>[] = [];
+      // a/b — script source déjà écrit, on traduit dans les autres langues.
+      await onTranslateAll(script);
+      if (cancelledRef.current) return;
+
+      // c — images EN CHAÎNE (chaque plan voit le plan d'ouverture + le précédent).
+      let snapshot: Record<number, SceneState> = { ...states };
       for (const scene of script.scenes) {
         if (cancelledRef.current) break;
-        const existing = states[scene.index]?.image;
+        setCurrentStep(`Image — plan ${scene.index + 1}…`);
+        const existing = snapshot[scene.index]?.image;
         const image = existing ?? (await onImage(scene));
         if (scene.index === 0 && image) referenceImage.current = image;
         if (image) previousImage.current = image;
-        if (states[scene.index]?.videoUrl) continue;
+        if (image) snapshot[scene.index] = { ...snapshot[scene.index], image };
+      }
+      if (cancelledRef.current) return;
+
+      // d — voix off de TOUTES les langues.
+      snapshot = await generateAllVoices(script, snapshot);
+      if (cancelledRef.current) return;
+
+      // e/f — un seul clip par plan, dimensionné sur la langue la plus longue.
+      const videoJobs: Promise<unknown>[] = [];
+      for (const scene of script.scenes) {
         if (cancelledRef.current) break;
-        // La voix (peu coûteuse) est produite AVANT le clip : on commande alors
-        // la durée exacte (4/6/8 s) au lieu de payer 8 s systématiquement.
-        const audio = states[scene.index]?.audio ?? (await onVoice(scene))?.audioDataUrl;
-        const voiceSeconds = audio ? await audioDuration(audio) : undefined;
-        if (cancelledRef.current) break;
-        videoJobs.push(onVideo(scene, image, script, voiceSeconds));
+        if (snapshot[scene.index]?.videoUrl) continue;
+        setCurrentStep(`Animation — plan ${scene.index + 1}…`);
+        videoJobs.push(
+          onVideo(scene, snapshot[scene.index]?.image, script, clipSecondsFor(snapshot[scene.index])),
+        );
       }
       await Promise.all(videoJobs);
       if (cancelledRef.current) toast.warning("Pipeline arrêté");
-      else toast.success("Toutes les scènes sont prêtes");
+      else toast.success("Master prêt : plans animés et voix de toutes les langues");
     } finally {
       setGeneratingAll(false);
       setCurrentStep(cancelledRef.current ? "Pipeline arrêté" : "");
     }
   };
-
-
-
-  const onVoice = async (scene: Scene) => {
-    if (cancelledRef.current) return undefined; // appel payant : arrêt demandé
-    patch(scene.index, { audioLoading: true });
-    try {
-      const { audioDataUrl, words } = (await runVoice({
-        data: { text: scene.narration, voice, engine, language },
-      })) as { audioDataUrl: string; words?: { word: string; start: number; end: number }[] };
-      patch(scene.index, { audio: audioDataUrl, words: words ?? [], audioLoading: false });
-      toast.success(`Voix off scène ${scene.index + 1}`);
-      return { audioDataUrl, words: words ?? [] };
-    } catch (e) {
-      patch(scene.index, { audioLoading: false });
-      toast.error(e instanceof Error ? e.message : "Échec de la voix off");
-      return undefined;
-    }
-  };
-
-
-
 
   const onPreviewVoice = async () => {
     setPreviewVoice(true);
@@ -901,7 +969,7 @@ function Studio() {
             text: "Et si je te racontais un fait que presque personne ne connaît ? Écoute bien.",
             voice,
             engine,
-            language,
+            language: voiceLangTab,
           },
         })) as { audioDataUrl: string };
         src = audioDataUrl;
@@ -927,13 +995,17 @@ function Studio() {
     [script, states],
   );
 
-
+  /**
+   * Montage d'UNE langue : les mêmes clips animés, la voix et les sous-titres
+   * de cette langue. Aucun visuel n'est régénéré.
+   */
   const buildFinalVideo = async (
     snapshot: Record<number, SceneState | undefined>,
     autoDownload: boolean,
     scriptOverride?: Script,
+    lang: string = sourceLang,
   ) => {
-    const doc = scriptOverride ?? script;
+    const doc = scriptFor(lang, scriptOverride ?? script);
 
     const { assembleVideo } = await import("@/lib/assemble-video");
     const { randomTrack } = await import("@/lib/music-store");
@@ -950,44 +1022,41 @@ function Studio() {
       .filter((x) => Boolean(x.st.videoUrl || x.st.image));
     if (!all.length) throw new Error("Aucune scène à assembler.");
 
-    // Un plan sans voix off produirait un blanc silencieux (typiquement le hook
-    // du début) : on refabrique la voix manquante AVANT d'assembler, pour ne
-    // jamais perdre le début de l'histoire.
+    // Un plan sans voix off produirait un blanc silencieux : on refabrique la
+    // voix manquante de CETTE langue avant d'assembler.
     for (const item of all) {
-      if (item.st.audio) continue;
-      setAssembleStep(`Voix off manquante — scène ${item.scene.index + 1}…`);
-      const res = await onVoice(item.scene);
+      if (voiceOf(item.st, lang)) continue;
+      setAssembleStep(`Voix off manquante — ${languageLabel(lang)}, scène ${item.scene.index + 1}…`);
+      const res = await onVoice(item.scene, lang);
       if (!res) {
         throw new Error(
-          `La voix off de la scène ${item.scene.index + 1} n'a pas pu être générée : relance l'export.`,
+          `La voix off de la scène ${item.scene.index + 1} (${languageLabel(lang)}) n'a pas pu être générée : relance l'export.`,
         );
       }
-      item.st = { ...item.st, audio: res.audioDataUrl, words: res.words };
-
+      item.st = { ...item.st, voices: { ...(item.st.voices ?? {}), [lang]: res } };
     }
     const ordered = all;
-
-
-
 
     // Papier découpé : masque carré à coins arrondis, toujours présent.
     const mask = useSquareMask
       ? await makeRoundedSquareMask(dims.width, dims.height)
       : null;
 
-    setAssembleStep("Préparation des sous-titres…");
+    setAssembleStep(`Préparation des sous-titres — ${languageLabel(lang)}…`);
     const withDurations = await Promise.all(
       ordered.map(async ({ scene, st }) => {
-        const raw = st.audio ? await audioDuration(st.audio) : undefined;
+        const take = voiceOf(st, lang);
+        const raw = take ? take.duration || (await audioDuration(take.audio)) : undefined;
         // Silences de tête/queue retirés : la voix démarre tout de suite et le
         // plan s'arrête au dernier mot.
-        const win = raw ? voiceWindow(st.words ?? null, raw) : null;
+        const win = raw ? voiceWindow(take?.words ?? null, raw) : null;
         const duration = win ? win.end - win.start : raw;
-        const words = win ? shiftTimings(st.words ?? null, win.start) : (st.words ?? []);
+        const words = win ? shiftTimings(take?.words ?? null, win.start) : (take?.words ?? []);
+        const narration = scene.narration;
         return {
           ...(st.videoUrl ? { videoUrl: st.videoUrl } : {}),
           ...(st.image ? { imageUrl: st.image } : {}),
-          audio: st.audio,
+          audio: take?.audio,
           ...(win ? { trimStart: win.start, trimEnd: win.end } : {}),
           mask,
 
@@ -997,14 +1066,14 @@ function Studio() {
           cues: duration
             ? () =>
                 makeCaptionCues(
-                  scene.narration,
+                  narration,
                   dims.width,
                   dims.height,
                   duration,
                   words,
                   settings.sophiaLogo
                     ? (() => {
-                        const w = sophiaWindow(scene.narration, duration, words);
+                        const w = sophiaWindow(narration, duration, words);
                         return w ? { url: sophiaLogo.url, ...w } : null;
                       })()
                     : null,
@@ -1013,12 +1082,9 @@ function Studio() {
           // Jamais de gros titre en majuscules : pas d'overlay de secours.
           overlay: null,
           duration,
-
         };
       }),
     );
-
-
 
     const track = await randomTrack(style);
     if (track) setAssembleStep(`Musique : ${track.name}`);
@@ -1031,28 +1097,42 @@ function Studio() {
       ...dims,
       music: track?.blob,
       musicVolume: settings.musicVolume,
-      onProgress: (step) => setAssembleStep(step),
+      onProgress: (step) => setAssembleStep(`${languageLabel(lang)} — ${step}`),
     });
 
-    if (projectId) {
+    if (projectId && lang === sourceLang) {
       const { saveFinalVideo } = await import("@/lib/project-store");
       await saveFinalVideo(projectId, blob);
     }
 
     const url = URL.createObjectURL(blob);
-    setFinalUrl((prev) => {
-      if (prev) URL.revokeObjectURL(prev);
-      return url;
+    setFinalUrls((prev) => {
+      const old = prev[lang];
+      if (old) URL.revokeObjectURL(old);
+      return { ...prev, [lang]: url };
     });
-    if (autoDownload) {
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `${(doc?.title ?? "video").replace(/[^\p{L}\p{N}]+/gu, "-").toLowerCase()}.mp4`;
-      a.click();
-    }
-    toast.success(
-      track ? `Vidéo assemblée (musique : ${track.name})` : "Vidéo finale assemblée",
-    );
+    if (lang === sourceLang) setFinalUrl(url);
+    if (autoDownload) downloadLang(lang, url, doc?.title ?? "video");
+    toast.success(`Vidéo ${languageLabel(lang)} assemblée`);
+    return url;
+  };
+
+  /** Nom de fichier suffixé par la langue : mon-sujet-de.mp4 */
+  const downloadLang = (lang: string, url: string, title: string) => {
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${title.replace(/[^\p{L}\p{N}]+/gu, "-").toLowerCase()}-${lang}.mp4`;
+    a.click();
+  };
+
+  const onDownloadAll = () => {
+    const title = script?.title ?? "video";
+    langs.forEach((lang, i) => {
+      const url = finalUrls[lang];
+      if (!url) return;
+      // Les navigateurs bloquent les téléchargements simultanés : on les espace.
+      setTimeout(() => downloadLang(lang, url, title), i * 700);
+    });
   };
 
   const onAssemble = async () => {
@@ -1060,7 +1140,10 @@ function Studio() {
     setAssembling(true);
     setAssembleStep("Préparation…");
     try {
-      await buildFinalVideo(states, false);
+      for (const lang of langs) {
+        if (cancelledRef.current) break; // arrêt vérifié entre chaque langue
+        await buildFinalVideo(states, false, undefined, lang);
+      }
     } catch (e) {
       console.error(e);
       toast.error(e instanceof Error ? e.message : "Échec de l'assemblage");
@@ -1069,7 +1152,7 @@ function Studio() {
     }
   };
 
-  /** Tout d'un coup : images + vidéos + voix off manquantes, puis export MP4. */
+  /** MASTER complet : traductions → images → voix de toutes les langues → clips → un MP4 par langue. */
   const onExportEverything = async (scriptOverride?: Script, skipConfirm = false) => {
     const doc = scriptOverride ?? script;
     if (!doc) return;
@@ -1077,64 +1160,65 @@ function Studio() {
     if (!skipConfirm) beginRun();
     setAssembling(true);
     try {
-      setAssembleStep("Génération des scènes manquantes…");
+      // b — traductions.
+      setCurrentStep("Traductions…");
+      await onTranslateAll(doc);
+      if (cancelledRef.current) {
+        setAssembleStep("Pipeline arrêté");
+        return;
+      }
+
+      // c — images en chaîne : le plan précédent est la référence du suivant.
+      setAssembleStep("Génération des images…");
       setCurrentStep("Images…");
-      // Images obligatoirement en chaîne : le plan précédent est la référence
-      // visuelle du suivant. Les clips peuvent ensuite être générés en parallèle.
-      const prepared: { scene: Scene; st: SceneState; image?: string }[] = [];
+      let snapshot: Record<number, SceneState> = { ...states };
       for (const scene of doc.scenes) {
         if (cancelledRef.current) break;
-        const st = states[scene.index] ?? {};
+        const st = snapshot[scene.index] ?? {};
         const image = st.image ?? (await onImage(scene, doc));
         if (scene.index === 0 && image) referenceImage.current = image;
         if (image) previousImage.current = image;
-        prepared.push({ scene, st, ...(image ? { image } : {}) });
+        snapshot[scene.index] = { ...st, ...(image ? { image } : {}) };
       }
       if (cancelledRef.current) {
         setAssembleStep("Pipeline arrêté");
         return;
       }
-      setCurrentStep("Voix off et plans animés…");
+
+      // d — voix off de toutes les langues (c'est elles qui donnent les durées).
+      snapshot = await generateAllVoices(doc, snapshot);
+      if (cancelledRef.current) {
+        setAssembleStep("Pipeline arrêté");
+        return;
+      }
+
+      // e/f — clips animés, une seule fois, calibrés sur la langue la plus longue.
+      setCurrentStep("Plans animés…");
       const results = await Promise.all(
-        prepared.map(async ({ scene, st, image }) => {
-          let audio = st.audio;
-          let words = st.words;
-          if (!audio && !cancelledRef.current) {
-            const res = (await runVoice({
-              data: { text: scene.narration, voice, engine, language },
-            }).catch((e: unknown) => {
-              toast.error(
-                e instanceof Error ? e.message : `Voix off impossible (plan ${scene.index + 1})`,
-              );
-              return null;
-            })) as
-              | { audioDataUrl: string; words?: { word: string; start: number; end: number }[] }
-              | null;
-            if (res) {
-              audio = res.audioDataUrl;
-              words = res.words ?? [];
-              patch(scene.index, { audio, words });
-            }
-          }
-          const voiceSeconds = audio ? await audioDuration(audio) : undefined;
+        doc.scenes.map(async (scene) => {
+          const st = snapshot[scene.index] ?? {};
           // AUCUNE relance payante : un clip raté reste en échec (signalé ici)
           // et l'assemblage retombe sur l'image fixe du plan.
-          const videoUrl = st.videoUrl ?? (await onVideo(scene, image, doc, voiceSeconds));
+          const videoUrl =
+            st.videoUrl ?? (await onVideo(scene, st.image, doc, clipSecondsFor(st)));
           if (!videoUrl && !cancelledRef.current) {
             toast.warning(`Plan ${scene.index + 1} : clip animé en échec → image fixe`);
           }
-          return [scene.index, { ...st, image, videoUrl, audio, words }] as const;
-
+          return [scene.index, { ...st, ...(videoUrl ? { videoUrl } : {}) }] as const;
         }),
       );
       if (cancelledRef.current) {
         setAssembleStep("Pipeline arrêté");
         return;
       }
-      const snapshot: Record<number, SceneState | undefined> = { ...states };
       for (const [i, st] of results) snapshot[i] = st as SceneState;
-      setCurrentStep("Montage…");
-      await buildFinalVideo(snapshot, true, doc);
+
+      // g — montage : une vidéo par langue, avec les MÊMES clips.
+      for (const lang of langs) {
+        if (cancelledRef.current) break; // arrêt vérifié entre chaque langue
+        setCurrentStep(`Montage — ${languageLabel(lang)}…`);
+        await buildFinalVideo(snapshot, true, doc, lang);
+      }
     } catch (e) {
       console.error(e);
       toast.error(e instanceof Error ? e.message : "Échec de l'export complet");
