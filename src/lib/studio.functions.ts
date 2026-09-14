@@ -367,25 +367,34 @@ export const generateSceneVoice = createServerFn({ method: "POST" })
   });
 
 
-/** Liste les voix du compte ElevenLabs connecté (pas seulement une sélection). */
-export const listVoices = createServerFn({ method: "GET" }).handler(async () => {
-  try {
-    const { listElevenVoices } = await import("./elevenlabs.server");
-    return { voices: await listElevenVoices() };
-  } catch {
-    return { voices: [] as { id: string; label: string }[] };
-  }
-});
+/** Liste les voix du compte ElevenLabs, priorisées pour la langue demandée. */
+export const listVoices = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) =>
+    z.object({ language: z.string().min(2).max(5).default("fr") }).parse(input ?? {}),
+  )
+  .handler(async ({ data }) => {
+    try {
+      const { listElevenVoices } = await import("./elevenlabs.server");
+      return { voices: await listElevenVoices(data.language) };
+    } catch {
+      return { voices: [] as { id: string; label: string }[] };
+    }
+  });
 
 /** Recherche de narrateurs par nom dans la bibliothèque ElevenLabs. */
 export const searchVoices = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) =>
-    z.object({ query: z.string().min(1).max(80) }).parse(input),
+    z
+      .object({
+        query: z.string().min(1).max(80),
+        language: z.string().min(2).max(5).default("fr"),
+      })
+      .parse(input),
   )
   .handler(async ({ data }) => {
     try {
       const { searchElevenVoices } = await import("./elevenlabs.server");
-      return { voices: await searchElevenVoices(data.query) };
+      return { voices: await searchElevenVoices(data.query, data.language) };
     } catch {
       return { voices: [] as { id: string; label: string }[] };
     }
