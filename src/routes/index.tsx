@@ -398,9 +398,11 @@ function Studio() {
     resumed.current = true;
     void (async () => {
       for (const [key, st] of pending) {
+        if (cancelledRef.current) return;
         const index = Number(key);
         const id = st!.videoId!;
         for (let attempt = 0; attempt < 60; attempt++) {
+          if (cancelledRef.current) return;
           const job = (await runPoll({ data: { id } }).catch(() => null)) as
             | { status: string; progress: number; error: string | null }
             | null;
