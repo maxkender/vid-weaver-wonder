@@ -150,6 +150,13 @@ async function assembleVideoInner(
         tempo = Math.min(MAX_TEMPO, needed / STRETCH_BEFORE_TEMPO);
       }
       stretch = Math.min(MAX_STRETCH, target / tempo / clipLen);
+      // Filet de sécurité : si les plafonds (étirement 1,6 / voix 1,12) laissent
+      // la piste vidéo plus courte que la voix, le lecteur figerait la dernière
+      // image — exactement ce qu'on veut supprimer. On dépasse donc volontairement
+      // le plafond d'étirement : un plan très ralenti reste bien préférable à
+      // une image gelée en fin de plan.
+      const needTotal = target / tempo / clipLen;
+      if (needTotal > stretch) stretch = needTotal;
     }
     // Durée finale du plan, une fois la voix éventuellement accélérée.
     const outDur = target / tempo;
