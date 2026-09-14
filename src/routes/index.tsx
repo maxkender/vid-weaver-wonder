@@ -2126,17 +2126,24 @@ function Studio() {
                 {/* MODE MANUEL — porte 1 : le sujet. Rien de payant avant ce clic. */}
                 <button
                   onClick={() => {
-                    if (!topic.trim()) {
-                      toast.error("Écris d'abord le sujet de la vidéo");
-                      return;
-                    }
-                    setTopicValidated(true);
-                    toast.success("Sujet validé — tu peux générer le script");
+                    void (async () => {
+                      const res = await ensureFactCheck();
+                      if (!res || res.verdict === "revoir") return;
+                      setTopicValidated(true);
+                      toast.success("Sujet vérifié — tu peux générer le script");
+                    })();
                   }}
-                  disabled={topicValidated}
+                  disabled={topicValidated || checkingFacts}
                   className="btn-base btn-ghost"
                 >
-                  {topicValidated ? "Sujet validé" : "Valider le sujet"}
+                  {checkingFacts ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : null}
+                  {topicValidated
+                    ? "Sujet validé"
+                    : checkingFacts
+                      ? "Vérification…"
+                      : "Vérifier et valider le sujet"}
                 </button>
 
                 <button
