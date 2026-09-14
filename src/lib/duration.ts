@@ -1,7 +1,25 @@
-/** Durée de lecture estimée d'un texte français (≈ 2,6 mots/seconde). */
-export function estimateSpeechSeconds(text: string) {
+/**
+ * Débit de parole moyen (mots par seconde) par langue.
+ * ATTENTION : ce n'est qu'un REPLI d'estimation, utilisé tant qu'aucune voix
+ * off n'a été synthétisée. Dès qu'une voix réelle existe, c'est sa durée
+ * mesurée (audioDuration / alignement ElevenLabs) qui fait foi.
+ */
+const WORDS_PER_SECOND: Record<string, number> = {
+  fr: 2.9,
+  en: 3.1,
+  es: 3.0,
+  de: 2.4,
+  it: 3.0,
+  pt: 3.0,
+};
+
+const DEFAULT_WPS = 2.9;
+
+/** Durée de lecture ESTIMÉE d'un texte, selon la langue (repli uniquement). */
+export function estimateSpeechSeconds(text: string, language = "fr") {
   const words = text.trim().split(/\s+/).filter(Boolean).length;
-  return words / 2.6;
+  const wps = WORDS_PER_SECOND[language.slice(0, 2).toLowerCase()] ?? DEFAULT_WPS;
+  return words / wps;
 }
 
 /** Durée réelle d'un fichier audio (data URL ou URL) en secondes. */
@@ -12,5 +30,18 @@ export function audioDuration(src: string): Promise<number> {
     a.onloadedmetadata = () => resolve(Number.isFinite(a.duration) ? a.duration : 0);
     a.onerror = () => resolve(0);
     a.src = src;
+  });
+}
+
+/** Durée réelle d'un clip vidéo (data URL ou URL) en secondes. */
+export function videoDuration(src: string): Promise<number> {
+  return new Promise((resolve) => {
+    if (typeof document === "undefined") return resolve(0);
+    const v = document.createElement("video");
+    v.preload = "metadata";
+    v.muted = true;
+    v.onloadedmetadata = () => resolve(Number.isFinite(v.duration) ? v.duration : 0);
+    v.onerror = () => resolve(0);
+    v.src = src;
   });
 }
