@@ -284,55 +284,31 @@ export function smoothTimings(
     return { word: t.word, start, end };
   });
 
-  // 2. Découpage : on coupe sur la ponctuation, la longueur, ou une pause marquée.
+  // 2. Un mot par groupe : on reste strictement mot par mot.
   type Item = { word: string; start: number; end: number };
   type G = { items: Item[]; start: number; end: number };
   const text = (g: G) => g.items.map((i) => i.word).join(" ");
-  const groups: G[] = [];
-  for (let i = 0; i < scaled.length; i++) {
-    const t = scaled[i]!;
-    const prev = groups[groups.length - 1];
-    const gap = i > 0 ? t.start - scaled[i - 1]!.end : 0;
-    const fits =
-      prev &&
-      prev.items.length < MAX_GROUP_WORDS &&
-      text(prev).length + 1 + t.word.length <= MAX_GROUP_CHARS &&
-      !/[.!?…,;:]$/.test(prev.items[prev.items.length - 1]!.word) &&
-      gap < 0.28;
-    if (fits && prev) {
-      prev.items.push(t);
-      prev.end = t.end;
-    } else {
-      groups.push({ items: [t], start: t.start, end: t.end });
-    }
+  const groups: G[] = scaled.map((t) => ({ items: [t], start: t.start, end: t.end }));
+
+  // 3. Fusion — et UNIQUEMENT la fusion — des mots tenus moins de 0,25 s.
+  // La fenêtre réelle d'un mot va de son début à celui du mot suivant. Si elle
+  // est trop courte, le mot est affiché EN MÊME TEMPS que le suivant ; son
+  // début, lui, n'est jamais décalé (sinon le texte quitte la voix).
+  for (let i = 0; i < groups.length - 1; i++) {
+    const g = groups[i]!;
+    const next = groups[i + 1]!;
+    const window = next.start - g.start;
+    if (window >= MIN_CAPTION_HOLD) continue;
+    const canMerge =
+      g.items.length + next.items.length <= MAX_GROUP_WORDS &&
+      text(g).length + 1 + text(next).length <= MAX_GROUP_CHARS;
+    if (!canMerge) continue;
+    g.items = [...g.items, ...next.items];
+    g.end = next.end;
+    groups.splice(i + 1, 1);
+    i--; // le groupe fusionné peut être encore trop court
   }
 
-  // 3. Fusion des groupes trop courts (anti-clignotement).
-  for (let i = 0; i < groups.length; i++) {
-    const g = groups[i]!;
-    if (g.end - g.start >= MIN_CAPTION_HOLD) continue;
-    const next = groups[i + 1];
-    const prev = groups[i - 1];
-    const canNext =
-      next &&
-      g.items.length + next.items.length <= MAX_GROUP_WORDS + 1 &&
-      text(g).length + 1 + text(next).length <= MAX_GROUP_CHARS + 6;
-    const canPrev =
-      prev &&
-      prev.items.length + g.items.length <= MAX_GROUP_WORDS + 1 &&
-      text(prev).length + 1 + text(g).length <= MAX_GROUP_CHARS + 6;
-    if (canNext && next) {
-      next.items = [...g.items, ...next.items];
-      next.start = g.start;
-      groups.splice(i, 1);
-      i--;
-    } else if (canPrev && prev) {
-      prev.items = [...prev.items, ...g.items];
-      prev.end = g.end;
-      groups.splice(i, 1);
-      i--;
-    }
-  }
 
   // 4. Continuité : un groupe reste affiché jusqu'au suivant (aucun trou noir),
   // et chaque mot du groupe garde son propre timing pour le surlignage karaoké.
