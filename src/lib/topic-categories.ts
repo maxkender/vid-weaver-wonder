@@ -12,6 +12,12 @@ export const TOPIC_CATEGORIES = [
       "une grande question d'histoire que tout le monde s'est déjà posée (chute d'un empire, origine d'une guerre, mystère d'un roi…), racontée par un détail méconnu",
   },
   {
+    id: "episodes",
+    label: "Épisodes historiques",
+    brief:
+      "un épisode marquant de l'Histoire dont TOUT LE MONDE connaît le nom (Tchernobyl, Pompéi, le Titanic, le Hindenburg, Apollo 13, la peste noire, le mur de Berlin, Hiroshima, Fukushima, la mutinerie du Bounty), raconté par un détail précis et peu connu : une heure, une décision, un homme, un objet — jamais un résumé général",
+  },
+  {
     id: "faits-divers",
     label: "Faits divers",
     brief:
