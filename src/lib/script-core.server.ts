@@ -6,16 +6,19 @@ import {
   type Script,
 } from "./prompts.server";
 import { languageName } from "./languages";
+import { estimateSpeechSeconds } from "./duration";
 
 export type BuildScriptInput = {
   topic: string;
   kind: "faits" | "culture" | "pub";
-  style: "question" | "revelation" | "storytelling" | "listicle";
+  style: "question" | "revelation" | "storytelling" | "listicle" | "mecanique";
   sceneCount: number;
   targetSeconds: number;
   styleBrief?: string | undefined;
   wordsBias?: number | undefined;
   language: string;
+  /** Ajouter le plan CTA Sophia à la fin (true par défaut). */
+  includeCta?: boolean | undefined;
 };
 
 /**
@@ -24,10 +27,12 @@ export type BuildScriptInput = {
  */
 export async function buildScript(data: BuildScriptInput): Promise<Script> {
   const langName = languageName(data.language);
-  // Le CTA final ajoute une scène : on réserve ~6 s pour lui.
-  const narrationSeconds = Math.max(8, data.targetSeconds - 6);
-  // ~2,6 mots/seconde : mesuré sur les exports réels.
-  const totalWords = Math.round(narrationSeconds * 2.6);
+  const includeCta = data.includeCta !== false;
+  // Le CTA final ajoute une scène : on ne réserve ses ~6 s que s'il existe.
+  const narrationSeconds = Math.max(8, data.targetSeconds - (includeCta ? 6 : 0));
+  // Débit de parole réel de la langue (estimateSpeechSeconds fait foi).
+  const wordsPerSecond = 1 / estimateSpeechSeconds("mot", data.language);
+  const totalWords = Math.round(narrationSeconds * wordsPerSecond);
   const wordsBias = data.wordsBias ?? 0;
 
   const sceneCount = Math.min(16, Math.max(data.sceneCount, Math.ceil(totalWords / 18)));
@@ -46,6 +51,7 @@ export async function buildScript(data: BuildScriptInput): Promise<Script> {
       data.styleBrief,
       totalWords,
       langName,
+      includeCta,
     ),
     `${scriptUserPrompt(data.kind, data.topic)}\nÉcris tout le script en ${langName}.`,
   );
@@ -79,6 +85,7 @@ export async function buildScript(data: BuildScriptInput): Promise<Script> {
             data.styleBrief,
             undefined,
             langName,
+            includeCta,
           ),
           `Tu complètes un script existant : tu écris UNIQUEMENT ${extra} scènes SUPPLÉMENTAIRES qui s'intercalent avant la révélation finale, dans la même histoire, mêmes personnages, même bible visuelle. Aucune scène de pub. Réponds en JSON {"scenes":[...]} uniquement.`,
         ].join("\n"),
@@ -102,12 +109,29 @@ export async function buildScript(data: BuildScriptInput): Promise<Script> {
     }
   }
 
-  // « Sophia » n'est prononcé qu'une seule fois, dans le CTA final.
+  // « Sophia » n'est prononcé qu'une seule fois, dans le CTA final — et jamais
+  // du tout quand le CTA est désactivé.
+  const strip = (t: string) =>
+    (t ?? "")
+      .replace(/\bSophia\b/gi, includeCta ? "l'appli" : "")
+      .replace(/\s{2,}/g, " ")
+      .trim();
   script.scenes = script.scenes.map((s, i) => ({
     ...s,
     index: i,
-    narration: (s.narration ?? "").replace(/\bSophia\b/gi, "l'appli"),
+    narration: strip(s.narration ?? ""),
   }));
+
+  if (!includeCta) {
+    // Aucune publicité : on retire toute scène qui parlerait de l'appli.
+    const isAd = (t: string) =>
+      /\b(sophia|l'appli|l'application|t[ée]l[ée]charge|abonne-toi)\b/i.test(t);
+    script.scenes = script.scenes.filter((s) => !isAd(s.narration ?? ""));
+    script.scenes = script.scenes.map((s, i) => ({ ...s, index: i }));
+    script.cta = "";
+    return script;
+  }
+
   let seenSophia = false;
   const cta = ((script.cta ?? "").trim() || SOPHIA_OUTRO)
     .replace(/\bSophia\b/gi, (m) => {
