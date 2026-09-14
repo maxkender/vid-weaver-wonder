@@ -33,7 +33,13 @@ import { Toaster } from "@/components/ui/sonner";
 import { KaraokeCaption } from "@/components/karaoke-caption";
 import { MusicLibrary } from "@/components/music-library";
 import { audioDuration, estimateSpeechSeconds } from "@/lib/duration";
-import { defaultVoice, voicesFor, type VoiceEngine } from "@/lib/voices";
+import {
+  
+  defaultVoiceFor,
+  isValidElevenVoiceId,
+  voicesFor,
+  type VoiceEngine,
+} from "@/lib/voices";
 import { defaultSettings, loadSettings, type StudioSettings } from "@/lib/style-presets";
 import sophiaLogo from "@/assets/sophia-logo.png.asset.json";
 
@@ -85,6 +91,16 @@ const VOICE_SAMPLE_TEXT: Record<string, string> = {
   de: "Hier ist eine Tatsache, die fast niemand kennt. Hör genau zu.",
   it: "Ecco un fatto che quasi nessuno conosce. Ascolta bene.",
   pt: "Aqui está um facto que quase ninguém conhece. Escuta com atenção.",
+};
+
+/** Drapeau préfixant les libellés de voix natives renvoyés par le serveur. */
+const LANGUAGE_FLAGS: Record<string, string> = {
+  fr: "🇫🇷",
+  en: "🇬🇧",
+  es: "🇪🇸",
+  de: "🇩🇪",
+  it: "🇮🇹",
+  pt: "🇵🇹",
 };
 
 type Kind = "faits" | "culture" | "pub";
@@ -257,7 +273,7 @@ function Studio() {
     }
   }, []);
   const voiceForLang = useCallback(
-    (l: string) => voiceByLang[l] ?? defaultVoice(engine),
+    (l: string) => voiceByLang[l] ?? defaultVoiceFor(engine, l),
     [voiceByLang, engine],
   );
   const voice = voiceForLang(voiceLangTab);
@@ -280,10 +296,13 @@ function Studio() {
     if (!langs.includes(voiceLangTab)) setVoiceLangTab(sourceLang);
   }, [langs, voiceLangTab, sourceLang]);
 
-  /** Langues cochées sans narrateur choisi : avertissement non bloquant. */
+  /**
+   * Langues cochées sans aucun narrateur utilisable : ni choix de l'utilisateur,
+   * ni voix par défaut pour cette langue. Avertissement non bloquant.
+   */
   const langsWithoutVoice = useMemo(
-    () => langs.filter((l) => !voiceByLang[l]),
-    [langs, voiceByLang],
+    () => langs.filter((l) => !voiceByLang[l] && !defaultVoiceFor(engine, l)),
+    [langs, voiceByLang, engine],
   );
 
   const runListVoices = useServerFn(listVoices);
@@ -1388,18 +1407,61 @@ function Studio() {
     };
   }, [voiceQuery, engine, runSearchVoices, voiceLangTab]);
 
-  const availableVoices = useMemo(() => {
+  /**
+   * Liste utilisable : favoris, puis voix de la langue de l'onglet, puis le reste,
+   * plafonnée à une trentaine d'entrées tant qu'aucune recherche n'est saisie.
+   */
+  const voiceGroups = useMemo(() => {
     const base = engine === "elevenlabs" && accountVoices.length ? accountVoices : voicesFor(engine);
     const q = voiceQuery.trim().toLowerCase();
     const filtered = q ? base.filter((v) => v.label.toLowerCase().includes(q)) : base;
     const seen = new Set(filtered.map((v) => v.id));
-    const extra = remoteVoices.filter((v) => !seen.has(v.id));
-    return [...filtered, ...extra].sort((a, b) => {
-      const favoriteDelta = Number(favoriteVoices.includes(b.id)) - Number(favoriteVoices.includes(a.id));
-      return favoriteDelta || a.label.localeCompare(b.label, "fr");
-    });
-  }, [accountVoices, engine, favoriteVoices, voiceQuery, remoteVoices]);
+    const all = [...filtered, ...remoteVoices.filter((v) => !seen.has(v.id))];
 
+    const mark = LANGUAGE_FLAGS[voiceLangTab] ?? "";
+    const byLabel = (a: { label: string }, b: { label: string }) =>
+      a.label.localeCompare(b.label, "fr");
+
+    const favs = all.filter((v) => favoriteVoices.includes(v.id)).sort(byLabel);
+    const rest = all.filter((v) => !favoriteVoices.includes(v.id));
+    const native = rest.filter((v) => mark && v.label.startsWith(mark)).sort(byLabel);
+    const others = rest.filter((v) => !(mark && v.label.startsWith(mark))).sort(byLabel);
+
+    const cap = q ? 120 : 30;
+    const room = Math.max(0, cap - favs.length);
+    const nativeShown = native.slice(0, room);
+    const othersShown = others.slice(0, Math.max(0, room - nativeShown.length));
+
+    return [
+      { key: "fav", label: "Favoris", voices: favs },
+      { key: "native", label: `Voix ${languageLabel(voiceLangTab)}`, voices: nativeShown },
+      { key: "other", label: "Autres voix", voices: othersShown },
+    ].filter((g) => g.voices.length > 0);
+  }, [accountVoices, engine, favoriteVoices, voiceQuery, remoteVoices, voiceLangTab]);
+
+  const availableVoices = useMemo(
+    () => voiceGroups.flatMap((g) => g.voices),
+    [voiceGroups],
+  );
+
+
+
+  /** Saisie manuelle d'un identifiant ElevenLabs pour la langue de l'onglet actif. */
+  const [voiceIdDraft, setVoiceIdDraft] = useState("");
+  const applyVoiceId = () => {
+    const id = voiceIdDraft.trim();
+    if (!id) {
+      toast.error("Colle d'abord un identifiant de voix ElevenLabs.");
+      return;
+    }
+    if (!isValidElevenVoiceId(id)) {
+      toast.error("Cet identifiant ne ressemble pas à un ID ElevenLabs (20 caractères environ).");
+      return;
+    }
+    setVoice(id);
+    setVoiceIdDraft("");
+    toast.success(`Voix appliquée pour ${languageLabel(voiceLangTab)}`);
+  };
 
   const toggleFavoriteVoice = () => {
     const next = favoriteVoices.includes(voice)
@@ -1841,7 +1903,7 @@ function Studio() {
                     key={e}
                     onClick={() => {
                       setEngine(e);
-                      setVoice(defaultVoice(e));
+                      setVoice(defaultVoiceFor(e, voiceLangTab));
                     }}
                     className={`chip flex-1 justify-center ${engine === e ? "chip-active" : ""}`}
                   >
@@ -1896,10 +1958,14 @@ function Studio() {
                   {!availableVoices.some((v) => v.id === voice) && (
                     <option value={voice}>Narrateur sélectionné</option>
                   )}
-                  {availableVoices.map((v) => (
-                    <option key={v.id} value={v.id}>
-                      {favoriteVoices.includes(v.id) ? `★ ${v.label}` : v.label}
-                    </option>
+                  {voiceGroups.map((g) => (
+                    <optgroup key={g.key} label={g.label}>
+                      {g.voices.map((v) => (
+                        <option key={v.id} value={v.id}>
+                          {favoriteVoices.includes(v.id) ? `★ ${v.label}` : v.label}
+                        </option>
+                      ))}
+                    </optgroup>
                   ))}
                 </select>
 
@@ -1925,6 +1991,32 @@ function Studio() {
                   />
                 </button>
               </div>
+
+              {/* Saisie directe d'un identifiant ElevenLabs, même absent de la liste. */}
+              <div className="mt-2 flex gap-2">
+                <input
+                  type="text"
+                  value={voiceIdDraft}
+                  onChange={(e) => setVoiceIdDraft(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      applyVoiceId();
+                    }
+                  }}
+                  placeholder="Ou colle un ID ElevenLabs"
+                  aria-label="Coller un identifiant de voix ElevenLabs"
+                  className="field min-w-0 flex-1"
+                />
+                <button type="button" onClick={applyVoiceId} className="btn-base btn-ghost shrink-0">
+                  Appliquer
+                </button>
+              </div>
+              <p className="mt-1 text-[11px] text-muted-foreground">
+                ID retenu pour {languageLabel(voiceLangTab)} :{" "}
+                <span className="font-mono">{voice}</span>
+              </p>
+
               <button
                 onClick={onPreviewVoice}
                 disabled={previewVoice}
