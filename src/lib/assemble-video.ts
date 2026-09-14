@@ -2,8 +2,19 @@ import { FFmpeg } from "@ffmpeg/ffmpeg";
 import { fetchFile } from "@ffmpeg/util";
 import coreURL from "@ffmpeg/core?url";
 import wasmURL from "@ffmpeg/core/wasm?url";
+import { videoDuration } from "./duration";
+import type { CaptionCue } from "./karaoke-overlay";
 
-export type KaraokeSeqInput = { fps: number; frames: Blob[] };
+/** Cadence unique de tout le pipeline (studio ET service de rendu). */
+export const OUTPUT_FPS = 30;
+/** Étirement maximal d'un clip pour couvrir une voix plus longue. */
+const MAX_STRETCH = 1.6;
+/** Au-delà de cet étirement, on accélère d'abord un peu la voix. */
+const STRETCH_BEFORE_TEMPO = 1.25;
+/** Accélération maximale de la voix (inaudible à ce niveau). */
+const MAX_TEMPO = 1.12;
+/** Fondu audio en entrée/sortie de plan : supprime les clics de raccord. */
+const AUDIO_FADE = 0.03;
 
 export type AssembleScene = {
   /** Clip animé du plan. Absent → on retombe sur l'image fixe (imageUrl). */
@@ -15,15 +26,11 @@ export type AssembleScene = {
   /** PNG transparent (texte incrusté) superposé sur toute la durée du plan. */
   overlay?: Blob | null | undefined;
   /**
-   * Sous-titres karaoké : séquence d'images à cadence fixe.
+   * Sous-titres : un PNG par mot affiché avec sa fenêtre temporelle.
    * Peut être une fonction pour ne construire les images qu'au moment du plan
    * (évite de garder toutes les scènes en mémoire → crash de l'onglet).
    */
-  karaokeSeq?:
-    | KaraokeSeqInput
-    | null
-    | undefined
-    | (() => Promise<KaraokeSeqInput | null>);
+  cues?: CaptionCue[] | null | undefined | (() => Promise<CaptionCue[] | null>);
   /** Masque PNG (carré à coins arrondis) appliqué sous le texte. */
   mask?: Blob | null | undefined;
   /** Durée cible du plan (= durée de la voix off utile), en secondes. */
@@ -34,6 +41,7 @@ export type AssembleScene = {
   trimEnd?: number | undefined;
 
 };
+
 
 
 let ffmpegInstance: FFmpeg | null = null;
