@@ -80,8 +80,9 @@ export function scriptSystemPrompt(
   langName = "français de France",
   includeCta = true,
 ) {
-  const lo = Math.max(8, Math.round(wordsPerScene - 3));
-  const hi = Math.min(26, Math.round(wordsPerScene + 3));
+  // Fourchette resserrée : la borne basse ne doit jamais autoriser un plan de 3 s.
+  const lo = Math.max(14, Math.round(wordsPerScene - 2));
+  const hi = Math.max(lo + 4, Math.round(wordsPerScene + 2));
   return [
     `Tu es un scénariste de vidéos courtes verticales (TikTok / Reels), spécialisé en culture générale.`,
     `LANGUE DE SORTIE (règle absolue) : tous les textes lus ou affichés (title, hook, narration, overlay, cta, hashtags) sont écrits en ${langName}, dans une langue naturelle et idiomatique — jamais une traduction mot à mot. Seuls imagePrompt et videoPrompt restent en anglais.`,
