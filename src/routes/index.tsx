@@ -1420,12 +1420,21 @@ function Studio() {
       return;
     }
     const perClip = Math.min(8, Math.max(4, Math.round(targetSeconds / Math.max(1, sceneCount))));
+    const planned = sceneCount * perClip;
+    const cap = settings.spendCapSeconds ?? 72;
+    if (planned > cap) {
+      toast.error(
+        `Plafond de dépense dépassé : ${planned} s de vidéo IA demandées pour un plafond de ${cap} s. Réduis la durée, le nombre de plans, ou relève le plafond dans Paramètres.`,
+      );
+      return;
+    }
     const ok = await requestCostConfirmation({
       clips: sceneCount,
-      seconds: sceneCount * perClip,
+      seconds: planned,
       perClip,
       voices: sceneCount * langs.length,
       languages: langs.length,
+      ctaSaving: settings.sophiaCta !== false ? perClip : 0,
     });
     if (!ok) return;
     beginRun();
