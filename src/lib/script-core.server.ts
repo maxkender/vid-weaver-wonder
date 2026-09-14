@@ -25,6 +25,8 @@ export type BuildScriptInput = {
   productionLanguages?: string[] | undefined;
   /** Ajouter le plan CTA Sophia à la fin (true par défaut). */
   includeCta?: boolean | undefined;
+  /** Faits vérifiés : seule source de chiffres et d'affirmations autorisée. */
+  facts?: string[] | undefined;
 };
 
 /**
@@ -80,6 +82,7 @@ export async function buildScript(data: BuildScriptInput): Promise<Script> {
       totalWords,
       langName,
       includeCta,
+      data.facts ?? [],
     ),
     `${scriptUserPrompt(data.kind, data.topic)}\nÉcris tout le script en ${langName}.`,
   );
