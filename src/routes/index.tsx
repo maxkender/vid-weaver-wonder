@@ -441,6 +441,7 @@ function Studio() {
   const confirmResolverRef = useRef<((value: boolean) => void) | null>(null);
 
   const requestCostConfirmation = (payload: LaunchCost): Promise<boolean> => {
+    console.log("requestCostConfirmation", payload);
     setConfirmPayload(payload);
     setConfirmOpen(true);
     return new Promise((resolve) => {
