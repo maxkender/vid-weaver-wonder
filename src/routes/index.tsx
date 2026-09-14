@@ -77,6 +77,16 @@ export const Route = createFileRoute("/")({
   component: Studio,
 });
 
+/** Phrase d'exemple pour l'aperçu de voix, dans la langue de l'onglet actif. */
+const VOICE_SAMPLE_TEXT: Record<string, string> = {
+  fr: "Et si je te racontais un fait que presque personne ne connaît ? Écoute bien.",
+  en: "Here is a fact almost nobody knows. Listen closely.",
+  es: "Te cuento un dato que casi nadie conoce. Escucha bien.",
+  de: "Hier ist eine Tatsache, die fast niemand kennt. Hör genau zu.",
+  it: "Ecco un fatto che quasi nessuno conosce. Ascolta bene.",
+  pt: "Aqui está um facto que quase ninguém conhece. Escuta com atenção.",
+};
+
 type Kind = "faits" | "culture" | "pub";
 type NarrationStyle =
   | "question"
@@ -269,13 +279,23 @@ function Studio() {
     [voiceLangTab],
   );
   useEffect(() => setVoiceLangTab(sourceLang), [sourceLang]);
+  // Si la langue de l'onglet actif est décochée, on revient sur la langue source.
+  useEffect(() => {
+    if (!langs.includes(voiceLangTab)) setVoiceLangTab(sourceLang);
+  }, [langs, voiceLangTab, sourceLang]);
+
+  /** Langues cochées sans narrateur choisi : avertissement non bloquant. */
+  const langsWithoutVoice = useMemo(
+    () => langs.filter((l) => !voiceByLang[l]),
+    [langs, voiceByLang],
+  );
 
   const runListVoices = useServerFn(listVoices);
   useEffect(() => {
-    runListVoices({})
+    runListVoices({ data: { language: voiceLangTab } })
       .then((r) => setAccountVoices((r as { voices: { id: string; label: string }[] }).voices))
       .catch(() => setAccountVoices([]));
-  }, [runListVoices]);
+  }, [runListVoices, voiceLangTab]);
 
   useEffect(() => {
     try {
@@ -961,12 +981,12 @@ function Studio() {
   const onPreviewVoice = async () => {
     setPreviewVoice(true);
     try {
-      const sampleKey = `${engine}:${voice}`;
+      const sampleKey = `${engine}:${voice}:${voiceLangTab}`;
       let src = voiceSamples.current[sampleKey];
       if (!src) {
         const { audioDataUrl } = (await runVoice({
           data: {
-            text: "Et si je te racontais un fait que presque personne ne connaît ? Écoute bien.",
+            text: VOICE_SAMPLE_TEXT[voiceLangTab] ?? VOICE_SAMPLE_TEXT["fr"]!,
             voice,
             engine,
             language: voiceLangTab,
@@ -1334,7 +1354,7 @@ function Studio() {
     let cancelled = false;
     const t = setTimeout(async () => {
       try {
-        const res = await runSearchVoices({ data: { query: q } });
+        const res = await runSearchVoices({ data: { query: q, language: voiceLangTab } });
         if (!cancelled) setRemoteVoices(res.voices);
       } catch {
         /* recherche best-effort */
@@ -1344,7 +1364,7 @@ function Studio() {
       cancelled = true;
       clearTimeout(t);
     };
-  }, [voiceQuery, engine, runSearchVoices]);
+  }, [voiceQuery, engine, runSearchVoices, voiceLangTab]);
 
   const availableVoices = useMemo(() => {
     const base = engine === "elevenlabs" && accountVoices.length ? accountVoices : voicesFor(engine);
@@ -1635,6 +1655,12 @@ function Studio() {
 
             {/* BARRE D'ACTIONS — une seule action pleine : la génération complète. */}
             <div className="mt-auto space-y-2 pt-5">
+              {langsWithoutVoice.length > 0 && (
+                <p className="text-xs text-muted-foreground">
+                  Voix non choisie pour :{" "}
+                  {langsWithoutVoice.map((l) => languageLabel(l)).join(", ")}
+                </p>
+              )}
               <div className="flex flex-wrap items-center gap-2 border-t border-border pt-4">
                 <button
                   onClick={onAutoAll}
@@ -1800,6 +1826,35 @@ function Studio() {
                     {e === "lovable" ? "Standard" : "Premium (ElevenLabs)"}
                   </button>
                 ))}
+              </div>
+
+              {/* Un onglet par langue produite : chaque langue a son narrateur. */}
+              <div className="mt-2 flex flex-wrap gap-2">
+                {langs.map((l) => {
+                  const chosen = voiceByLang[l];
+                  const label =
+                    (chosen &&
+                      (availableVoices.find((v) => v.id === chosen)?.label ??
+                        accountVoices.find((v) => v.id === chosen)?.label ??
+                        "narrateur choisi")) ||
+                    "à choisir";
+                  return (
+                    <button
+                      key={l}
+                      type="button"
+                      onClick={() => setVoiceLangTab(l)}
+                      aria-pressed={voiceLangTab === l}
+                      className={`chip flex-col items-start gap-0 py-1.5 text-left ${
+                        voiceLangTab === l ? "chip-active" : ""
+                      }`}
+                    >
+                      <span className="text-xs font-medium">{languageLabel(l)}</span>
+                      <span className="max-w-[11rem] truncate text-[10px] text-muted-foreground">
+                        {label}
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
               <input
                 type="search"

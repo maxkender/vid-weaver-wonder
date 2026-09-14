@@ -72,3 +72,9 @@ export async function randomTrack(style: string): Promise<MusicTrack | null> {
   return source[Math.floor(Math.random() * source.length)]!;
 }
 
+/** Nombre de musiques du style demandé et nombre total, pour l'affichage. */
+export async function countTracks(style: string): Promise<{ forStyle: number; total: number }> {
+  const all = await listTracks();
+  return { forStyle: all.filter((t) => t.style === style).length, total: all.length };
+}
+
