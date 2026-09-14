@@ -150,7 +150,7 @@ async function renderPng(
   if (!ctx) return null;
   if (logo) drawLogo(ctx, logo.img, width, height, logo.progress);
   if (word) {
-    await ensureFont(Math.round(width * CAPTION_SIZE_RATIO));
+    await ensureFont(Math.round(squareSide(width, height) * CAPTION_SIZE_RATIO));
     drawWord(ctx, word, width, height, scale, alpha);
   }
 
