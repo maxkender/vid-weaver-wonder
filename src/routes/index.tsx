@@ -1650,12 +1650,16 @@ function Studio() {
                 htmlFor="video-language"
                 className="text-xs uppercase tracking-widest text-muted-foreground"
               >
-                Langue de la vidéo
+                Langue d'écriture
               </label>
               <select
                 id="video-language"
-                value={language}
-                onChange={(e) => setLanguage(e.target.value as LanguageId)}
+                value={sourceLang}
+                onChange={(e) => {
+                  const next = e.target.value as LanguageId;
+                  setSourceLang(next);
+                  setTargetLangs((prev) => (prev.includes(next) ? prev : [...prev, next]));
+                }}
                 className="mt-2 w-full rounded-lg border border-input bg-background/60 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
               >
                 {LANGUAGES.map((l) => (
@@ -1665,7 +1669,36 @@ function Studio() {
                 ))}
               </select>
               <p className="mt-1 text-xs text-muted-foreground">
-                Script, voix off et sous-titres sont générés dans cette langue.
+                Le script est écrit dans cette langue, puis traduit dans les autres.
+              </p>
+
+              <p className="mt-4 text-xs uppercase tracking-widest text-muted-foreground">
+                Langues à produire
+              </p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {MASTER_LANGUAGES.map((l) => {
+                  const active = l.id === sourceLang || targetLangs.includes(l.id as LanguageId);
+                  return (
+                    <button
+                      key={l.id}
+                      type="button"
+                      onClick={() => toggleLang(l.id as LanguageId)}
+                      disabled={l.id === sourceLang}
+                      className={`rounded-full border px-4 py-2 text-sm transition-colors ${
+                        active
+                          ? "border-primary bg-primary/15 text-foreground"
+                          : "border-border bg-secondary/40 text-muted-foreground hover:text-foreground"
+                      } ${l.id === sourceLang ? "opacity-70" : ""}`}
+                    >
+                      {l.label}
+                      {l.id === sourceLang ? " · source" : ""}
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Images et plans animés sont payés une seule fois : seules les voix off
+                se multiplient.
               </p>
             </div>
 
