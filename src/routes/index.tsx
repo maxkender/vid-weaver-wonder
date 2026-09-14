@@ -286,10 +286,13 @@ function Studio() {
     if (!langs.includes(voiceLangTab)) setVoiceLangTab(sourceLang);
   }, [langs, voiceLangTab, sourceLang]);
 
-  /** Langues cochées sans narrateur choisi : avertissement non bloquant. */
+  /**
+   * Langues cochées sans aucun narrateur utilisable : ni choix de l'utilisateur,
+   * ni voix par défaut pour cette langue. Avertissement non bloquant.
+   */
   const langsWithoutVoice = useMemo(
-    () => langs.filter((l) => !voiceByLang[l]),
-    [langs, voiceByLang],
+    () => langs.filter((l) => !voiceByLang[l] && !defaultVoiceFor(engine, l)),
+    [langs, voiceByLang, engine],
   );
 
   const runListVoices = useServerFn(listVoices);
