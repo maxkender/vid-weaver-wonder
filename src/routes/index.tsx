@@ -1821,6 +1821,35 @@ function Studio() {
                   </button>
                 ))}
               </div>
+
+              {/* Un onglet par langue produite : chaque langue a son narrateur. */}
+              <div className="mt-2 flex flex-wrap gap-2">
+                {langs.map((l) => {
+                  const chosen = voiceByLang[l];
+                  const label =
+                    (chosen &&
+                      (availableVoices.find((v) => v.id === chosen)?.label ??
+                        accountVoices.find((v) => v.id === chosen)?.label ??
+                        "narrateur choisi")) ||
+                    "à choisir";
+                  return (
+                    <button
+                      key={l}
+                      type="button"
+                      onClick={() => setVoiceLangTab(l)}
+                      aria-pressed={voiceLangTab === l}
+                      className={`chip flex-col items-start gap-0 py-1.5 text-left ${
+                        voiceLangTab === l ? "chip-active" : ""
+                      }`}
+                    >
+                      <span className="text-xs font-medium">{languageLabel(l)}</span>
+                      <span className="max-w-[11rem] truncate text-[10px] text-muted-foreground">
+                        {label}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
               <input
                 type="search"
                 value={voiceQuery}
