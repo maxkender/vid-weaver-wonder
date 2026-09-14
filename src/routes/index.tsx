@@ -1496,8 +1496,9 @@ function Studio() {
               </span>
             )}
             <span className="text-muted-foreground">
-              Coût estimé : {cost.clips} clip{cost.clips > 1 ? "s" : ""} × {cost.perClip} s ={" "}
-              {cost.seconds} s
+              Coût estimé : {cost.clips} clip{cost.clips > 1 ? "s" : ""} × {cost.perClip} s payés une
+              seule fois + {cost.voices} voix off ({cost.languages} langue
+              {cost.languages > 1 ? "s" : ""})
             </span>
             <div className="ml-auto flex items-center gap-2">
               {!pipelinePaused && !(busy && stopped) && (
@@ -1532,10 +1533,14 @@ function Studio() {
                     setScript(h.script);
                     setProjectId(h.id);
                     setFinalUrl(null);
+                    setFinalUrls({});
+                    const saved = { ...(h.scripts ?? {}), [sourceLang]: h.script };
+                    setScripts(saved);
+                    scriptsRef.current = saved;
                     setShowHistory(false);
                     const { loadProjectMedia } = await import("@/lib/project-store");
                     const media = await loadProjectMedia(h.id);
-                    setStates(media);
+                    setStates(migrateStates(media as Record<number, SceneState>, sourceLang));
                     const { loadFinalVideo } = await import("@/lib/project-store");
                     const savedFinal = await loadFinalVideo(h.id);
                     if (savedFinal) setFinalUrl(URL.createObjectURL(savedFinal));
@@ -1920,17 +1925,44 @@ function Studio() {
                     ? assembleStep
                     : `${readyScenes.length}/${script.scenes.length} scènes animées`}
                 </span>
-                {finalUrl && (
-                  <a
-                    href={finalUrl}
-                    download="video-finale.mp4"
+                {Object.keys(finalUrls).length > 1 && (
+                  <button
+                    onClick={onDownloadAll}
                     className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-xs uppercase tracking-widest hover:border-primary"
                   >
-                    <Download className="h-3.5 w-3.5" /> MP4 final
-                  </a>
+                    <Download className="h-3.5 w-3.5" /> Tout télécharger
+                  </button>
                 )}
               </div>
-              {finalUrl && (
+
+              {/* Une vidéo par langue : mêmes clips, voix et sous-titres différents. */}
+              <div className="mt-4 grid gap-4 md:grid-cols-2">
+                {langs
+                  .filter((l) => finalUrls[l])
+                  .map((l) => (
+                    <div key={l} className="rounded-lg border border-border p-3">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-xs uppercase tracking-widest text-muted-foreground">
+                          {languageLabel(l)} · {l}
+                        </span>
+                        <a
+                          href={finalUrls[l]}
+                          download={`${(script.title || "video").replace(/[^\p{L}\p{N}]+/gu, "-").toLowerCase()}-${l}.mp4`}
+                          className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-1.5 text-xs uppercase tracking-widest hover:border-primary"
+                        >
+                          <Download className="h-3.5 w-3.5" /> MP4
+                        </a>
+                      </div>
+                      <video
+                        src={finalUrls[l]}
+                        controls
+                        playsInline
+                        className="mt-3 max-h-[60vh] w-full rounded-lg bg-black object-contain"
+                      />
+                    </div>
+                  ))}
+              </div>
+              {!Object.keys(finalUrls).length && finalUrl && (
                 <video
                   src={finalUrl}
                   controls
