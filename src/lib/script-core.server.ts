@@ -77,39 +77,30 @@ export async function buildScript(data: BuildScriptInput): Promise<Script> {
   // Rallonge automatique si le script est trop court pour la durée demandée.
   const countWords = (t: string) => t.trim().split(/\s+/).filter(Boolean).length;
   const words = () => script.scenes.reduce((n, s) => n + countWords(s.narration ?? ""), 0);
-  if (words() < totalWords * 0.92 && script.scenes.length < 16) {
+  if (words() < totalWords * 0.92 && script.scenes.length) {
     const missing = totalWords - words();
-    const extra = Math.max(1, Math.min(6, Math.ceil(missing / wordsPerScene)));
     try {
-      const more = await chatJSON<{ scenes: Script["scenes"] }>(
+      // On ALLONGE les scènes existantes : ajouter des scènes ajouterait des
+      // clips animés payants et hacherait le montage.
+      const longer = await chatJSON<{ scenes: { index: number; narration: string }[] }>(
         "google/gemini-3.7-flash",
         [
-          scriptSystemPrompt(
-            data.kind,
-            extra,
-            data.style,
-            wordsPerScene,
-            data.styleBrief,
-            undefined,
-            langName,
-            includeCta,
-          ),
-          `Tu complètes un script existant : tu écris UNIQUEMENT ${extra} scènes SUPPLÉMENTAIRES qui s'intercalent avant la révélation finale, dans la même histoire, mêmes personnages, même bible visuelle. Aucune scène de pub. Réponds en JSON {"scenes":[...]} uniquement.`,
+          `Tu réécris les narrations d'un script vidéo existant, en ${langName}.`,
+          `Tu renvoies EXACTEMENT ${script.scenes.length} scènes, avec les MÊMES index, dans le même ordre. Tu n'ajoutes, ne supprimes et ne fusionnes AUCUNE scène.`,
+          `Chaque narration doit faire entre ${minWords} et ${maxWords} mots (soit 6 à 8 secondes de parole). Allonge en priorité les scènes les plus courtes avec des détails concrets : date exacte, lieu, nom, chiffre précis, conséquence matérielle. N'invente aucun fait douteux, n'ajoute ni morale ni publicité, ne répète pas ce qui est déjà dit.`,
+          `Le script complet doit gagner environ ${missing} mots.`,
+          'Réponds uniquement en JSON: {"scenes":[{"index":number,"narration":string}]}',
         ].join("\n"),
-        [
-          `Histoire existante (JSON) : ${JSON.stringify({
-            title: script.title,
-            characters: script.characters,
-            palette: script.palette,
-            scenes: script.scenes.map((s) => s.narration),
-          })}`,
-          `Ajoute ${extra} scènes de détails concrets (époque exacte, lieu, noms, chiffres marquants) qui rendent l'histoire plus claire et plus longue d'environ ${missing} mots.`,
-        ].join("\n"),
+        `Scènes actuelles (JSON) : ${JSON.stringify(
+          script.scenes.map((s) => ({ index: s.index, narration: s.narration })),
+        )}`,
       );
-      const add = (more.scenes ?? []).filter((s) => (s.narration ?? "").trim());
-      if (add.length) {
-        const tail = script.scenes.slice(-1);
-        script.scenes = [...script.scenes.slice(0, -1), ...add, ...tail];
+      for (const s of longer.scenes ?? []) {
+        const target = script.scenes[s.index];
+        const text = (s.narration ?? "").trim();
+        if (target && text && countWords(text) >= countWords(target.narration ?? "")) {
+          target.narration = text;
+        }
       }
     } catch {
       // Rallonge best-effort : on garde le script d'origine en cas d'échec.
