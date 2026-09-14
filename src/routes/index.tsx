@@ -260,6 +260,29 @@ function Studio() {
     setStates((prev) => ({ ...prev, [i]: { ...prev[i], ...value } }));
   }, []);
 
+  /**
+   * Drapeau d'arrêt : vérifié AVANT chaque appel payant (image, clip, voix) et
+   * à chaque tour de polling. Rien n'est supprimé, on cesse simplement de
+   * commander de nouveaux appels.
+   */
+  const cancelledRef = useRef(false);
+  const [stopped, setStopped] = useState(false);
+  const [currentStep, setCurrentStep] = useState("");
+
+  const beginRun = useCallback(() => {
+    cancelledRef.current = false;
+    setStopped(false);
+  }, []);
+
+  const stopRun = useCallback(() => {
+    cancelledRef.current = true;
+    setStopped(true);
+    setCurrentStep("Pipeline arrêté");
+    toast.warning("Pipeline arrêté");
+  }, []);
+
+
+
   
   const audioRefs = useRef<Record<number, HTMLAudioElement | null>>({});
   const videoRefs = useRef<Record<number, HTMLVideoElement | null>>({});
