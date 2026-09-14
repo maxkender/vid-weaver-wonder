@@ -683,9 +683,35 @@ function Studio() {
     }
   };
 
+  /** Prend le premier sujet VALIDÉ de la file (garde-fou qualité). */
+  const onTakeQueuedTopic = async () => {
+    setTakingTopic(true);
+    try {
+      const res = (await runNextTopic()) as { topic: QueuedTopic | null };
+      if (!res.topic) {
+        toast.error("Aucun sujet validé dans la file — va en valider dans « Sujets »");
+        return;
+      }
+      setTopic(res.topic.topic);
+      setAngle(res.topic.angle ?? "");
+      setQueuedTopicId(res.topic.id);
+      setTopicValidated(true);
+      toast.success("Sujet pris dans la file");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Lecture de la file impossible");
+    } finally {
+      setTakingTopic(false);
+    }
+  };
 
   const onScript = async (): Promise<Script | undefined> => {
     setLoadingScript(true);
+    // Le sujet de la file est consommé au moment où la vidéo part réellement.
+    if (queuedTopicId) {
+      void runMarkUsed({ data: { id: queuedTopicId, videoJobId: projectId ?? "" } })
+        .then(() => setQueuedTopicId(null))
+        .catch(() => undefined);
+    }
     try {
       const result = (await runScript({
         data: {
