@@ -288,14 +288,7 @@ function TopicQueuePage() {
             >
               <span className="text-xs text-muted-foreground">{i + 1}</span>
               <div className="min-w-0 flex-1">
-                <p className="text-sm">
-                  {t.status === "revoir" && (
-                    <span className="mr-2 rounded-[6px] bg-destructive/15 px-1.5 py-0.5 text-[11px] text-destructive">
-                      à revoir
-                    </span>
-                  )}
-                  {t.topic}
-                </p>
+                <p className="text-sm">{t.topic}</p>
                 {t.angle && <p className="mt-1 text-xs text-muted-foreground">{t.angle}</p>}
               </div>
               <div className="flex items-center gap-1">
