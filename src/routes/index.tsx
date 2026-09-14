@@ -34,7 +34,7 @@ import { KaraokeCaption } from "@/components/karaoke-caption";
 import { MusicLibrary } from "@/components/music-library";
 import { audioDuration, estimateSpeechSeconds } from "@/lib/duration";
 import {
-  defaultVoice,
+  
   defaultVoiceFor,
   isValidElevenVoiceId,
   voicesFor,
