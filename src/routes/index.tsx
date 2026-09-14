@@ -93,6 +93,16 @@ const VOICE_SAMPLE_TEXT: Record<string, string> = {
   pt: "Aqui está um facto que quase ninguém conhece. Escuta com atenção.",
 };
 
+/** Drapeau préfixant les libellés de voix natives renvoyés par le serveur. */
+const LANGUAGE_FLAGS: Record<string, string> = {
+  fr: "🇫🇷",
+  en: "🇬🇧",
+  es: "🇪🇸",
+  de: "🇩🇪",
+  it: "🇮🇹",
+  pt: "🇵🇹",
+};
+
 type Kind = "faits" | "culture" | "pub";
 type NarrationStyle =
   | "question"
