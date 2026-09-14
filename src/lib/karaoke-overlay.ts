@@ -1,5 +1,10 @@
-export type KaraokeFrame = { blob: Blob; start: number; end: number };
-export type KaraokeSequence = { fps: number; frames: Blob[] };
+/**
+ * Une image PNG transparente + sa fenêtre d'affichage.
+ * UN PNG par mot affiché (et par palier d'animation du logo) : on ne dessine
+ * plus une image par frame, ce qui divise par ~10 le nombre de fichiers
+ * envoyés à FFmpeg et supprime les plantages mémoire sur les longues vidéos.
+ */
+export type CaptionCue = { blob: Blob; start: number; end: number };
 
 /** Charge la police d'affichage avant de dessiner (sinon canvas retombe sur Arial). */
 async function ensureFont(size: number) {
