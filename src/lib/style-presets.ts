@@ -84,6 +84,11 @@ export type StudioSettings = {
   precomposeSquare: boolean;
   /** Ajouter le plan CTA Sophia à la fin du script. */
   sophiaCta: boolean;
+  /**
+   * Mode brouillon : plans commandés en 720×1280 et durées libres (4/6/8 s).
+   * L'export reste en 1080×1920, l'image est simplement agrandie.
+   */
+  draft720: boolean;
   /** Plafond de dépense par vidéo, en secondes de vidéo IA commandées. */
   spendCapSeconds: number;
 };
@@ -110,7 +115,10 @@ export function defaultSettings(): StudioSettings {
     sophiaLogo: true,
     hd: true,
     precomposeSquare: true,
-    sophiaCta: true,
+    // Pas de plan publicitaire par défaut : il coûte un plan animé de plus
+    // (environ 11 % du budget) et la vidéo retient mieux sans lui.
+    sophiaCta: false,
+    draft720: false,
     spendCapSeconds: 72,
   };
 }

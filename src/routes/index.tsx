@@ -849,9 +849,12 @@ function Studio() {
       // recadrerait sinon l'image à sa guise (sujet coupé, cadrage instable).
       // L'image carrée d'origine reste celle affichée et servant de référence.
       let videoInput = image;
+      // Mode brouillon : plans commandés en 720×1280, durées libres (4/6/8 s).
+      // L'export, lui, reste toujours en 1080×1920 (image simplement agrandie).
+      const draft = settings.draft720 === true;
       if (image && orientation === "square" && settings.precomposeSquare !== false) {
         const { composeSquareInVertical } = await import("@/lib/square-frame");
-        const dims = settings.hd ? { w: 1080, h: 1920 } : { w: 720, h: 1280 };
+        const dims = draft ? { w: 720, h: 1280 } : { w: 1080, h: 1920 };
         videoInput = await composeSquareInVertical(image, dims.w, dims.h);
       }
       const story = storyContext(scene, doc);
@@ -861,13 +864,16 @@ function Studio() {
         "Keep every character, object, costume and location from the reference image unchanged",
         scene.videoPrompt,
       ].join(". ").slice(0, 1950);
-      const seconds = voiceSeconds
-        ? voiceSeconds <= 4
-          ? "4"
-          : voiceSeconds <= 6
-            ? "6"
-            : "8"
-        : undefined;
+      // Hors brouillon, le 1080p n'existe qu'en plans de 8 s : on les impose.
+      const seconds: "4" | "6" | "8" | undefined = !draft
+        ? "8"
+        : voiceSeconds
+          ? voiceSeconds <= 4
+            ? "4"
+            : voiceSeconds <= 6
+              ? "6"
+              : "8"
+          : undefined;
       const { id } = (await runVideo({
         data: {
           videoPrompt: literalVideoPrompt,
@@ -880,7 +886,7 @@ function Studio() {
           bible: bibleFor(doc),
           ...(story ? { story } : {}),
           motion: settings.visual[visual].motion,
-          hd: settings.hd,
+          hd: !draft,
         },
       })) as { id: string };
       patch(scene.index, { videoId: id });
@@ -1138,10 +1144,12 @@ function Studio() {
     const { randomTrack } = await import("@/lib/music-store");
     const { makeCaptionCues, makeRoundedSquareMask, sophiaWindow, voiceWindow, shiftTimings } =
       await import("@/lib/karaoke-overlay");
+    // L'export est TOUJOURS en 1080p, même en mode brouillon : les plans 720p
+    // sont simplement agrandis.
     const dims =
       orientation === "horizontal"
-        ? { width: settings.hd ? 1920 : 1280, height: settings.hd ? 1080 : 720 }
-        : { width: settings.hd ? 1080 : 720, height: settings.hd ? 1920 : 1280 };
+        ? { width: 1920, height: 1080 }
+        : { width: 1080, height: 1920 };
     // AUCUN plan n'est écarté : un plan sans clip animé est rendu à partir de
     // son image fixe, pour que l'histoire (et la durée) restent complètes.
     const all = (doc?.scenes ?? [])
@@ -1563,8 +1571,8 @@ function Studio() {
         await import("@/lib/karaoke-overlay");
       const dims =
         orientation === "horizontal"
-          ? { width: settings.hd ? 1920 : 1280, height: settings.hd ? 1080 : 720 }
-          : { width: settings.hd ? 1080 : 720, height: settings.hd ? 1920 : 1280 };
+          ? { width: 1920, height: 1080 }
+          : { width: 1080, height: 1920 };
       // On exporte le plan dans la langue actuellement affichée.
       const take = voiceOf(st, viewLang);
       const narration =
