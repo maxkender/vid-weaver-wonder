@@ -12,7 +12,13 @@ import { sha256Hex, verifySignedBody } from "@/lib/jobs/signing.server";
 import { LANGUAGE_IDS } from "@/lib/languages";
 import { TOPIC_CATEGORY_IDS } from "@/lib/topic-categories";
 
-const NARRATION = ["question", "revelation", "storytelling", "listicle"] as const;
+const NARRATION = [
+  "question",
+  "revelation",
+  "storytelling",
+  "listicle",
+  "mecanique",
+] as const;
 const VISUAL = ["papercraft", "cinematique", "documentaire", "retro"] as const;
 
 const bodySchema = z.object({
@@ -20,7 +26,7 @@ const bodySchema = z.object({
   language: z.enum(LANGUAGE_IDS).default("fr"),
   /** Style narratif imposé, ou tirage aléatoire dans une liste autorisée. */
   narrationStyle: z.union([z.enum(NARRATION), z.literal("random")]).default("random"),
-  allowedNarrationStyles: z.array(z.enum(NARRATION)).max(4).optional(),
+  allowedNarrationStyles: z.array(z.enum(NARRATION)).max(5).optional(),
   topicCategory: z.union([z.enum(TOPIC_CATEGORY_IDS), z.literal("random")]).default("random"),
   allowedTopicCategories: z.array(z.enum(TOPIC_CATEGORY_IDS)).max(20).optional(),
   /** Direction artistique : fixe par posteur. */
@@ -29,6 +35,8 @@ const bodySchema = z.object({
   voiceId: z.string().min(2).max(60).optional(),
   topic: z.string().max(500).optional(),
   callbackUrl: z.string().url().max(500).optional(),
+  /** Ajouter le plan CTA Sophia à la fin du script. */
+  includeCta: z.boolean().default(true),
 });
 
 function pick<T>(arr: readonly T[], fallback: T): T {
@@ -101,6 +109,7 @@ export const Route = createFileRoute("/api/public/videos")({
             voice_id: parsed.voiceId ?? null,
             topic: parsed.topic ?? null,
             callback_url: parsed.callbackUrl ?? null,
+            include_cta: parsed.includeCta,
           })
           .select("id, status")
           .single();

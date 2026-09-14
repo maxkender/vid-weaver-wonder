@@ -44,6 +44,8 @@ export type RenderJob = {
   voice_engine: string;
   topic: string | null;
   callback_url: string | null;
+  /** Ajouter le plan CTA Sophia à la fin du script. */
+  include_cta: boolean;
   status: JobStatus;
   step: string;
   progress: number;

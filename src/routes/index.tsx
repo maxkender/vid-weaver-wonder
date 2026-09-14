@@ -72,7 +72,12 @@ export const Route = createFileRoute("/")({
 });
 
 type Kind = "faits" | "culture" | "pub";
-type NarrationStyle = "question" | "revelation" | "storytelling" | "listicle";
+type NarrationStyle =
+  | "question"
+  | "revelation"
+  | "storytelling"
+  | "listicle"
+  | "mecanique";
 type VisualStyle = "papercraft" | "cinematique" | "documentaire" | "retro";
 
 type Scene = {
@@ -135,6 +140,7 @@ const STYLES: { id: NarrationStyle; label: string; hint: string }[] = [
   { id: "revelation", label: "Révélation", hint: "Indices, puis retournement final" },
   { id: "storytelling", label: "Récit immersif", hint: "On raconte la scène vécue" },
   { id: "listicle", label: "Énumération", hint: "Une idée choc par scène" },
+  { id: "mecanique", label: "Mécanique", hint: "Comment ça marche vraiment" },
 ];
 
 const VISUALS: { id: VisualStyle; label: string }[] = [
@@ -161,7 +167,7 @@ function Studio() {
   const kind: Kind = "faits";
 
   // On choisit la DURÉE de la vidéo ; le nombre de plans en découle.
-  const [targetSeconds, setTargetSeconds] = useState(35);
+  const [targetSeconds, setTargetSeconds] = useState(50);
   const sceneCount = useMemo(
     () => Math.min(8, Math.max(3, Math.round((targetSeconds - 7) / 6))),
     [targetSeconds],
@@ -417,6 +423,7 @@ function Studio() {
           style,
           targetSeconds,
           language,
+          includeCta: settings.sophiaCta !== false,
           styleBrief: settings.narration[style].brief,
           wordsBias: settings.narration[style].wordsBias,
         },
@@ -1370,8 +1377,8 @@ function Studio() {
                 className="mt-3 w-full accent-[oklch(0.79_0.16_72)]"
               />
               <p className="mt-1 text-xs text-muted-foreground">
-                {sceneCount} plans + CTA · le texte est calibré pour tenir exactement dans cette
-                durée
+                {sceneCount} plans{settings.sophiaCta !== false ? " + CTA" : ""} · zone efficace
+                entre 40 et 70 secondes
               </p>
             </div>
 

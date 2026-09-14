@@ -3,7 +3,12 @@
  * Ce fichier ne doit contenir que des données : il est importé dans le bundle client.
  */
 
-export type NarrationStyleId = "question" | "revelation" | "storytelling" | "listicle";
+export type NarrationStyleId =
+  | "question"
+  | "revelation"
+  | "storytelling"
+  | "listicle"
+  | "mecanique";
 export type VisualStyleId = "papercraft" | "cinematique" | "documentaire" | "retro";
 
 export const NARRATION_LABELS: Record<NarrationStyleId, string> = {
@@ -11,6 +16,7 @@ export const NARRATION_LABELS: Record<NarrationStyleId, string> = {
   revelation: "Révélation",
   storytelling: "Récit immersif",
   listicle: "Énumération",
+  mecanique: "Mécanique",
 };
 
 export const VISUAL_LABELS: Record<VisualStyleId, string> = {
@@ -29,6 +35,8 @@ export const DEFAULT_STYLE_BRIEF: Record<NarrationStyleId, string> = {
     "Style « récit » : on raconte une scène vécue, avec des personnages, des lieux, des sensations. Présent de narration, immersif, cinématographique.",
   listicle:
     "Style « énumération » : une idée forte et surprenante par scène, enchaînées à un rythme rapide, avec une montée en intensité vers la plus dingue.",
+  mecanique:
+    "Style « mécanique » : on explique comment une chose marche vraiment, étape par étape, avec des chiffres précis, jusqu'à une conséquence qu'on n'attendait pas. Phrases très courtes, phrases nominales assumées, aucun retournement forcé.",
 };
 
 export const DEFAULT_VISUAL_BRIEF: Record<VisualStyleId, string> = {
@@ -74,6 +82,8 @@ export type StudioSettings = {
   hd: boolean;
   /** Pré-composer le carré au centre d'un cadre 9:16 avant d'animer le plan. */
   precomposeSquare: boolean;
+  /** Ajouter le plan CTA Sophia à la fin du script. */
+  sophiaCta: boolean;
 };
 
 export function defaultSettings(): StudioSettings {
@@ -98,6 +108,7 @@ export function defaultSettings(): StudioSettings {
     sophiaLogo: true,
     hd: true,
     precomposeSquare: true,
+    sophiaCta: true,
   };
 }
 

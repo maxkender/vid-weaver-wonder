@@ -250,6 +250,23 @@ function SettingsPage() {
           <label className="flex items-start gap-3 text-sm">
             <input
               type="checkbox"
+              checked={settings.sophiaCta !== false}
+              onChange={(e) => persist({ ...settings, sophiaCta: e.target.checked })}
+              className="mt-1 h-4 w-4 accent-[oklch(0.79_0.16_72)]"
+            />
+            <span>
+              Ajouter le plan CTA Sophia à la fin
+              <span className="block text-xs text-muted-foreground">
+                Un script sans CTA se termine sur sa phrase de chute et retient nettement
+                mieux jusqu'au bout. Décoche pour produire des vidéos sans aucune mention de
+                l'application.
+              </span>
+            </span>
+          </label>
+
+          <label className="flex items-start gap-3 text-sm">
+            <input
+              type="checkbox"
               checked={settings.sophiaLogo}
               onChange={(e) => persist({ ...settings, sophiaLogo: e.target.checked })}
               className="mt-1 h-4 w-4 accent-[oklch(0.79_0.16_72)]"

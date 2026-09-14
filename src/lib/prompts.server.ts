@@ -8,7 +8,12 @@ import {
 export type VideoKind = "faits" | "culture" | "pub";
 
 /** Ton / structure narrative du script. */
-export type NarrationStyle = "question" | "revelation" | "storytelling" | "listicle";
+export type NarrationStyle =
+  | "question"
+  | "revelation"
+  | "storytelling"
+  | "listicle"
+  | "mecanique";
 
 /** Direction artistique des visuels. */
 export type VisualStyle = "papercraft" | "cinematique" | "documentaire" | "retro";
@@ -57,6 +62,14 @@ const KIND_BRIEF: Record<VideoKind, string> = {
 };
 
 
+/** Trois exemples verbatim de scripts qui fonctionnent : modèles de ton et de rythme. */
+const REFERENCE_EXAMPLES = [
+  "EXEMPLES DE RÉFÉRENCE (modèles de TON et de RYTHME à imiter, jamais à recopier ni à réutiliser comme sujet) :",
+  "EXEMPLE 1 — « Le Spider Sense de Spider-Man n'a pas été inventé. Il a été copié sur les vraies araignées. Et dans la nature, il fonctionne encore mieux que dans le film. Leurs pattes sont couvertes de poils sensoriels ultra-fins, les trichobothries. Ils ne détectent pas le contact, ils détectent l'air. Le moindre déplacement d'air autour d'elle fait vibrer ses poils. Un insecte qui approche ? Une main qui descend ? La sensibilité est telle qu'ils réagissent à des mouvements d'air 1000 fois plus faibles que ce que ton oreille peut percevoir. Résultat : une araignée sait qu'on arrive avant de nous voir. Elle sent le danger arriver dans le vide. Un système d'alerte de proximité câblé dans 8 pattes. »",
+  "EXEMPLE 2 — « Le Cyclope de l'Odyssée a une origine bien réelle. Les Grecs avaient des preuves : de vrais crânes géants percés d'un trou unique. Dans des grottes de Sicile, ils déterraient des crânes énormes, 2 fois plus gros qu'un crâne humain. Et en plein centre du front, un seul trou, immense, rond, un œil unique. Pour eux, aucun doute : des géants vivaient sur cette île. Le Cyclope était né. Et ce n'est pas un hasard si l'Odyssée place les Cyclopes précisément en Sicile. Sauf que des siècles plus tard, les scientifiques ont identifié ces crânes. Des éléphants nains, hauts comme un mouton, qui vivaient sur l'île il y a des milliers d'années. Et le trou au milieu du front ? Pas un œil. La cavité de leur trompe. Le monstre le plus célèbre de la mythologie est une erreur de paléontologie commise 2 500 ans avant son invention. »",
+  "EXEMPLE 3 — « Les personnes qui vivent plus de 110 ans semblent partager une particularité biologique étonnante. Elles se cachent dans leur sang et elles pourraient être l'une des clés de leur longévité. Chez les personnes de 70 à 99 ans, un certain type de cellules immunitaires représente environ 4 % des lymphocytes T. Mais chez les plus de 110 ans, cette proportion grimpe jusqu'à près de 18 %. Ces cellules sont capables de détruire des cellules anormales, notamment certaines cellules tumorales. Les chercheurs pensent donc qu'elles pourraient aider ces personnes à rester en bonne santé exceptionnellement longtemps. Mais pour l'instant, personne ne sait si elles expliquent leur longévité ou si elles en sont simplement une conséquence. »",
+].join("\n");
+
 export function scriptSystemPrompt(
   kind: VideoKind,
   sceneCount: number,
@@ -65,6 +78,7 @@ export function scriptSystemPrompt(
   styleBriefOverride?: string,
   totalWords?: number,
   langName = "français de France",
+  includeCta = true,
 ) {
   const lo = Math.max(8, Math.round(wordsPerScene - 3));
   const hi = Math.min(26, Math.round(wordsPerScene + 3));
@@ -75,50 +89,42 @@ export function scriptSystemPrompt(
     styleBriefOverride?.trim() || DEFAULT_STYLE_BRIEF[style],
     `Produis exactement ${sceneCount} scènes.`,
     totalWords
-      ? `RÈGLE N°0 — DURÉE : le script complet (scènes + CTA) doit faire environ ${totalWords} mots au total, avec une marge de 5 % maximum. C'est une contrainte de durée : un script plus court rend la vidéo trop courte. Compte les mots avant de répondre et complète si tu es en dessous.`
+      ? `RÈGLE N°0 — DURÉE : le script complet${includeCta ? " (scènes + CTA)" : ""} doit faire environ ${totalWords} mots au total, avec une marge de 5 % maximum. C'est une contrainte de durée : un script plus court rend la vidéo trop courte. Compte les mots avant de répondre et complète si tu es en dessous.`
       : "",
-    "RÈGLE N°1 — LE HOOK (la partie la plus importante) : la SCÈNE 1 est UNE SEULE phrase, 8 à 16 mots maximum, qui se lit en moins de 4 secondes.",
-    "Le hook doit S'APPUYER SUR QUELQUE CHOSE QUE LE SPECTATEUR CONNAÎT DÉJÀ : un lieu, un monument, un animal, un objet du quotidien, un personnage ou une histoire célèbre. On doit pouvoir se représenter la scène instantanément, sans explication.",
-    "Le hook est une affirmation choc, immédiatement compréhensible par TOUT LE MONDE (un ado, quelqu'un qui ne connaît rien au sujet) : zéro nom compliqué, zéro contexte préalable, zéro mot rare.",
-    "Test de validation du hook : en l'entendant, on doit se dire « ah, ça je connais… mais ça, je ne savais pas ». Curiosité immédiate + envie de rester pour la réponse.",
-    "Le hook NE CONTIENT AUCUN CHIFFRE, aucune date, aucune statistique, aucun « saviez-vous que », aucune question rhétorique molle, aucun mot d'intro type « aujourd'hui », « voici », « dans cette vidéo », « imagine ».",
-    "Modèles de hooks qui marchent : « Pendant mille ans, personne n'a osé ouvrir cette porte. », « Ce monstre de légende a vraiment existé, et on a retrouvé son crâne. », « Cette ville a disparu en une nuit, et personne ne l'a vue partir. » — affirmation choc, mystère immédiat, zéro préambule.",
-    "Le champ hook reprend exactement la phrase de la scène 1.",
-    "TEST DU HOOK EN 2 SECONDES : le hook doit être compréhensible SANS la moindre connaissance préalable. Interdits absolus : un nom propre inconnu du grand public, un lieu obscur, un pronom sans référent (« il », « ce », « cette »), une formule vague (« ce jour-là », « cet objet », « cette armée »). Si on doit attendre la scène 2 pour comprendre de QUOI on parle, le hook est raté : réécris-le.",
-    "SCÈNE 2 : elle plante le décor en une phrase (qui, où, quand) puis relance la tension (« sauf que… », « le problème, c'est que… »).",
-    "RÈGLE D'ANCRAGE (obligatoire) : l'ÉPOQUE (année ou décennie explicite, ex. « en 1870 », « au Moyen Âge »), le LIEU (ville ou pays nommé) et les PROTAGONISTES (nom du peuple, du pays, de l'armée, de la personne) sont dits EXPLICITEMENT au plus tard à la scène 2, puis rappelés au moins une fois plus loin. Jamais « une armée », « un roi », « un pays » : toujours « l'armée prussienne », « Louis XIV », « la France ».",
-    "DÉTAILS CONCRETS : chaque scène apporte au moins un détail précis et vérifiable (date, chiffre marquant, nom, durée, distance) qui rend l'histoire vivante. Un script sans dates ni noms est un mauvais script.",
-
-    `RÈGLE N°2 — LONGUEUR STRICTE : chaque scène correspond à UN plan vidéo de 8 secondes maximum. La narration d'une scène fait entre ${lo} et ${hi} MOTS, jamais plus. Une scène plus longue est une erreur.`,
-    "Compte réellement les mots de chaque narration avant de répondre. Si c'est trop long, coupe ; si c'est trop court, développe.",
-    "CLARTÉ AVANT TOUT : on doit comprendre l'histoire même sans les images. Nomme explicitement de qui et de quoi on parle dans chaque scène (jamais « il », « ça », « cette chose » sans que le nom ait été dit juste avant). Le lieu et l'époque sont donnés dès la scène 2.",
-    "STORYTELLING CLAIR ET CONCIS : une seule idée par scène, phrases de 6 à 12 mots, sujet-verbe-complément, aucune subordonnée compliquée, aucun adjectif décoratif. Chaque phrase apporte une information nouvelle : si on peut la supprimer sans rien perdre, supprime-la.",
-    "FIL LOGIQUE : le script doit se lire comme un seul paragraphe suivi. Chaque scène répond à la question posée par la précédente et en pose une nouvelle. Avant-dernière scène = la révélation qui explique tout, sans rien laisser d'inexpliqué.",
-    "TEST D'INTELLIGIBILITÉ (obligatoire avant de répondre) : relis le script d'une traite comme si tu l'entendais pour la première fois. Chaque nom, lieu, époque et enjeu doit être introduit avant d'être utilisé ; aucune ellipse, aucun saut de logique, aucune scène qui suppose une connaissance préalable. Si une phrase peut être mal comprise, réécris-la plus simplement.",
 
     "",
-    "RÈGLE N°2 BIS — ARCHITECTURE EN 5 TEMPS (structure obligatoire, à respecter dans l'ordre) :",
-    "1) ACCROCHE (scène 1) : l'affirmation choc. 2) MISE EN PLACE (scène 2) : qui, où, quand, et pourquoi c'est étrange. 3) MONTÉE (scènes du milieu) : les faits s'accumulent et le mystère s'épaissit. 4) RETOURNEMENT (une seule scène, aux deux tiers de la vidéo) : la vérité bascule, ce qu'on croyait était faux. 5) EXPLICATION puis CHUTE (scènes finales) : on explique calmement POURQUOI, et on referme l'histoire par une phrase qui donne du sens.",
-    "MARQUER LE RETOURNEMENT (très important) : la scène du retournement commence obligatoirement par un connecteur de rupture court et parlant — « Sauf que… », « Et puis, tout bascule. », « En réalité… », « Le problème, c'est que… », « Mais en 1912, on ouvre le tombeau. » — suivi immédiatement du fait qui contredit ce qu'on vient de croire. Cette scène est la plus courte et la plus sèche du script : phrases très brèves, aucune fioriture.",
-    "MARQUER LE PASSAGE À L'EXPLICATION : la scène qui suit le retournement commence par un connecteur d'explication — « Voilà pourquoi… », « L'explication est simple : », « Ce qu'on avait pris pour X, c'était en fait Y. » — puis livre la cause réelle en une ou deux phrases limpides, avec le mot juste. À la fin de cette scène, le spectateur doit pouvoir réexpliquer l'histoire à quelqu'un d'autre en une phrase.",
-    "CONNECTEURS OBLIGATOIRES : chaque scène à partir de la 2 démarre par un mot de liaison qui dit au spectateur où il en est dans l'histoire — mise en place (« À l'époque… », « Pendant des siècles… »), montée (« Puis… », « Pire encore… », « Et ce n'est pas tout : »), rupture (« Sauf que… »), explication (« Voilà pourquoi… »), chute (« Depuis… », « Aujourd'hui encore… »). Jamais deux scènes de suite avec le même connecteur.",
-    "CONTRASTE DE RYTHME : les scènes de montée et de retournement sont courtes et sèches ; les scènes d'explication peuvent être un peu plus longues et posées. C'est ce contraste qui rend la vidéo intrigante ET compréhensible.",
-    "INTERDIT : deux retournements, un retournement annoncé à l'avance (« vous allez voir », « attendez la suite »), ou une explication qui arrive avant le retournement.",
-    "DERNIÈRE SCÈNE AVANT LE CTA : une phrase de chute qui boucle sur le hook (elle reprend l'image ou l'idée de la scène 1, résolue). On doit sentir que l'histoire est finie.",
+    "RÈGLE N°1 — L'ACCROCHE (scène 1, la partie la plus importante) : une AFFIRMATION FACTUELLE brute et surprenante, en une ou deux phrases courtes, lue en moins de 4 secondes. Jamais une question. Jamais « saviez-vous que ».",
+    "L'accroche s'appuie sur quelque chose que TOUT LE MONDE connaît déjà : un film, un personnage célèbre, un animal, un objet du quotidien, un mythe. On doit pouvoir se représenter la scène instantanément, sans explication.",
+    "TEST DES 2 SECONDES : l'accroche doit être comprise SANS la moindre connaissance préalable. Interdits absolus : un nom propre inconnu du grand public, un lieu obscur, un pronom sans référent (« il », « ce », « cette »), une formule vague (« ce jour-là », « cet objet »). Si on doit attendre la scène 2 pour comprendre de QUOI on parle, l'accroche est ratée : réécris-la.",
+    "Le champ hook reprend exactement la ou les phrases de la scène 1.",
 
-    "UN SEUL CTA : le CTA Sophia est écrit UNIQUEMENT dans le champ cta. Aucune scène du tableau scenes ne doit parler de l'appli, de téléchargement ou de cours gratuits.",
+    "",
+    "RÈGLE N°2 — FORME DU RÉCIT : trois formes sont autorisées, choisis librement celle qui convient au sujet, sans en privilégier aucune.",
+    "• LE MÉCANISME : on part d'un fait connu et on explique comment ça marche vraiment, étape par étape, jusqu'à une conséquence qu'on n'attendait pas.",
+    "• LA DÉMONSTRATION : on pose une question concrète et on la résout par le raisonnement et les chiffres, jusqu'à une conclusion nette.",
+    "• L'ENQUÊTE : on raconte une croyance, puis ce que les faits disent réellement, et on referme.",
+    "N'impose AUCUN retournement : beaucoup de très bons scripts n'en ont pas. N'impose AUCUN connecteur imposé en début de scène : les scènes s'enchaînent naturellement.",
 
-    "Rétention : chaque scène se termine sur une micro-tension (un détail inexpliqué, une contradiction, un « sauf que… ») qui oblige à regarder la suivante.",
-    "Le script doit être un vrai texte suivi et cohérent : chaque scène enchaîne logiquement sur la précédente, sans répétition, avec des transitions naturelles.",
-    "VOCABULAIRE SIMPLE : écris pour quelqu'un de 15 ans. Mots du quotidien uniquement, phrases courtes, zéro jargon, zéro mot savant.",
-    "Reste sur des faits simples à comprendre : une seule idée par scène.",
-    "Ton : oral, naturel, direct, tutoiement, phrases courtes et rythmées. Zéro emoji.",
-    "À partir de la scène 2, donne des détails concrets (lieux, noms, époques). Les chiffres sont autorisés seulement s'ils sont spectaculaires et jamais dans le hook.",
-    "Le mot « Sophia » ne doit apparaître qu'une seule fois dans TOUT le script, et uniquement dans le CTA final.",
+    "",
+    "RÈGLE N°3 — ÉCRITURE : phrases très courtes. Les phrases nominales et les fragments sont encouragés (« Un système d'alerte de proximité câblé dans 8 pattes. », « Le Cyclope était né. », « Une araignée de 70 kilos, non. »). Une idée par phrase. Tutoiement. Ton oral, direct, jamais publicitaire. Vocabulaire du quotidien, écrit pour quelqu'un de 15 ans.",
+    "CHIFFRES : au moins TROIS chiffres précis et vérifiables par script (proportions, dates, distances, tailles, pourcentages). Ils sont le cœur de la crédibilité. Ils sont interdits uniquement dans l'accroche.",
+    "MOT TECHNIQUE : tu as le droit à UN seul terme technique précis par script (trichobothries, pyrocumulonimbus, lymphocytes T), une seule fois, et immédiatement expliqué en mots du quotidien juste après.",
+    "RELANCES : des micro-questions très courtes à l'intérieur du texte pour relancer l'attention (« Comment c'est possible ? », « Le remède ? », « Un insecte qui approche ? »). Jamais en ouverture, jamais plus de deux par script.",
+    "CHUTE : la dernière phrase recadre tout d'un coup ; elle est courte et frappante. Jamais une morale, jamais un appel à l'action, jamais un résumé. Bonnes formes : « Le monstre le plus célèbre de la mythologie est une erreur de paléontologie commise 2 500 ans avant son invention. » / « À ce stade, ce n'est plus un incendie qu'on combat. C'est un système météo. »",
+    "HONNÊTETÉ : si le fait est incertain ou débattu, dis-le franchement à la fin plutôt que de trancher (« On ne sait pas encore si… », « personne ne sait si elles expliquent leur longévité ou si elles en sont une conséquence. »). Ça renforce la crédibilité.",
+    "INTERDITS ABSOLUS : « saviez-vous », « incroyable mais vrai », « accrochez-vous », « vous n'allez pas me croire », « dans cette vidéo », les emojis, les points d'exclamation, les superlatifs creux (« absolument fou », « complètement dingue »), et toute annonce de ce qui va arriver.",
+
+    "",
+    "RÈGLE N°4 — CONTINUITÉ : écris d'abord la narration comme UN SEUL TEXTE SUIVI qui se lit d'une traite, puis découpe-le en scènes aux frontières naturelles. Le découpage en plans est VISUEL, pas narratif : une scène n'est pas un paragraphe autonome, c'est un plan qui illustre un morceau du texte continu. C'est ce qui donne la fluidité.",
+    "CLARTÉ : on doit comprendre même sans les images. Nomme explicitement de qui et de quoi on parle (jamais « il », « ça », « cette chose » sans que le nom ait été dit juste avant). Le lieu, l'époque et les protagonistes sont nommés dès qu'ils entrent dans le récit.",
+    `LONGUEUR PAR SCÈNE : chaque scène correspond à UN plan vidéo de 8 secondes maximum. La narration d'une scène fait entre ${lo} et ${hi} MOTS, jamais plus. Compte réellement les mots avant de répondre.`,
     "Le champ overlay est le texte incrusté à l'écran : 3 à 6 mots, percutant.",
 
     "",
-    "RÈGLE N°3 — COHÉRENCE VISUELLE (très importante) :",
+    REFERENCE_EXAMPLES,
+
+    "",
+    "RÈGLE N°5 — COHÉRENCE VISUELLE (très importante) :",
     "Avant d'écrire les scènes, définis une BIBLE VISUELLE dans le champ characters : chaque personnage, animal ou objet qui revient dans plusieurs scènes reçoit une description physique FIXE et très précise en anglais (âge, silhouette, coiffure/barbe, vêtements, COULEURS exactes, accessoires). Exemple : « Odysseus: bearded man, deep red tunic and red cape, dark curly hair and beard, bronze sandals, cream skin tone ».",
     "Le champ palette décrit en anglais la palette de couleurs commune à TOUTE la vidéo (4 à 5 couleurs), et les décors récurrents.",
     "Dans CHAQUE imagePrompt et videoPrompt, tu recopies mot pour mot la description complète du personnage concerné, telle qu'écrite dans characters. Jamais « the same man » : toujours la description entière, identique. Un personnage garde exactement les mêmes couleurs de vêtements du début à la fin.",
@@ -126,12 +132,14 @@ export function scriptSystemPrompt(
     "imagePrompt décrit UNE composition simple et lisible : 1 à 3 éléments maximum, une silhouette claire au premier plan, un décor minimal.",
     "CORRESPONDANCE TEXTE–IMAGE : chaque imagePrompt doit illustrer LITTÉRALEMENT l'information prononcée dans la narration de cette scène. Reprends les personnes, objets, lieu et action réellement cités ; n'ajoute aucun symbole abstrait ou décor sans rapport.",
     "PROGRESSION VISUELLE : traite les scènes comme un storyboard continu. Chaque plan montre la conséquence concrète du plan précédent et prépare le suivant. Change le cadrage, pas arbitrairement le lieu, l'époque, les costumes ou les personnages.",
-    "PLAN DU RETOURNEMENT : la scène du retournement change visiblement de registre — cadrage plus serré (gros plan sur l'objet ou le visage qui révèle la vérité), lumière plus contrastée, décor plus dépouillé — tout en gardant les mêmes personnages, costumes et palette. La scène d'explication revient à un plan plus large et calme qui montre clairement la cause décrite dans la narration.",
-
     "N'utilise JAMAIS de noms propres d'œuvres, films, jeux, marques, artistes ou personnages protégés dans imagePrompt et videoPrompt : décris ce qu'on voit.",
     "videoPrompt anime uniquement les éléments visibles dans imagePrompt et décrit une action simple qui rend la narration immédiatement compréhensible, avec un mouvement de caméra discret, en 8 secondes maximum. Aucun nouvel objet, personnage ou événement.",
-    CTA_BRIEF,
-    "Le champ cta contient ce CTA Sophia adapté au sujet (texte prêt à être lu à voix haute).",
+
+    "",
+    includeCta ? CTA_BRIEF : "",
+    includeCta
+      ? "UN SEUL CTA : le CTA Sophia est écrit UNIQUEMENT dans le champ cta (texte prêt à être lu à voix haute), adapté au sujet. Aucune scène du tableau scenes ne doit parler de l'appli, de téléchargement ou de cours gratuits. Le mot « Sophia » n'apparaît qu'une seule fois dans TOUT le script."
+      : "AUCUNE PUBLICITÉ : le champ cta doit rester une chaîne VIDE. Le script ne mentionne JAMAIS Sophia, une application, un téléchargement, un abonnement ou un appel à l'action. Il se termine sur sa phrase de chute.",
     'Réponds uniquement en JSON: {"title":string,"hook":string,"characters":[{"name":string,"description":string}],"palette":string,"scenes":[{"index":number,"narration":string,"overlay":string,"imagePrompt":string,"videoPrompt":string}],"cta":string,"hashtags":string[]}',
   ].join("\n");
 }
@@ -208,4 +216,6 @@ export const TOPIC_BRIEF: Record<NarrationStyle, string> = {
     "Le sujet doit être une histoire vraie avec des personnages, un lieu et un moment précis, qu'on peut raconter comme une scène vécue.",
   listicle:
     "Le sujet doit être un thème simple qui permet d'enchaîner plusieurs faits surprenants indépendants (le corps humain, l'espace, les animaux, le Moyen Âge…).",
+  mecanique:
+    "Le sujet doit être une chose connue de tous dont on peut expliquer le fonctionnement réel, étape par étape (comment une araignée sent le danger, comment un incendie crée son propre orage, comment le GPS sait où tu es). On part du fait connu et on va jusqu'à une conséquence inattendue.",
 };

@@ -109,6 +109,7 @@ export type Database = {
           duration_sec: number
           error: string | null
           id: string
+          include_cta: boolean
           language: string
           lease_until: string | null
           narration_style: string
@@ -134,6 +135,7 @@ export type Database = {
           duration_sec?: number
           error?: string | null
           id?: string
+          include_cta?: boolean
           language?: string
           lease_until?: string | null
           narration_style?: string
@@ -159,6 +161,7 @@ export type Database = {
           duration_sec?: number
           error?: string | null
           id?: string
+          include_cta?: boolean
           language?: string
           lease_until?: string | null
           narration_style?: string
@@ -201,6 +204,7 @@ export type Database = {
           duration_sec: number
           error: string | null
           id: string
+          include_cta: boolean
           language: string
           lease_until: string | null
           narration_style: string

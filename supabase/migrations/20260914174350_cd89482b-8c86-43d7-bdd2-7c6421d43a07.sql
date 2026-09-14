@@ -1,0 +1,1 @@
+ALTER TABLE public.render_jobs ADD COLUMN IF NOT EXISTS include_cta boolean NOT NULL DEFAULT true;
