@@ -2,8 +2,19 @@ import { FFmpeg } from "@ffmpeg/ffmpeg";
 import { fetchFile } from "@ffmpeg/util";
 import coreURL from "@ffmpeg/core?url";
 import wasmURL from "@ffmpeg/core/wasm?url";
+import { videoDuration } from "./duration";
+import type { CaptionCue } from "./karaoke-overlay";
 
-export type KaraokeSeqInput = { fps: number; frames: Blob[] };
+/** Cadence unique de tout le pipeline (studio ET service de rendu). */
+export const OUTPUT_FPS = 30;
+/** Étirement maximal d'un clip pour couvrir une voix plus longue. */
+const MAX_STRETCH = 1.6;
+/** Au-delà de cet étirement, on accélère d'abord un peu la voix. */
+const STRETCH_BEFORE_TEMPO = 1.25;
+/** Accélération maximale de la voix (inaudible à ce niveau). */
+const MAX_TEMPO = 1.12;
+/** Fondu audio en entrée/sortie de plan : supprime les clics de raccord. */
+const AUDIO_FADE = 0.03;
 
 export type AssembleScene = {
   /** Clip animé du plan. Absent → on retombe sur l'image fixe (imageUrl). */
@@ -15,15 +26,11 @@ export type AssembleScene = {
   /** PNG transparent (texte incrusté) superposé sur toute la durée du plan. */
   overlay?: Blob | null | undefined;
   /**
-   * Sous-titres karaoké : séquence d'images à cadence fixe.
+   * Sous-titres : un PNG par mot affiché avec sa fenêtre temporelle.
    * Peut être une fonction pour ne construire les images qu'au moment du plan
    * (évite de garder toutes les scènes en mémoire → crash de l'onglet).
    */
-  karaokeSeq?:
-    | KaraokeSeqInput
-    | null
-    | undefined
-    | (() => Promise<KaraokeSeqInput | null>);
+  cues?: CaptionCue[] | null | undefined | (() => Promise<CaptionCue[] | null>);
   /** Masque PNG (carré à coins arrondis) appliqué sous le texte. */
   mask?: Blob | null | undefined;
   /** Durée cible du plan (= durée de la voix off utile), en secondes. */
@@ -34,6 +41,7 @@ export type AssembleScene = {
   trimEnd?: number | undefined;
 
 };
+
 
 
 let ffmpegInstance: FFmpeg | null = null;
@@ -118,17 +126,42 @@ async function assembleVideoInner(
     await ffmpeg.writeFile(vName, await fetchFile(source));
 
     const out = `part${i}.mp4`;
-    const target = scene.duration && scene.duration > 0.5 ? scene.duration : undefined;
-    // Le plan est figé sur sa dernière image (tpad) : la coupe finale est ensuite
-    // pilotée par la voix off (-shortest), pour que la vidéo se termine EXACTEMENT
-    // quand la voix se tait (pas de trou, pas de plan qui traîne).
-    const padDur = (target ?? 20) + 5;
-    const vf = `scale=${width}:${height}:force_original_aspect_ratio=decrease,pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2:black,setsar=1,fps=24${
-      stillOnly ? "" : `,tpad=stop_mode=clone:stop_duration=${padDur.toFixed(2)}`
-    }`;
+
+    // --- Calage du plan sur la voix -------------------------------------
+    // Cible = fenêtre utile de la voix (silences de tête et de queue retirés).
+    // Jamais de gel sur la dernière image, jamais de boucle.
+    const tStart = Math.max(0, scene.trimStart ?? 0);
+    const tEnd = scene.trimEnd && scene.trimEnd > tStart + 0.3 ? scene.trimEnd : undefined;
+    const voiceSpan = tEnd ? tEnd - tStart : undefined;
+    const target =
+      voiceSpan && voiceSpan > 0.5
+        ? voiceSpan
+        : scene.duration && scene.duration > 0.5
+          ? scene.duration
+          : 4;
+
+    const clipLen = stillOnly ? 0 : await videoDuration(scene.videoUrl!);
+    let tempo = 1; // accélération de la voix
+    let stretch = 1; // ralentissement du clip
+    if (!stillOnly && clipLen > 0.2 && target > clipLen) {
+      const needed = target / clipLen;
+      if (needed > STRETCH_BEFORE_TEMPO) {
+        // On gagne d'abord un peu sur la voix (inaudible), puis on étire le clip.
+        tempo = Math.min(MAX_TEMPO, needed / STRETCH_BEFORE_TEMPO);
+      }
+      stretch = Math.min(MAX_STRETCH, target / tempo / clipLen);
+    }
+    // Durée finale du plan, une fois la voix éventuellement accélérée.
+    const outDur = target / tempo;
+
+    const base = `scale=${width}:${height}:force_original_aspect_ratio=decrease,pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2:black,setsar=1`;
+    const vf = stillOnly
+      ? // Image fixe : très léger zoom lent pour qu'elle ne paraisse pas figée.
+        `scale=${Math.round(width * 1.2)}:${Math.round(height * 1.2)}:force_original_aspect_ratio=decrease,pad=${Math.round(width * 1.2)}:${Math.round(height * 1.2)}:(ow-iw)/2:(oh-ih)/2:black,zoompan=z='min(1+0.00035*on,1.07)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=${Math.max(1, Math.ceil(outDur * OUTPUT_FPS))}:s=${width}x${height}:fps=${OUTPUT_FPS},setsar=1,fps=${OUTPUT_FPS}`
+      : `${base}${stretch > 1.001 ? `,setpts=PTS*${stretch.toFixed(4)}` : ""},fps=${OUTPUT_FPS}`;
 
     const args = stillOnly
-      ? ["-loop", "1", "-framerate", "24", "-t", String((target ?? 8) + 1), "-i", vName]
+      ? ["-loop", "1", "-framerate", String(OUTPUT_FPS), "-t", outDur.toFixed(3), "-i", vName]
       : ["-i", vName];
 
     const hasVoice = Boolean(scene.audio);
@@ -136,25 +169,26 @@ async function assembleVideoInner(
       await ffmpeg.writeFile(`voice${i}.mp3`, await fetchFile(scene.audio));
       args.push("-i", `voice${i}.mp3`);
     } else {
-      // Pas de voix : piste silencieuse de la durée du plan (flux identiques
-      // pour que la concaténation en copie fonctionne).
       args.push("-f", "lavfi", "-i", "anullsrc=channel_layout=stereo:sample_rate=44100");
     }
 
-    // On enlève le silence de fin de la voix puis on laisse une petite respiration
-    // de 0,25 s : la fin du plan colle au dernier mot prononcé.
-    // On coupe uniquement AUX BORNES (silence de tête / de queue) : jamais au
-    // milieu, sinon les timestamps de la voix ne collent plus aux sous-titres.
-    const tStart = Math.max(0, scene.trimStart ?? 0);
-    const tEnd = scene.trimEnd && scene.trimEnd > tStart + 0.3 ? scene.trimEnd : undefined;
+    // Audio : coupe UNIQUEMENT aux bornes (jamais au milieu, sinon les
+    // timestamps ne collent plus), puis fondus de 30 ms anti-clic.
+    const fadeOutAt = Math.max(0, outDur - AUDIO_FADE);
+    const fades = `afade=t=in:st=0:d=${AUDIO_FADE},afade=t=out:st=${fadeOutAt.toFixed(3)}:d=${AUDIO_FADE}`;
     const trim = `atrim=start=${tStart.toFixed(3)}${tEnd ? `:end=${tEnd.toFixed(3)}` : ""},asetpts=PTS-STARTPTS`;
     const af = hasVoice
-      ? `[1:a]${trim},aresample=44100,aformat=sample_fmts=fltp:channel_layouts=stereo[a]`
-      : `[1:a]atrim=0:${(target ?? 8).toFixed(2)},aresample=44100,aformat=sample_fmts=fltp:channel_layouts=stereo[a]`;
+      ? `[1:a]${trim}${tempo > 1.001 ? `,atempo=${tempo.toFixed(4)}` : ""},${fades},aresample=44100,aformat=sample_fmts=fltp:channel_layouts=stereo[a]`
+      : `[1:a]atrim=0:${outDur.toFixed(3)},${fades},aresample=44100,aformat=sample_fmts=fltp:channel_layouts=stereo[a]`;
 
-    const rawSeq = scene.karaokeSeq;
-    const seq: KaraokeSeqInput | null =
-      typeof rawSeq === "function" ? await rawSeq() : (rawSeq ?? null);
+    const rawCues = scene.cues;
+    let cues: CaptionCue[] | null =
+      typeof rawCues === "function" ? await rawCues() : (rawCues ?? null);
+    // Voix accélérée → les sous-titres de CE plan sont divisés par le même
+    // facteur, sinon le texte se décale.
+    if (cues && tempo > 1.001) {
+      cues = cues.map((c) => ({ blob: c.blob, start: c.start / tempo, end: c.end / tempo }));
+    }
 
     const overlayFiles: string[] = [];
     let nextInput = 2; // 0 = vidéo, 1 = audio
@@ -173,19 +207,22 @@ async function assembleVideoInner(
       last = "masked";
     }
 
-    if (seq && seq.frames.length) {
-      // Une séquence d'images à cadence fixe : FFmpeg la lit comme une vidéo,
-      // c'est bien plus robuste (et léger) qu'un overlay par mot.
-      for (let k = 0; k < seq.frames.length; k++) {
-        const name = `kw${i}_${String(k).padStart(4, "0")}.png`;
-        await ffmpeg.writeFile(name, new Uint8Array(await seq.frames[k]!.arrayBuffer()));
+    if (cues && cues.length) {
+      // Un PNG par mot affiché, incrusté sur sa seule fenêtre temporelle.
+      for (let k = 0; k < cues.length; k++) {
+        const cue = cues[k]!;
+        const name = `cue${i}_${String(k).padStart(3, "0")}.png`;
+        await ffmpeg.writeFile(name, new Uint8Array(await cue.blob.arrayBuffer()));
         overlayFiles.push(name);
+        args.push("-i", name);
+        const idx = nextInput++;
+        chain.push(`[${idx}:v]scale=${width}:${height},format=rgba[c${k}]`);
+        const outLabel = `o${k}`;
+        chain.push(
+          `[${last}][c${k}]overlay=0:0:enable='between(t,${cue.start.toFixed(3)},${cue.end.toFixed(3)})'[${outLabel}]`,
+        );
+        last = outLabel;
       }
-      args.push("-framerate", String(seq.fps), "-start_number", "0", "-i", `kw${i}_%04d.png`);
-      const idx = nextInput++;
-      chain.push(`[${idx}:v]fps=24,scale=${width}:${height},format=rgba[txt]`);
-      chain.push(`[${last}][txt]overlay=0:0:shortest=0[v]`);
-      last = "v";
     } else if (scene.overlay) {
       const name = `ov${i}.png`;
       await ffmpeg.writeFile(name, new Uint8Array(await scene.overlay.arrayBuffer()));
@@ -193,15 +230,16 @@ async function assembleVideoInner(
       args.push("-i", name);
       const idx = nextInput++;
       chain.push(`[${idx}:v]scale=${width}:${height},format=rgba[txt]`);
-      chain.push(`[${last}][txt]overlay=0:0[v]`);
-      last = "v";
+      chain.push(`[${last}][txt]overlay=0:0[txtv]`);
+      last = "txtv";
     }
 
-    if (last !== "v") chain.push(`[${last}]null[v]`);
+    chain.push(`[${last}]format=yuv420p[v]`);
     args.push("-filter_complex", `${chain.join(";")};${af}`, "-map", "[v]", "-map", "[a]");
 
-
     args.push(
+      "-r",
+      String(OUTPUT_FPS),
       "-c:v",
       "libx264",
       "-preset",
@@ -219,8 +257,8 @@ async function assembleVideoInner(
       "-ac",
       "2",
     );
-    // La voix pilote la durée finale du plan.
-    args.push("-shortest", "-fflags", "+shortest", "-max_interleave_delta", "0");
+    // La voix pilote la durée finale du plan : coupe nette, sans gel ni boucle.
+    args.push("-t", outDur.toFixed(3), "-max_interleave_delta", "0");
     args.push("-y", out);
 
 
@@ -228,53 +266,54 @@ async function assembleVideoInner(
     await ffmpeg.deleteFile(vName);
     if (scene.audio) await ffmpeg.deleteFile(`voice${i}.mp3`);
     for (const f of overlayFiles) await ffmpeg.deleteFile(f);
-    // Libère les PNG karaoké de la mémoire JS dès que le plan est encodé.
-    if (seq) seq.frames.length = 0;
+    // Libère les PNG de sous-titres de la mémoire JS dès que le plan est encodé.
+    cues = null;
 
     parts.push(out);
   }
 
+
   onProgress?.("Assemblage final", 0.9);
   const list = parts.map((p) => `file '${p}'`).join("\n");
   await ffmpeg.writeFile("list.txt", new TextEncoder().encode(list));
-  const concatArgs = (copy: boolean) => [
-    "-f",
-    "concat",
-    "-safe",
-    "0",
-    "-i",
-    "list.txt",
-    ...(copy
-      ? ["-c", "copy"]
-      : [
-          "-c:v",
-          "libx264",
-          "-preset",
-          "veryfast",
-          "-crf",
-          "20",
-          "-pix_fmt",
-          "yuv420p",
-          "-c:a",
-          "aac",
-          "-b:a",
-          "128k",
-          "-ar",
-          "44100",
-          "-ac",
-          "2",
-        ]),
-    "-movflags",
-    "+faststart",
-    "-y",
-    "concat.mp4",
-  ];
-  try {
-    await run(ffmpeg, concatArgs(true), "Concaténation");
-  } catch {
-    // Repli : ré-encodage complet si la copie de flux échoue.
-    await run(ffmpeg, concatArgs(false), "Concaténation");
-  }
+  // TOUJOURS ré-encoder : la copie de flux (-c copy) laissait des trous et une
+  // dérive audio, les segments n'ayant pas exactement les mêmes bases de temps.
+  await run(
+    ffmpeg,
+    [
+      "-f",
+      "concat",
+      "-safe",
+      "0",
+      "-i",
+      "list.txt",
+      "-vf",
+      `fps=${OUTPUT_FPS},scale=${width}:${height},setsar=1,format=yuv420p`,
+      "-r",
+      String(OUTPUT_FPS),
+      "-c:v",
+      "libx264",
+      "-preset",
+      "veryfast",
+      "-crf",
+      "20",
+      "-pix_fmt",
+      "yuv420p",
+      "-c:a",
+      "aac",
+      "-b:a",
+      "128k",
+      "-ar",
+      "44100",
+      "-ac",
+      "2",
+      "-movflags",
+      "+faststart",
+      "-y",
+      "concat.mp4",
+    ],
+    "Concaténation",
+  );
 
 
   let finalName = "concat.mp4";

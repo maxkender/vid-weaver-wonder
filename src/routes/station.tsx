@@ -85,7 +85,7 @@ function StationPage() {
   const renderTask = useCallback(async (task: StationTask) => {
     const { assembleVideo } = await import("@/lib/assemble-video");
     const { randomTrack } = await import("@/lib/music-store");
-    const { makeKaraokeSequence, makeRoundedSquareMask, sophiaWindow, voiceWindow, shiftTimings } =
+    const { makeCaptionCues, makeRoundedSquareMask, sophiaWindow, voiceWindow, shiftTimings } =
       await import("@/lib/karaoke-overlay");
     const sophiaLogo = (await import("@/assets/sophia-logo.png.asset.json")).default;
 
@@ -104,13 +104,12 @@ function StationPage() {
           ...(s.audioUrl ? { audio: s.audioUrl } : {}),
           ...(win ? { trimStart: win.start, trimEnd: win.end } : {}),
           mask,
-          karaokeSeq: () =>
-            makeKaraokeSequence(
+          cues: () =>
+            makeCaptionCues(
               s.narration,
               dims.width,
               dims.height,
               duration,
-              24,
               words,
               (() => {
                 const w = sophiaWindow(s.narration, duration, words);
@@ -123,7 +122,8 @@ function StationPage() {
       }),
     );
 
-    const track = await randomTrack(task.visualStyle);
+    // Même banque musicale que le studio : pilotée par le style de NARRATION.
+    const track = await randomTrack(task.narrationStyle);
     const blob = await assembleVideo(scenes, {
       ...dims,
       music: track?.blob,

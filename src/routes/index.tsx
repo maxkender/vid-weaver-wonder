@@ -775,7 +775,7 @@ function Studio() {
 
     const { assembleVideo } = await import("@/lib/assemble-video");
     const { randomTrack } = await import("@/lib/music-store");
-    const { makeKaraokeSequence, makeRoundedSquareMask, sophiaWindow, voiceWindow, shiftTimings } =
+    const { makeCaptionCues, makeRoundedSquareMask, sophiaWindow, voiceWindow, shiftTimings } =
       await import("@/lib/karaoke-overlay");
     const dims =
       orientation === "horizontal"
@@ -832,14 +832,13 @@ function Studio() {
           // Les images de sous-titres sont fabriquées juste avant l'encodage du
           // plan (et libérées après) : sinon toutes les scènes tiennent en
           // mémoire en même temps et l'onglet plante pendant l'export.
-          karaokeSeq: duration
+          cues: duration
             ? () =>
-                makeKaraokeSequence(
+                makeCaptionCues(
                   scene.narration,
                   dims.width,
                   dims.height,
                   duration,
-                  24,
                   words,
                   settings.sophiaLogo
                     ? (() => {
@@ -1127,7 +1126,7 @@ function Studio() {
     try {
       const { assembleVideo } = await import("@/lib/assemble-video");
       const { makeOverlayPng } = await import("@/lib/overlay-png");
-      const { makeKaraokeSequence, makeRoundedSquareMask, sophiaWindow, voiceWindow, shiftTimings } =
+      const { makeCaptionCues, makeRoundedSquareMask, sophiaWindow, voiceWindow, shiftTimings } =
         await import("@/lib/karaoke-overlay");
       const dims =
         orientation === "horizontal"
@@ -1141,13 +1140,12 @@ function Studio() {
         settings.sophiaLogo && duration
           ? sophiaWindow(scene.narration, duration, sceneWords)
           : null;
-      const karaokeSeq = duration
-        ? await makeKaraokeSequence(
+      const cues = duration
+        ? await makeCaptionCues(
             scene.narration,
             dims.width,
             dims.height,
             duration,
-            24,
             sceneWords,
             logoWin ? { url: sophiaLogo.url, ...logoWin } : null,
           )
@@ -1162,9 +1160,9 @@ function Studio() {
             videoUrl: st.videoUrl,
             audio: st.audio,
             ...(win ? { trimStart: win.start, trimEnd: win.end } : {}),
-            karaokeSeq,
+            cues,
             mask,
-            overlay: karaokeSeq
+            overlay: cues
               ? null
               : await makeOverlayPng(scene.overlay, dims.width, dims.height),
             duration,
@@ -1803,8 +1801,8 @@ function Studio() {
                       <p className="mt-2 text-sm">{scene.narration}</p>
                     )}
                     <p className="mt-2 text-xs uppercase tracking-widest text-muted-foreground">
-                      ≈ {estimateSpeechSeconds(scene.narration).toFixed(1)} s de voix
-                      {estimateSpeechSeconds(scene.narration) > 8 && " — plus long que le clip, l'image sera figée à la fin"}
+                      ≈ {estimateSpeechSeconds(scene.narration, language).toFixed(1)} s de voix
+                      {estimateSpeechSeconds(scene.narration, language) > 8 && " — plus long que le clip, le plan sera légèrement ralenti"}
                     </p>
 
                     <div className="mt-4 flex flex-wrap gap-2">

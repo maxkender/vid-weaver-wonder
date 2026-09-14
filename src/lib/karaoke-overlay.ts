@@ -1,5 +1,10 @@
-export type KaraokeFrame = { blob: Blob; start: number; end: number };
-export type KaraokeSequence = { fps: number; frames: Blob[] };
+/**
+ * Une image PNG transparente + sa fenêtre d'affichage.
+ * UN PNG par mot affiché (et par palier d'animation du logo) : on ne dessine
+ * plus une image par frame, ce qui divise par ~10 le nombre de fichiers
+ * envoyés à FFmpeg et supprime les plantages mémoire sur les longues vidéos.
+ */
+export type CaptionCue = { blob: Blob; start: number; end: number };
 
 /** Charge la police d'affichage avant de dessiner (sinon canvas retombe sur Arial). */
 async function ensureFont(size: number) {
@@ -232,12 +237,15 @@ function popScale(progress: number) {
 const LOGO_STEPS = 6;
 /** Durée du fondu d'apparition d'un groupe (secondes). */
 export const CAPTION_FADE = 0.08;
-const FADE_STEPS = 8;
 
-/** Mot par mot : aucune fusion de groupes trop courts. */
-export const MIN_CAPTION_HOLD = 0;
-/** Nombre maximal de mots affichés ensemble (1 = strictement mot par mot). */
-const MAX_GROUP_WORDS = 1;
+/**
+ * Tenue minimale d'un mot à l'écran. En dessous (micro-mots « a », « de »,
+ * « le »), le mot est FUSIONNÉ avec le suivant : on ne décale jamais son
+ * début, sinon le texte se désynchronise de la voix.
+ */
+export const MIN_CAPTION_HOLD = 0.25;
+/** Nombre maximal de mots affichés ensemble (2 uniquement en cas de fusion). */
+const MAX_GROUP_WORDS = 2;
 /** Longueur maximale d'un groupe (une seule ligne). */
 const MAX_GROUP_CHARS = 18;
 /** Léger devancement : le texte apparaît juste avant la syllabe (perçu comme synchro). */
@@ -276,55 +284,31 @@ export function smoothTimings(
     return { word: t.word, start, end };
   });
 
-  // 2. Découpage : on coupe sur la ponctuation, la longueur, ou une pause marquée.
+  // 2. Un mot par groupe : on reste strictement mot par mot.
   type Item = { word: string; start: number; end: number };
   type G = { items: Item[]; start: number; end: number };
   const text = (g: G) => g.items.map((i) => i.word).join(" ");
-  const groups: G[] = [];
-  for (let i = 0; i < scaled.length; i++) {
-    const t = scaled[i]!;
-    const prev = groups[groups.length - 1];
-    const gap = i > 0 ? t.start - scaled[i - 1]!.end : 0;
-    const fits =
-      prev &&
-      prev.items.length < MAX_GROUP_WORDS &&
-      text(prev).length + 1 + t.word.length <= MAX_GROUP_CHARS &&
-      !/[.!?…,;:]$/.test(prev.items[prev.items.length - 1]!.word) &&
-      gap < 0.28;
-    if (fits && prev) {
-      prev.items.push(t);
-      prev.end = t.end;
-    } else {
-      groups.push({ items: [t], start: t.start, end: t.end });
-    }
+  const groups: G[] = scaled.map((t) => ({ items: [t], start: t.start, end: t.end }));
+
+  // 3. Fusion — et UNIQUEMENT la fusion — des mots tenus moins de 0,25 s.
+  // La fenêtre réelle d'un mot va de son début à celui du mot suivant. Si elle
+  // est trop courte, le mot est affiché EN MÊME TEMPS que le suivant ; son
+  // début, lui, n'est jamais décalé (sinon le texte quitte la voix).
+  for (let i = 0; i < groups.length - 1; i++) {
+    const g = groups[i]!;
+    const next = groups[i + 1]!;
+    const window = next.start - g.start;
+    if (window >= MIN_CAPTION_HOLD) continue;
+    const canMerge =
+      g.items.length + next.items.length <= MAX_GROUP_WORDS &&
+      text(g).length + 1 + text(next).length <= MAX_GROUP_CHARS;
+    if (!canMerge) continue;
+    g.items = [...g.items, ...next.items];
+    g.end = next.end;
+    groups.splice(i + 1, 1);
+    i--; // le groupe fusionné peut être encore trop court
   }
 
-  // 3. Fusion des groupes trop courts (anti-clignotement).
-  for (let i = 0; i < groups.length; i++) {
-    const g = groups[i]!;
-    if (g.end - g.start >= MIN_CAPTION_HOLD) continue;
-    const next = groups[i + 1];
-    const prev = groups[i - 1];
-    const canNext =
-      next &&
-      g.items.length + next.items.length <= MAX_GROUP_WORDS + 1 &&
-      text(g).length + 1 + text(next).length <= MAX_GROUP_CHARS + 6;
-    const canPrev =
-      prev &&
-      prev.items.length + g.items.length <= MAX_GROUP_WORDS + 1 &&
-      text(prev).length + 1 + text(g).length <= MAX_GROUP_CHARS + 6;
-    if (canNext && next) {
-      next.items = [...g.items, ...next.items];
-      next.start = g.start;
-      groups.splice(i, 1);
-      i--;
-    } else if (canPrev && prev) {
-      prev.items = [...prev.items, ...g.items];
-      prev.end = g.end;
-      groups.splice(i, 1);
-      i--;
-    }
-  }
 
   // 4. Continuité : un groupe reste affiché jusqu'au suivant (aucun trou noir),
   // et chaque mot du groupe garde son propre timing pour le surlignage karaoké.
@@ -350,17 +334,22 @@ export function smoothTimings(
 
 
 /**
- * Séquence d'images (une par frame, cadence fixe) prête à être incrustée par FFmpeg.
+ * Sous-titres prêts pour FFmpeg : UN PNG par mot affiché, avec sa fenêtre
+ * temporelle (au lieu d'une image par frame). Le dessin est strictement le
+ * même qu'avant (Anton, blanc, contour noir, ombre, centré à height * 0.5) :
+ * le rendu à l'écran est indiscernable, seule la mécanique change.
+ *
+ * Le logo Sophia, lui, est animé : il est produit en cues séparées (une par
+ * palier d'animation) superposées EN PLUS des cues de texte.
  */
-export async function makeKaraokeSequence(
+export async function makeCaptionCues(
   text: string,
   width: number,
   height: number,
   duration: number,
-  fps = 15,
   exactTimings?: { word: string; start: number; end: number }[] | null,
   logo?: { url: string; start: number; end: number } | null,
-): Promise<KaraokeSequence | null> {
+): Promise<CaptionCue[] | null> {
   const timings = smoothTimings(
     exactTimings && exactTimings.length
       ? exactTimings.filter((t) => t.end > t.start)
@@ -368,79 +357,47 @@ export async function makeKaraokeSequence(
     duration,
     Boolean(exactTimings?.length),
   );
-  if (!timings.length) return null;
 
-  const logoImg = logo ? await loadLogo(logo.url) : null;
-  const logoAt = (t: number) => {
-    if (!logoImg || !logo) return null;
-    if (t < logo.start || t > logo.end) return null;
-    return { img: logoImg, progress: Math.min(1, (t - logo.start) / 0.35) };
-  };
+  const cues: CaptionCue[] = [];
 
-  const blank = await renderPng(width, height, null);
-  if (!blank) return null;
-
-  // Cache : une image par (phrase, palier de logo, fondu).
+  // 1. Un PNG par mot affiché.
   const cache = new Map<string, Blob>();
-  const get = async (
-    word: string | null,
-    logoStep = -1,
-    fadeStep = FADE_STEPS - 1,
-  ) => {
-    const key = `${word ?? ""}#${logoStep}#${fadeStep}`;
-    let b = cache.get(key);
-    if (!b) {
-      const lg =
-        logoStep >= 0 && logoImg
-          ? {
-              img: logoImg as CanvasImageSource,
-              progress: logoStep / (LOGO_STEPS - 1),
-            }
-          : null;
-      const alpha = (fadeStep + 1) / FADE_STEPS;
-      b = (await renderPng(width, height, word, 1, lg, alpha)) ?? blank;
-      cache.set(key, b);
-    }
-    return b;
-  };
-
-  const count = Math.max(1, Math.ceil(duration * fps));
-  const frames: Blob[] = [];
-  for (let f = 0; f < count; f++) {
-    const t = (f + 0.5) / fps;
-    const lg = logoAt(t);
-    const logoStep = lg ? Math.min(LOGO_STEPS - 1, Math.round(lg.progress * (LOGO_STEPS - 1))) : -1;
-    const idx = timings.findIndex((w2) => t >= w2.start && t < w2.end);
-    if (idx < 0) {
-      frames.push(logoStep >= 0 ? await get(null, logoStep) : blank);
-      continue;
-    }
-    const cur = timings[idx]!;
-    // Fondu court à l'apparition du groupe → transition douce, sans à-coups.
-    const fadeStep = Math.min(
-      FADE_STEPS - 1,
-      Math.max(0, Math.round(((t - cur.start) / CAPTION_FADE) * (FADE_STEPS - 1))),
-    );
-    frames.push(await get(cur.word, logoStep, fadeStep));
-  }
-
-  return { fps, frames };
-}
-
-/** @deprecated conservé pour l'aperçu : un PNG par mot avec son intervalle. */
-export async function makeKaraokeFrames(
-  text: string,
-  width: number,
-  height: number,
-  duration: number,
-): Promise<KaraokeFrame[]> {
-  const timings = wordTimings(text, duration);
-  const frames: KaraokeFrame[] = [];
   for (const t of timings) {
-    const blob = await renderPng(width, height, t.word);
-    if (blob) frames.push({ blob, start: t.start, end: t.end });
+    const start = Math.max(0, t.start);
+    const end = Math.min(duration, Math.max(t.end, start + 0.08));
+    if (end <= start) continue;
+    let blob = cache.get(t.word);
+    if (!blob) {
+      const made = await renderPng(width, height, t.word);
+      if (!made) continue;
+      cache.set(t.word, made);
+      blob = made;
+    }
+    cues.push({ blob, start, end });
   }
-  return frames;
+
+  // 2. Logo Sophia : quelques paliers d'animation, jamais une image par frame.
+  const logoImg = logo ? await loadLogo(logo.url) : null;
+  if (logo && logoImg) {
+    const start = Math.max(0, logo.start);
+    const end = Math.min(duration, logo.end);
+    const ramp = Math.min(0.35, Math.max(0.12, (end - start) * 0.4));
+    const stepDur = ramp / LOGO_STEPS;
+    for (let k = 0; k < LOGO_STEPS; k++) {
+      const progress = (k + 1) / LOGO_STEPS;
+      const blob = await renderPng(width, height, null, 1, {
+        img: logoImg as CanvasImageSource,
+        progress,
+      });
+      if (!blob) continue;
+      const s = start + k * stepDur;
+      // Le dernier palier (logo complètement apparu) tient jusqu'à la fin.
+      const e = k === LOGO_STEPS - 1 ? end : Math.min(end, s + stepDur);
+      if (e > s) cues.push({ blob, start: s, end: e });
+    }
+  }
+
+  return cues.length ? cues : null;
 }
 
 /**
