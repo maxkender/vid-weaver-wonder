@@ -976,7 +976,7 @@ function Studio() {
       if (!src) {
         const { audioDataUrl } = (await runVoice({
           data: {
-            text: "Et si je te racontais un fait que presque personne ne connaît ? Écoute bien.",
+            text: VOICE_SAMPLE_TEXT[voiceLangTab] ?? VOICE_SAMPLE_TEXT["fr"]!,
             voice,
             engine,
             language: voiceLangTab,
