@@ -1,10 +1,24 @@
 /** Sauvegarde locale des médias d'un projet (images, vidéos, voix) pour l'historique. */
 
+export type StoredWordTiming = { word: string; start: number; end: number };
+
+/** Voix off d'UNE langue pour un plan (le visuel, lui, est commun à toutes). */
+export type StoredVoiceTake = {
+  audio: string;
+  words: StoredWordTiming[];
+  duration: number;
+};
+
 export type StoredSceneMedia = {
+  /** Médias VISUELS : communs à toutes les langues du master. */
   image?: string | undefined;
   videoId?: string | undefined;
   videoUrl?: string | undefined;
+  /** Médias PARLÉS : un enregistrement par langue. */
+  voices?: Record<string, StoredVoiceTake> | undefined;
+  /** Ancien format mono-langue, encore lu pour les projets d'avant le master. */
   audio?: string | undefined;
+  words?: StoredWordTiming[] | undefined;
 };
 
 export type StoredProject = {
