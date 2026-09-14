@@ -947,15 +947,25 @@ function Studio() {
         perClip,
         voices,
         languages: langs.length,
+        // Le plan CTA Sophia est un clip animé comme les autres : le décocher
+        // économise exactement sa durée.
+        ctaSaving: settings.sophiaCta !== false && pending.length ? perClip : 0,
       };
     },
-    [script, states, targetSeconds, langs],
+    [script, states, targetSeconds, langs, settings.sophiaCta],
   );
 
   /** Confirmation obligatoire avant toute dépense de crédits en série. */
   const confirmCost = async (doc: Script | null = script) => {
     const cost = estimateCost(doc);
     if (!cost.clips) return true;
+    const cap = settings.spendCapSeconds ?? 72;
+    if (cost.seconds > cap) {
+      toast.error(
+        `Plafond de dépense dépassé : ${cost.seconds} s de vidéo IA demandées pour un plafond de ${cap} s. Réduis la durée, le nombre de plans, ou relève le plafond dans Paramètres.`,
+      );
+      return false;
+    }
     return requestCostConfirmation(cost);
   };
 
