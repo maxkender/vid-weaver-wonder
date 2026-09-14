@@ -305,6 +305,13 @@ function Studio() {
   const [settings, setSettings] = useState<StudioSettings>(defaultSettings());
   useEffect(() => setSettings(loadSettings()), []);
 
+  // Un plan = 7 secondes de voix off en moyenne. Le CTA (≈ 6 s) est une scène
+  // ajoutée à part : on ne la compte pas dans les plans du récit.
+  const sceneCount = useMemo(() => {
+    const cta = settings.sophiaCta !== false ? 6 : 0;
+    return Math.min(8, Math.max(3, Math.round((targetSeconds - cta) / 7)));
+  }, [targetSeconds, settings.sophiaCta]);
+
   const [orientation, setOrientation] = useState<"vertical" | "square" | "horizontal">("square");
   const [script, setScript] = useState<Script | null>(null);
   const [loadingScript, setLoadingScript] = useState(false);
