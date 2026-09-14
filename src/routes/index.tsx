@@ -2620,6 +2620,13 @@ function Studio() {
                   {confirmPayload?.voices} voix off réparties sur {confirmPayload?.languages} langue
                   {confirmPayload && confirmPayload.languages > 1 ? "s" : ""}.
                 </p>
+                {!!confirmPayload?.ctaSaving && (
+                  <p className="text-foreground">
+                    En décochant le plan CTA Sophia dans Paramètres, tu économiserais{" "}
+                    {confirmPayload.ctaSaving} s de vidéo IA.
+                  </p>
+                )}
+                <p>Plafond actuel : {settings.spendCapSeconds ?? 72} s de vidéo IA par vidéo.</p>
               </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
