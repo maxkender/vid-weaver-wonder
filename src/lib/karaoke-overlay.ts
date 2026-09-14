@@ -334,17 +334,22 @@ export function smoothTimings(
 
 
 /**
- * Séquence d'images (une par frame, cadence fixe) prête à être incrustée par FFmpeg.
+ * Sous-titres prêts pour FFmpeg : UN PNG par mot affiché, avec sa fenêtre
+ * temporelle (au lieu d'une image par frame). Le dessin est strictement le
+ * même qu'avant (Anton, blanc, contour noir, ombre, centré à height * 0.5) :
+ * le rendu à l'écran est indiscernable, seule la mécanique change.
+ *
+ * Le logo Sophia, lui, est animé : il est produit en cues séparées (une par
+ * palier d'animation) superposées EN PLUS des cues de texte.
  */
-export async function makeKaraokeSequence(
+export async function makeCaptionCues(
   text: string,
   width: number,
   height: number,
   duration: number,
-  fps = 15,
   exactTimings?: { word: string; start: number; end: number }[] | null,
   logo?: { url: string; start: number; end: number } | null,
-): Promise<KaraokeSequence | null> {
+): Promise<CaptionCue[] | null> {
   const timings = smoothTimings(
     exactTimings && exactTimings.length
       ? exactTimings.filter((t) => t.end > t.start)
@@ -352,79 +357,47 @@ export async function makeKaraokeSequence(
     duration,
     Boolean(exactTimings?.length),
   );
-  if (!timings.length) return null;
 
-  const logoImg = logo ? await loadLogo(logo.url) : null;
-  const logoAt = (t: number) => {
-    if (!logoImg || !logo) return null;
-    if (t < logo.start || t > logo.end) return null;
-    return { img: logoImg, progress: Math.min(1, (t - logo.start) / 0.35) };
-  };
+  const cues: CaptionCue[] = [];
 
-  const blank = await renderPng(width, height, null);
-  if (!blank) return null;
-
-  // Cache : une image par (phrase, palier de logo, fondu).
+  // 1. Un PNG par mot affiché.
   const cache = new Map<string, Blob>();
-  const get = async (
-    word: string | null,
-    logoStep = -1,
-    fadeStep = FADE_STEPS - 1,
-  ) => {
-    const key = `${word ?? ""}#${logoStep}#${fadeStep}`;
-    let b = cache.get(key);
-    if (!b) {
-      const lg =
-        logoStep >= 0 && logoImg
-          ? {
-              img: logoImg as CanvasImageSource,
-              progress: logoStep / (LOGO_STEPS - 1),
-            }
-          : null;
-      const alpha = (fadeStep + 1) / FADE_STEPS;
-      b = (await renderPng(width, height, word, 1, lg, alpha)) ?? blank;
-      cache.set(key, b);
-    }
-    return b;
-  };
-
-  const count = Math.max(1, Math.ceil(duration * fps));
-  const frames: Blob[] = [];
-  for (let f = 0; f < count; f++) {
-    const t = (f + 0.5) / fps;
-    const lg = logoAt(t);
-    const logoStep = lg ? Math.min(LOGO_STEPS - 1, Math.round(lg.progress * (LOGO_STEPS - 1))) : -1;
-    const idx = timings.findIndex((w2) => t >= w2.start && t < w2.end);
-    if (idx < 0) {
-      frames.push(logoStep >= 0 ? await get(null, logoStep) : blank);
-      continue;
-    }
-    const cur = timings[idx]!;
-    // Fondu court à l'apparition du groupe → transition douce, sans à-coups.
-    const fadeStep = Math.min(
-      FADE_STEPS - 1,
-      Math.max(0, Math.round(((t - cur.start) / CAPTION_FADE) * (FADE_STEPS - 1))),
-    );
-    frames.push(await get(cur.word, logoStep, fadeStep));
-  }
-
-  return { fps, frames };
-}
-
-/** @deprecated conservé pour l'aperçu : un PNG par mot avec son intervalle. */
-export async function makeKaraokeFrames(
-  text: string,
-  width: number,
-  height: number,
-  duration: number,
-): Promise<KaraokeFrame[]> {
-  const timings = wordTimings(text, duration);
-  const frames: KaraokeFrame[] = [];
   for (const t of timings) {
-    const blob = await renderPng(width, height, t.word);
-    if (blob) frames.push({ blob, start: t.start, end: t.end });
+    const start = Math.max(0, t.start);
+    const end = Math.min(duration, Math.max(t.end, start + 0.08));
+    if (end <= start) continue;
+    let blob = cache.get(t.word);
+    if (!blob) {
+      const made = await renderPng(width, height, t.word);
+      if (!made) continue;
+      cache.set(t.word, made);
+      blob = made;
+    }
+    cues.push({ blob, start, end });
   }
-  return frames;
+
+  // 2. Logo Sophia : quelques paliers d'animation, jamais une image par frame.
+  const logoImg = logo ? await loadLogo(logo.url) : null;
+  if (logo && logoImg) {
+    const start = Math.max(0, logo.start);
+    const end = Math.min(duration, logo.end);
+    const ramp = Math.min(0.35, Math.max(0.12, (end - start) * 0.4));
+    const stepDur = ramp / LOGO_STEPS;
+    for (let k = 0; k < LOGO_STEPS; k++) {
+      const progress = (k + 1) / LOGO_STEPS;
+      const blob = await renderPng(width, height, null, 1, {
+        img: logoImg as CanvasImageSource,
+        progress,
+      });
+      if (!blob) continue;
+      const s = start + k * stepDur;
+      // Le dernier palier (logo complètement apparu) tient jusqu'à la fin.
+      const e = k === LOGO_STEPS - 1 ? end : Math.min(end, s + stepDur);
+      if (e > s) cues.push({ blob, start: s, end: e });
+    }
+  }
+
+  return cues.length ? cues : null;
 }
 
 /**
