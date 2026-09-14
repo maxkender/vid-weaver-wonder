@@ -996,6 +996,45 @@ function Studio() {
     return () => window.removeEventListener("beforeunload", onBeforeUnload);
   }, [busy]);
 
+  // Coupe-circuit de la file serveur (jobs automatiques de l'OS).
+  const runStopPipeline = useServerFn(stopPipeline);
+  const runResumePipeline = useServerFn(resumePipeline);
+  const runPipelineState = useServerFn(pipelineState);
+  const [pipelinePaused, setPipelinePaused] = useState(false);
+  useEffect(() => {
+    runPipelineState({})
+      .then((r) => setPipelinePaused(Boolean((r as { paused: boolean }).paused)))
+      .catch(() => setPipelinePaused(false));
+  }, [runPipelineState]);
+
+  /** STOP global : arrête le navigateur ET la file serveur. */
+  const onStopAll = async () => {
+    stopRun();
+    try {
+      await runStopPipeline({ data: { reason: "Arrêt manuel depuis le studio" } });
+      setPipelinePaused(true);
+    } catch {
+      /* la file serveur peut être indisponible : l'arrêt local reste effectif */
+    }
+  };
+
+  const onResumePipeline = async () => {
+    try {
+      await runResumePipeline({});
+      setPipelinePaused(false);
+      setStopped(false);
+      cancelledRef.current = false;
+      toast.success("File relancée");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Reprise impossible");
+    }
+  };
+
+  /** Panneau d'état : plans prêts / total et coût estimé. */
+  const totalScenes = script?.scenes.length ?? 0;
+  const doneScenes = (script?.scenes ?? []).filter((s) => states[s.index]?.videoUrl).length;
+  const cost = estimateCost();
+
   const onAutoAll = async () => {
     if (!topic.trim()) {
       toast.error("Écris d'abord le sujet de la vidéo");
