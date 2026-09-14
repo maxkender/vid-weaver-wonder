@@ -176,7 +176,7 @@ async function stepImages(job: RenderJob, t0: number) {
 async function stepVoice(job: RenderJob, t0: number) {
   const { generateElevenSpeechWithTimings } = await import("../elevenlabs.server");
   const scenes = job.scenes;
-  const voice = job.voice_id ?? "3HZyQcLKlT0a3RDeXVsP";
+  const voice = job.voice_id ?? defaultVoiceFor("elevenlabs", job.language);
 
   for (let i = 0; i < scenes.length; i++) {
     if (outOfTime(t0)) return false;
