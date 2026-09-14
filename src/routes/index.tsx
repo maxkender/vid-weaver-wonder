@@ -716,6 +716,10 @@ function Studio() {
               })),
               language: lang,
               maxSceneSeconds: 8,
+              // Chaque langue doit tenir dans la même fenêtre de durée que la
+              // source : ni vidéo trop courte, ni secondes de clip payées en trop.
+              minTotalSeconds: targetSeconds,
+              maxTotalSeconds: Math.round(targetSeconds * 1.1),
             },
           })) as {
             title: string;
