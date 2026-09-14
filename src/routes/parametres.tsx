@@ -210,21 +210,35 @@ function SettingsPage() {
             </span>
           </label>
 
-          <label className="flex items-start gap-3 text-sm">
-            <input
-              type="checkbox"
-              checked={settings.hd}
-              onChange={(e) => persist({ ...settings, hd: e.target.checked })}
-              className="mt-1 h-4 w-4"
-            />
-            <span>
-              Export en 1080p
-              <span className="block text-xs text-muted-foreground">
-                Génération et export en 1080 × 1920 (au lieu de 720 × 1280). Les plans font
-                alors obligatoirement 8 secondes et coûtent un peu plus cher.
+          <div>
+            <label className="flex items-start gap-3 text-sm">
+              <input
+                type="checkbox"
+                checked={settings.draft720 === true}
+                onChange={(e) => {
+                  setDraftNotice(true);
+                  persist({ ...settings, draft720: e.target.checked });
+                }}
+                className="mt-1 h-4 w-4"
+              />
+              <span>
+                Mode brouillon (720p)
+                <span className="block text-xs text-muted-foreground">
+                  Les plans sont commandés en 720 × 1280 et leur durée n'est plus forcée à 8
+                  secondes : des paliers de 4 et 6 secondes deviennent possibles et la facture
+                  baisse nettement. L'export reste en 1080 × 1920, l'image est simplement
+                  agrandie — donc visiblement plus douce. À réserver aux essais, pas aux vidéos
+                  publiées.
+                </span>
               </span>
-            </span>
-          </label>
+            </label>
+            {draftNotice && (
+              <p className="mt-2 text-xs text-foreground">
+                Les plans déjà générés gardent leur définition d'origine : rien n'est effacé ni
+                refait. Seuls les nouveaux plans suivront ce réglage.
+              </p>
+            )}
+          </div>
 
           <label className="flex items-start gap-3 text-sm">
             <input
@@ -253,9 +267,9 @@ function SettingsPage() {
             <span>
               Ajouter le plan CTA Sophia à la fin
               <span className="block text-xs text-muted-foreground">
-                Un script sans CTA se termine sur sa phrase de chute et retient nettement
-                mieux jusqu'au bout. Décoche pour produire des vidéos sans aucune mention de
-                l'application.
+                Désactivé par défaut : l'activer ajoute un plan animé de plus, soit environ 11 %
+                du budget de la vidéo. Sans CTA, la vidéo se termine sur sa phrase de chute et
+                retient nettement mieux jusqu'au bout.
               </span>
             </span>
           </label>
