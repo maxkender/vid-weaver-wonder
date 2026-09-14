@@ -151,7 +151,7 @@ export async function generateElevenSpeechWithTimings(
   return { audioDataUrl: `data:audio/mpeg;base64,${json.audio_base64}`, words };
 }
 
-/** Voix FR recommandées, épinglées en tête de liste. */
+/** Voix FR recommandées, épinglées en tête de liste quand la langue active est le français. */
 const CURATED_FR: { id: string; label: string }[] = [
   { id: "3HZyQcLKlT0a3RDeXVsP", label: "🇫🇷 ⭐ Guillaume — documentaire & storytelling" },
   { id: "aQROLel5sQbj1vuIVi6B", label: "🇫🇷 ⭐ Nicolas — narrateur" },
@@ -162,14 +162,33 @@ const CURATED_FR: { id: string; label: string }[] = [
   { id: "tVu7uvtKsrCoOPPIUVR7", label: "🇫🇷 ⭐ Guillaume — narrateur" },
 ];
 
-/** Voix du compte + voix françaises de la bibliothèque partagée (FR en premier). */
-export async function listElevenVoices(): Promise<{ id: string; label: string }[]> {
+const FLAGS: Record<string, string> = {
+  fr: "🇫🇷",
+  en: "🇬🇧",
+  es: "🇪🇸",
+  de: "🇩🇪",
+  it: "🇮🇹",
+  pt: "🇵🇹",
+};
+
+function flag(language: string) {
+  return FLAGS[language.slice(0, 2).toLowerCase()] ?? "🌐";
+}
+
+/** Voix du compte + voix de la langue demandée dans la bibliothèque partagée (cette langue en premier). */
+export async function listElevenVoices(
+  language = "fr",
+): Promise<{ id: string; label: string }[]> {
   const apiKey = apiKeyOrThrow();
   const headers = { "xi-api-key": apiKey };
+  const lang = language.slice(0, 2).toLowerCase();
+  const mark = flag(lang);
 
-  const [ownRes, frRes] = await Promise.all([
+  const [ownRes, langRes] = await Promise.all([
     fetch("https://api.elevenlabs.io/v2/voices?page_size=100", { headers }),
-    fetch("https://api.elevenlabs.io/v1/shared-voices?page_size=100&language=fr", { headers }).catch(() => null),
+    fetch(`https://api.elevenlabs.io/v1/shared-voices?page_size=100&language=${lang}`, {
+      headers,
+    }).catch(() => null),
   ]);
 
 
@@ -178,9 +197,9 @@ export async function listElevenVoices(): Promise<{ id: string; label: string }[
     voices?: { voice_id: string; name: string; labels?: Record<string, string> }[];
   };
 
-  const french: { id: string; label: string }[] = [];
-  if (frRes && frRes.ok) {
-    const shared = (await frRes.json()) as {
+  const native: { id: string; label: string }[] = [];
+  if (langRes && langRes.ok) {
+    const shared = (await langRes.json()) as {
       voices?: {
         voice_id: string;
         name: string;
@@ -193,25 +212,28 @@ export async function listElevenVoices(): Promise<{ id: string; label: string }[
     };
     for (const v of shared.voices ?? []) {
       const bits = [v.gender, v.age, v.descriptive, v.use_case].filter(Boolean).join(", ");
-      french.push({ id: v.voice_id, label: `🇫🇷 ${v.name}${bits ? ` — ${bits}` : ""}` });
+      native.push({ id: v.voice_id, label: `${mark} ${v.name}${bits ? ` — ${bits}` : ""}` });
     }
   }
 
-  const seen = new Set(french.map((v) => v.id));
+  const seen = new Set(native.map((v) => v.id));
   const others: { id: string; label: string }[] = [];
   for (const v of own.voices ?? []) {
     if (seen.has(v.voice_id)) continue;
-    const lang = v.labels?.["language"];
-    const bits = [lang, v.labels?.["accent"], v.labels?.["description"], v.labels?.["use_case"]]
+    const vLang = v.labels?.["language"];
+    const bits = [vLang, v.labels?.["accent"], v.labels?.["description"], v.labels?.["use_case"]]
       .filter(Boolean)
       .join(", ");
-    const isFr = (lang ?? "").toLowerCase().startsWith("fr");
-    const entry = { id: v.voice_id, label: `${isFr ? "🇫🇷 " : ""}${v.name}${bits ? ` — ${bits}` : ""}` };
-    if (isFr) french.unshift(entry);
+    const isNative = (vLang ?? "").toLowerCase().startsWith(lang);
+    const entry = {
+      id: v.voice_id,
+      label: `${isNative ? `${mark} ` : ""}${v.name}${bits ? ` — ${bits}` : ""}`,
+    };
+    if (isNative) native.unshift(entry);
     else others.push(entry);
   }
 
-  const all = [...CURATED_FR, ...french, ...others];
+  const all = [...(lang === "fr" ? CURATED_FR : []), ...native, ...others];
   const uniq = new Set<string>();
   return all.filter((v) => (uniq.has(v.id) ? false : (uniq.add(v.id), true)));
 
