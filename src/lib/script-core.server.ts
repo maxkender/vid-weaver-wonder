@@ -35,10 +35,17 @@ export async function buildScript(data: BuildScriptInput): Promise<Script> {
   const totalWords = Math.round(narrationSeconds * wordsPerSecond);
   const wordsBias = data.wordsBias ?? 0;
 
-  const sceneCount = Math.min(16, Math.max(data.sceneCount, Math.ceil(totalWords / 18)));
+  // Le nombre de plans vient de l'interface : il correspond à la durée choisie.
+  // On ne le gonfle JAMAIS (chaque plan en plus = un clip animé payant en plus).
+  const sceneCount = Math.max(2, data.sceneCount);
+
+  // Chaque plan doit représenter entre 6 et 8 secondes de parole dans la langue
+  // source : on convertit ces secondes en mots avec le débit réel de la langue.
+  const minWords = Math.round(6 * wordsPerSecond);
+  const maxWords = Math.round(8 * wordsPerSecond);
   const wordsPerScene = Math.min(
-    22,
-    Math.max(8, Math.round(totalWords / sceneCount) + wordsBias),
+    maxWords,
+    Math.max(minWords, Math.round(totalWords / sceneCount) + wordsBias),
   );
 
   const script = await chatJSON<Script>(
