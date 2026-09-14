@@ -43,6 +43,7 @@ import {
 import { KaraokeCaption } from "@/components/karaoke-caption";
 import { MusicLibrary } from "@/components/music-library";
 import { audioDuration, estimateSpeechSeconds } from "@/lib/duration";
+import { SQUARE_MARGIN_RATIO, SQUARE_RADIUS_RATIO } from "@/lib/karaoke-overlay";
 import {
   
   defaultVoiceFor,

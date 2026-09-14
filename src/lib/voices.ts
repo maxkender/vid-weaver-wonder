@@ -24,12 +24,12 @@ export function voicesFor(engine: VoiceEngine) {
 
 /** Narrateur ElevenLabs par défaut pour chaque langue produite. */
 export const DEFAULT_ELEVEN_VOICE_BY_LANG: Record<string, string> = {
-  fr: "BVBq6HVJVdnwOMJOqvy9", // Nova — Deep and Calm (choix du client)
+  fr: "5hg8RfXWJPAYypnW7dXa", // voix narration papier (choix du client)
   en: "JBFqnCBsd6RMkjVDRZzb",
   es: "o0SveC0zgHFuCsEO3vHR",
   de: "NlRO8ABjJNJNYaRaLiPJ",
   it: "32vqZVYOe7sQVGys0soJ",
-  pt: "BVBq6HVJVdnwOMJOqvy9", // pas de voix native connue : on garde la voix française
+  pt: "5hg8RfXWJPAYypnW7dXa", // pas de voix native connue : on garde la voix française
 };
 
 export function defaultVoice(engine: VoiceEngine) {
