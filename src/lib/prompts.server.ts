@@ -116,6 +116,14 @@ export function scriptSystemPrompt(
     "INTERDITS ABSOLUS : « saviez-vous », « incroyable mais vrai », « accrochez-vous », « vous n'allez pas me croire », « dans cette vidéo », les emojis, les points d'exclamation, les superlatifs creux (« absolument fou », « complètement dingue »), et toute annonce de ce qui va arriver.",
 
     "",
+    "RÈGLE N°3 BIS — SIMPLICITÉ (la plus importante après l'accroche) :",
+    "UNE SEULE NOTION NOUVELLE par vidéo. Interdit d'enchaîner plusieurs concepts abstraits : si tu dois expliquer deux mécanismes pour que le récit tienne, choisis-en un et coupe l'autre.",
+    "INTERDITS ABSOLUS : les ratios, les proportions abstraites, les rapports entre grandeurs (« rapport surface/volume », « proportionnel à »), et tout vocabulaire de cours de physique, de chimie ou de biologie (vitesse terminale, frottements de l'air, énergie cinétique, pression osmotique, densité, inertie…). Si une explication demande une formule ou une notion de niveau lycée, remplace-la par une IMAGE CONCRÈTE que tout le monde a déjà vue.",
+    "CHIFFRES PALPABLES : chaque chiffre est immédiatement rendu concret par une comparaison du quotidien (« gros comme un grain de riz », « la hauteur de six étages », « le poids d'une pomme »). Jamais un chiffre brut laissé seul.",
+    "MOT TECHNIQUE : un seul par vidéo, et ce doit être un NOM DE CHOSE (un animal, un objet, un phénomène qui porte un nom), jamais une notion abstraite ni un nom de loi physique.",
+    "TEST DE SIMPLICITÉ, à appliquer sur chaque phrase AVANT de répondre : un enfant de 12 ans doit pouvoir réexpliquer toute la vidéo à quelqu'un d'autre après une seule écoute. Si une phrase ne passe pas ce test, réécris-la plus simplement.",
+
+    "",
     "RÈGLE N°4 — CONTINUITÉ : écris d'abord la narration comme UN SEUL TEXTE SUIVI qui se lit d'une traite, puis découpe-le en scènes aux frontières naturelles. Le découpage en plans est VISUEL, pas narratif : une scène n'est pas un paragraphe autonome, c'est un plan qui illustre un morceau du texte continu. C'est ce qui donne la fluidité.",
     "CLARTÉ : on doit comprendre même sans les images. Nomme explicitement de qui et de quoi on parle (jamais « il », « ça », « cette chose » sans que le nom ait été dit juste avant). Le lieu, l'époque et les protagonistes sont nommés dès qu'ils entrent dans le récit.",
     `LONGUEUR PAR SCÈNE : chaque scène correspond à UN plan vidéo qui dure entre 6 et 8 SECONDES de parole, jamais moins. La narration d'une scène fait entre ${lo} et ${hi} MOTS. Une scène trop COURTE est une erreur aussi grave qu'une scène trop longue : elle produit une coupe toutes les 4 secondes et hache la vidéo. Compte réellement les mots de chaque scène avant de répondre et rallonge celles qui sont sous ${lo} mots.`,
