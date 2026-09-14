@@ -194,16 +194,16 @@ function StationPage() {
   const pending = rows.filter((r) => r.status === "rendering").length;
 
   return (
-    <main className="mx-auto w-full max-w-4xl px-4 py-8">
+    <main className="mx-auto w-full max-w-4xl px-4 py-6">
       <Toaster />
-      <div className="mb-6 flex items-center gap-3">
+      <div className="mb-5 flex items-center gap-3 border-b border-border pb-3">
         <Button asChild variant="ghost" size="icon">
           <Link to="/" aria-label="Retour au studio">
             <ArrowLeft />
           </Link>
         </Button>
         <div>
-          <h1 className="text-2xl font-semibold">Station de montage</h1>
+          <h1 className="text-[15px] font-semibold tracking-tight">Station de montage</h1>
           <p className="text-sm text-muted-foreground">
             Laisse cette page ouverte : elle monte automatiquement les vidéos commandées par l'OS
             marketing et les renvoie prêtes à télécharger.
@@ -211,7 +211,7 @@ function StationPage() {
         </div>
       </div>
 
-      <section className="mb-6 rounded-lg border p-4">
+      <section className="surface-card mb-4 p-4">
         <div className="flex flex-wrap items-center gap-3">
           <Button onClick={() => setRunning((v) => !v)} variant={running ? "secondary" : "default"}>
             {running ? <Square /> : <Play />}
@@ -232,7 +232,7 @@ function StationPage() {
         </div>
       </section>
 
-      <section className="rounded-lg border">
+      <section className="surface-card">
         <h2 className="border-b px-4 py-3 text-sm font-medium">File de production</h2>
         <ul className="divide-y">
           {rows.length === 0 && (
