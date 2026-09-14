@@ -22,6 +22,7 @@ import {
   Sparkles,
   Wand2,
   History,
+  ListChecks,
   Settings,
   Pencil,
   Star,
@@ -68,6 +69,7 @@ import {
   translateScript,
 } from "@/lib/studio.functions";
 import { TOPIC_CATEGORIES, type TopicCategory } from "@/lib/topic-categories";
+import { markTopicUsed, nextValidatedTopic, type QueuedTopic } from "@/lib/topics.functions";
 import { createExportUpload, getExportDownloadUrl } from "@/lib/exports.functions";
 import { pipelineState, resumePipeline, stopPipeline } from "@/lib/jobs/control.functions";
 
@@ -256,9 +258,14 @@ function Studio() {
   const [angle, setAngle] = useState("");
   const [suggesting, setSuggesting] = useState(false);
   const [topicCategory, setTopicCategory] = useState<TopicCategory>("aleatoire");
+  /** Sujet pris dans la file validée : marqué « utilisé » au lancement de la vidéo. */
+  const [queuedTopicId, setQueuedTopicId] = useState<string | null>(null);
+  const [takingTopic, setTakingTopic] = useState(false);
 
   const pastTopics = useRef<string[]>([]);
   const runSuggest = useServerFn(suggestTopic);
+  const runNextTopic = useServerFn(nextValidatedTopic);
+  const runMarkUsed = useServerFn(markTopicUsed);
   const kind: Kind = "faits";
 
   // On choisit la DURÉE de la vidéo ; le nombre de plans en découle.
@@ -677,9 +684,35 @@ function Studio() {
     }
   };
 
+  /** Prend le premier sujet VALIDÉ de la file (garde-fou qualité). */
+  const onTakeQueuedTopic = async () => {
+    setTakingTopic(true);
+    try {
+      const res = (await runNextTopic()) as { topic: QueuedTopic | null };
+      if (!res.topic) {
+        toast.error("Aucun sujet validé dans la file — va en valider dans « Sujets »");
+        return;
+      }
+      setTopic(res.topic.topic);
+      setAngle(res.topic.angle ?? "");
+      setQueuedTopicId(res.topic.id);
+      setTopicValidated(true);
+      toast.success("Sujet pris dans la file");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Lecture de la file impossible");
+    } finally {
+      setTakingTopic(false);
+    }
+  };
 
   const onScript = async (): Promise<Script | undefined> => {
     setLoadingScript(true);
+    // Le sujet de la file est consommé au moment où la vidéo part réellement.
+    if (queuedTopicId) {
+      void runMarkUsed({ data: { id: queuedTopicId, videoJobId: projectId ?? "" } })
+        .then(() => setQueuedTopicId(null))
+        .catch(() => undefined);
+    }
     try {
       const result = (await runScript({
         data: {
@@ -1796,6 +1829,9 @@ function Studio() {
             >
               <History className="h-3.5 w-3.5" /> Historique ({history.length})
             </button>
+            <Link to="/sujets" className="btn-base btn-ghost px-2.5 py-1.5 text-xs">
+              <ListChecks className="h-3.5 w-3.5" /> Sujets
+            </Link>
             <Link to="/parametres" className="btn-base btn-ghost px-2.5 py-1.5 text-xs">
               <Settings className="h-3.5 w-3.5" /> Paramètres
             </Link>
@@ -1911,6 +1947,18 @@ function Studio() {
                   <Sparkles className="h-3.5 w-3.5" />
                 )}
                 Proposer un sujet
+              </button>
+              <button
+                onClick={onTakeQueuedTopic}
+                disabled={takingTopic}
+                className="btn-base btn-ghost text-xs"
+              >
+                {takingTopic ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <ListChecks className="h-3.5 w-3.5" />
+                )}
+                Prendre le prochain sujet de la file
               </button>
               {angle && <span className="text-xs text-muted-foreground">{angle}</span>}
             </div>

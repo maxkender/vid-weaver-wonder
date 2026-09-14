@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ParametresRouteImport } from './routes/parametres'
 import { Route as StationRouteImport } from './routes/station'
+import { Route as SujetsRouteImport } from './routes/sujets'
 import { Route as ApiPublicVideosRouteImport } from './routes/api/public/videos'
 import { Route as ApiVideoContentIdRouteImport } from './routes/api/video-content.$id'
 import { Route as ApiPublicJobsRenderCallbackRouteImport } from './routes/api/public/jobs/render-callback'
@@ -31,6 +32,11 @@ const ParametresRoute = ParametresRouteImport.update({
 const StationRoute = StationRouteImport.update({
   id: '/station',
   path: '/station',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SujetsRoute = SujetsRouteImport.update({
+  id: '/sujets',
+  path: '/sujets',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiPublicVideosRoute = ApiPublicVideosRouteImport.update({
@@ -64,6 +70,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/parametres': typeof ParametresRoute
   '/station': typeof StationRoute
+  '/sujets': typeof SujetsRoute
   '/api/public/videos': typeof ApiPublicVideosRouteWithChildren
   '/api/video-content/$id': typeof ApiVideoContentIdRoute
   '/api/public/jobs/render-callback': typeof ApiPublicJobsRenderCallbackRoute
@@ -74,6 +81,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/parametres': typeof ParametresRoute
   '/station': typeof StationRoute
+  '/sujets': typeof SujetsRoute
   '/api/public/videos': typeof ApiPublicVideosRouteWithChildren
   '/api/video-content/$id': typeof ApiVideoContentIdRoute
   '/api/public/jobs/render-callback': typeof ApiPublicJobsRenderCallbackRoute
@@ -85,6 +93,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/parametres': typeof ParametresRoute
   '/station': typeof StationRoute
+  '/sujets': typeof SujetsRoute
   '/api/public/videos': typeof ApiPublicVideosRouteWithChildren
   '/api/video-content/$id': typeof ApiVideoContentIdRoute
   '/api/public/jobs/render-callback': typeof ApiPublicJobsRenderCallbackRoute
@@ -97,6 +106,7 @@ export interface FileRouteTypes {
     | '/'
     | '/parametres'
     | '/station'
+    | '/sujets'
     | '/api/public/videos'
     | '/api/video-content/$id'
     | '/api/public/jobs/render-callback'
@@ -107,6 +117,7 @@ export interface FileRouteTypes {
     | '/'
     | '/parametres'
     | '/station'
+    | '/sujets'
     | '/api/public/videos'
     | '/api/video-content/$id'
     | '/api/public/jobs/render-callback'
@@ -117,6 +128,7 @@ export interface FileRouteTypes {
     | '/'
     | '/parametres'
     | '/station'
+    | '/sujets'
     | '/api/public/videos'
     | '/api/video-content/$id'
     | '/api/public/jobs/render-callback'
@@ -128,6 +140,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ParametresRoute: typeof ParametresRoute
   StationRoute: typeof StationRoute
+  SujetsRoute: typeof SujetsRoute
   ApiPublicVideosRoute: typeof ApiPublicVideosRouteWithChildren
   ApiVideoContentIdRoute: typeof ApiVideoContentIdRoute
   ApiPublicJobsRenderCallbackRoute: typeof ApiPublicJobsRenderCallbackRoute
@@ -155,6 +168,13 @@ declare module '@tanstack/react-router' {
       path: '/station'
       fullPath: '/station'
       preLoaderRoute: typeof StationRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sujets': {
+      id: '/sujets'
+      path: '/sujets'
+      fullPath: '/sujets'
+      preLoaderRoute: typeof SujetsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/videos': {
@@ -211,6 +231,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ParametresRoute: ParametresRoute,
   StationRoute: StationRoute,
+  SujetsRoute: SujetsRoute,
   ApiPublicVideosRoute: ApiPublicVideosRouteWithChildren,
   ApiVideoContentIdRoute: ApiVideoContentIdRoute,
   ApiPublicJobsRenderCallbackRoute: ApiPublicJobsRenderCallbackRoute,
