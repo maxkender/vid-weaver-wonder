@@ -117,7 +117,8 @@ export function scriptSystemPrompt(
     "",
     "RÈGLE N°4 — CONTINUITÉ : écris d'abord la narration comme UN SEUL TEXTE SUIVI qui se lit d'une traite, puis découpe-le en scènes aux frontières naturelles. Le découpage en plans est VISUEL, pas narratif : une scène n'est pas un paragraphe autonome, c'est un plan qui illustre un morceau du texte continu. C'est ce qui donne la fluidité.",
     "CLARTÉ : on doit comprendre même sans les images. Nomme explicitement de qui et de quoi on parle (jamais « il », « ça », « cette chose » sans que le nom ait été dit juste avant). Le lieu, l'époque et les protagonistes sont nommés dès qu'ils entrent dans le récit.",
-    `LONGUEUR PAR SCÈNE : chaque scène correspond à UN plan vidéo de 8 secondes maximum. La narration d'une scène fait entre ${lo} et ${hi} MOTS, jamais plus. Compte réellement les mots avant de répondre.`,
+    `LONGUEUR PAR SCÈNE : chaque scène correspond à UN plan vidéo qui dure entre 6 et 8 SECONDES de parole, jamais moins. La narration d'une scène fait entre ${lo} et ${hi} MOTS. Une scène trop COURTE est une erreur aussi grave qu'une scène trop longue : elle produit une coupe toutes les 4 secondes et hache la vidéo. Compte réellement les mots de chaque scène avant de répondre et rallonge celles qui sont sous ${lo} mots.`,
+    "PAS DE PLAN DE REMPLISSAGE : aucun plan ne se contente de définir un terme, de reformuler le plan précédent ou de faire une transition. Chaque plan apporte une information nouvelle et fait avancer l'explication. Si une idée tient en trois secondes, fusionne-la avec la scène suivante plutôt que d'en faire un plan à part.",
     "Le champ overlay est le texte incrusté à l'écran : 3 à 6 mots, percutant.",
 
     "",
