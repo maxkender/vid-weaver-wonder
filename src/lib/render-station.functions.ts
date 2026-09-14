@@ -85,6 +85,7 @@ export const claimStationTask = createServerFn({ method: "POST" }).handler(
         title: script?.title ?? job.topic ?? "Vidéo",
         language: job.language,
         visualStyle: job.visual_style,
+        narrationStyle: job.narration_style,
         squareMask: job.visual_style === "papercraft",
         uploadUrl: up.signedUrl,
         uploadToken: up.token,
