@@ -335,23 +335,9 @@ function Studio() {
 
 
   useEffect(() => {
-    const current = readHistory();
-    const recovered: HistoryItem = {
-      id: NAPOLEON_PROJECT_ID,
-      title: NAPOLEON_SCRIPT.title,
-      date: Date.now(),
-      script: NAPOLEON_SCRIPT,
-    };
-    const restored = current.some((item) => item.id === NAPOLEON_PROJECT_ID)
-      ? current
-      : [recovered, ...current];
-    writeHistory(restored);
-    setHistory(restored);
-    void import("@/lib/project-store").then(async (store) => {
-      const existing = await store.loadProjectMedia(NAPOLEON_PROJECT_ID);
-      if (!Object.keys(existing).length) await store.saveProjectMedia(NAPOLEON_PROJECT_ID, NAPOLEON_MEDIA);
-    });
+    setHistory(readHistory());
   }, []);
+
 
   const saveHistory = useCallback((id: string, next: Script) => {
     const items = readHistory().filter((h) => h.id !== id);
