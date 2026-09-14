@@ -1126,7 +1126,7 @@ function Studio() {
     try {
       const { assembleVideo } = await import("@/lib/assemble-video");
       const { makeOverlayPng } = await import("@/lib/overlay-png");
-      const { makeKaraokeSequence, makeRoundedSquareMask, sophiaWindow, voiceWindow, shiftTimings } =
+      const { makeCaptionCues, makeRoundedSquareMask, sophiaWindow, voiceWindow, shiftTimings } =
         await import("@/lib/karaoke-overlay");
       const dims =
         orientation === "horizontal"
@@ -1140,13 +1140,12 @@ function Studio() {
         settings.sophiaLogo && duration
           ? sophiaWindow(scene.narration, duration, sceneWords)
           : null;
-      const karaokeSeq = duration
-        ? await makeKaraokeSequence(
+      const cues = duration
+        ? await makeCaptionCues(
             scene.narration,
             dims.width,
             dims.height,
             duration,
-            24,
             sceneWords,
             logoWin ? { url: sophiaLogo.url, ...logoWin } : null,
           )
@@ -1161,9 +1160,9 @@ function Studio() {
             videoUrl: st.videoUrl,
             audio: st.audio,
             ...(win ? { trimStart: win.start, trimEnd: win.end } : {}),
-            karaokeSeq,
+            cues,
             mask,
-            overlay: karaokeSeq
+            overlay: cues
               ? null
               : await makeOverlayPng(scene.overlay, dims.width, dims.height),
             duration,
