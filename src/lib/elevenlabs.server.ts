@@ -82,6 +82,7 @@ export async function generateElevenSpeechDataUrl(
     text,
     apiKeyOrThrow(),
     language,
+    voiceId,
   );
   const buf = Buffer.from(await res.arrayBuffer());
   return `data:audio/mpeg;base64,${buf.toString("base64")}`;
