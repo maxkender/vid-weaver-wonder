@@ -8,7 +8,11 @@
  * - centré verticalement dans la fenêtre carrée.
  */
 
-export const CAPTION_SIZE_RATIO = 0.062;
+// Taille relative au CÔTÉ DU CARRÉ (identique à src/lib/karaoke-overlay.ts).
+export const SQUARE_MARGIN_RATIO = 0.148;
+export const CAPTION_SIZE_RATIO = 0.062 / 0.88;
+export const squareSide = (width, height) =>
+  Math.round(Math.min(width * (1 - 2 * SQUARE_MARGIN_RATIO), height));
 export const CAPTION_FADE = 0.08;
 
 /** Échappe le texte pour le filtre drawtext de ffmpeg. */
