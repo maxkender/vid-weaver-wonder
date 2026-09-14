@@ -17,6 +17,12 @@ export type BuildScriptInput = {
   styleBrief?: string | undefined;
   wordsBias?: number | undefined;
   language: string;
+  /**
+   * Toutes les langues qui seront produites à partir de ce script (master
+   * multilingue). Le budget de mots est calculé sur la PLUS RAPIDE d'entre
+   * elles pour qu'aucune version ne passe sous la durée cible.
+   */
+  productionLanguages?: string[] | undefined;
   /** Ajouter le plan CTA Sophia à la fin (true par défaut). */
   includeCta?: boolean | undefined;
 };
