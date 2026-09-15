@@ -2714,27 +2714,51 @@ function Studio() {
               </div>
             )}
 
-            {langDurations.length > 0 && (
-              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
-                <span className="text-muted-foreground">Durée estimée</span>
-                {langDurations.map(({ lang: l, seconds }) => (
-                  <span
-                    key={l}
-                    className={
-                      seconds < 60 ? "font-medium text-destructive" : "text-muted-foreground"
-                    }
-                    title={seconds < 60 ? "Sous la cible de 60 secondes" : undefined}
-                  >
-                    {l.toUpperCase()} ≈ {Math.round(seconds)} s{seconds < 60 ? " ⚠" : ""}
-                  </span>
-                ))}
-                {langDurations.some((d) => d.seconds < 60) && (
-                  <span className="text-destructive">
-                    Rallonge le script avant d'animer les plans.
-                  </span>
-                )}
-              </div>
-            )}
+            {langDurations.length > 0 &&
+              (() => {
+                const lo = targetSeconds;
+                const hi = Math.round(targetSeconds * 1.1);
+                const off = langDurations.filter((d) => d.seconds < lo || d.seconds > hi);
+                return (
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+                    <span className="text-muted-foreground">
+                      Durée estimée (cible {lo}-{hi} s)
+                    </span>
+                    {langDurations.map(({ lang: l, seconds }) => {
+                      const bad = seconds < lo || seconds > hi;
+                      return (
+                        <span
+                          key={l}
+                          className={
+                            bad ? "font-medium text-destructive" : "text-muted-foreground"
+                          }
+                          title={
+                            bad
+                              ? `Hors de la cible ${lo}-${hi} secondes`
+                              : undefined
+                          }
+                        >
+                          {l.toUpperCase()} ≈ {Math.round(seconds)} s{bad ? " ⚠" : ""}
+                        </span>
+                      );
+                    })}
+                    {off.length > 0 && (
+                      <span className="text-destructive">
+                        Écart restant après correction :{" "}
+                        {off
+                          .map(
+                            (d) =>
+                              `${d.lang.toUpperCase()} ${d.seconds < lo ? "−" : "+"}${Math.round(
+                                d.seconds < lo ? lo - d.seconds : d.seconds - hi,
+                              )} s`,
+                          )
+                          .join(" · ")}
+                        . Ajuste le script avant d'animer les plans.
+                      </span>
+                    )}
+                  </div>
+                );
+              })()}
 
             {langs.length > 1 && (
               <div className="flex flex-wrap items-center gap-2">
