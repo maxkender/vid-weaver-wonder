@@ -122,7 +122,11 @@ import {
   setTopicStatus,
   type QueuedTopic,
 } from "@/lib/topics.functions";
-import { createExportUpload, getExportDownloadUrl } from "@/lib/exports.functions";
+import {
+  createExportUpload,
+  getExportDownloadUrl,
+  saveDailyExport,
+} from "@/lib/exports.functions";
 import { pipelineState, resumePipeline, stopPipeline } from "@/lib/jobs/control.functions";
 
 
@@ -754,6 +758,12 @@ function Studio() {
   const [finalUrls, setFinalUrls] = useState<Record<string, string>>({});
   /** Vidéos sauvegardées en ligne, par langue (liens signés 7 jours). */
   const [exportInfos, setExportInfos] = useState<Record<string, ExportInfo>>({});
+  /** Échec de sauvegarde en ligne, par langue : permet de réessayer sans remonter. */
+  const [exportErrors, setExportErrors] = useState<Record<string, string>>({});
+  /** Langue en cours de sauvegarde en ligne. */
+  const [savingOnline, setSavingOnline] = useState<string | null>(null);
+  /** Fichiers montés, gardés en mémoire pour rattraper un envoi raté. */
+  const exportBlobs = useRef<Record<string, Blob>>({});
   const [translating, setTranslating] = useState(false);
 
   // MODE MANUEL : portes de validation. Rien de payant ne part sans un clic.
@@ -1303,6 +1313,7 @@ function Studio() {
   const runTranslate = useServerFn(translateScript);
   const runCreateUpload = useServerFn(createExportUpload);
   const runExportUrl = useServerFn(getExportDownloadUrl);
+  const runSaveDaily = useServerFn(saveDailyExport);
 
   /**
    * Empreinte du texte source : sert à savoir si une traduction déjà faite est
@@ -2290,18 +2301,23 @@ function Studio() {
     if (lang === sourceLang) setFinalUrl(url);
     if (autoDownload) downloadLang(lang, url, doc?.title ?? "video");
     toast.success(`Vidéo ${languageLabel(lang)} assemblée`);
-    // Sauvegarde en ligne : jamais bloquante, l'export local reste valide.
-    void saveExportOnline(lang, blob, url);
+    // Sauvegarde en ligne : dernière étape du montage d'une langue. Un échec
+    // ne bloque JAMAIS les langues suivantes ni le reste du pipeline.
+    exportBlobs.current[lang] = blob;
+    await saveExportOnline(lang, blob, url);
     return url;
   };
 
   /**
    * Envoie la vidéo sur le stockage du projet via une URL signée (le fichier ne
-   * passe pas par le serveur de l'application) puis range le lien avec le projet.
+   * passe pas par le serveur de l'application), range le lien avec le projet,
+   * puis inscrit la vidéo dans la diffusion du jour pour cette langue.
    * Un échec de stockage n'invalide JAMAIS l'export : il reste téléchargeable.
    */
   const saveExportOnline = async (lang: string, blob: Blob, objectUrl: string) => {
-    if (!projectId) return;
+    if (!projectId) return false;
+    exportBlobs.current[lang] = blob;
+    setSavingOnline(lang);
     try {
       setAssembleStep(`${languageLabel(lang)} — sauvegarde en ligne…`);
       const { path, token, bucket } = (await runCreateUpload({
@@ -2320,16 +2336,81 @@ function Studio() {
       const duration = await videoDuration(objectUrl);
       const info: ExportInfo = { path, url, expiresAt, size: blob.size, duration };
       setExportInfos((prev) => ({ ...prev, [lang]: info }));
+      setExportErrors((prev) => {
+        const next = { ...prev };
+        delete next[lang];
+        return next;
+      });
       saveExportToHistory(projectId, lang, info);
+
+      // Vidéo du jour : c'est ce que le posteur voit dans son espace.
+      const doc = scriptsRef.current[lang] ?? script;
+      try {
+        await runSaveDaily({
+          data: {
+            language: lang,
+            path,
+            durationSec: Math.round(duration),
+            title: doc?.title ?? "",
+            caption: doc?.hook ?? "",
+            hashtags: asHashtags(doc?.hashtags),
+          },
+        });
+      } catch (e) {
+        console.error(e);
+        toast.warning(
+          `Vidéo ${languageLabel(lang)} sauvegardée, mais non ajoutée à la diffusion du jour (${
+            e instanceof Error ? e.message : "diffusion indisponible"
+          }).`,
+        );
+      }
+      return true;
     } catch (e) {
       console.error(e);
+      const message = e instanceof Error ? e.message : "stockage indisponible";
+      setExportErrors((prev) => ({ ...prev, [lang]: message }));
       toast.warning(
-        `Vidéo ${languageLabel(lang)} : la sauvegarde en ligne a échoué (${
-          e instanceof Error ? e.message : "stockage indisponible"
-        }). La vidéo reste téléchargeable ici.`,
+        `Vidéo ${languageLabel(lang)} : la sauvegarde en ligne a échoué (${message}). La vidéo reste téléchargeable ici, tu peux réessayer sans la remonter.`,
       );
+      return false;
+    } finally {
+      setSavingOnline(null);
     }
   };
+
+  /**
+   * Rattrapage : renvoie une langue déjà montée, sans rien réassembler.
+   * Le fichier est repris en mémoire, ou relu depuis l'aperçu local.
+   */
+  const retrySaveOnline = async (lang: string) => {
+    const url = finalUrls[lang];
+    let blob = exportBlobs.current[lang];
+    if (!blob && url) {
+      try {
+        blob = await (await fetch(url)).blob();
+      } catch {
+        /* aperçu local perdu */
+      }
+    }
+    if (!blob || !url) {
+      toast.error(
+        `Vidéo ${languageLabel(lang)} : le fichier n'est plus en mémoire, il faut relancer le montage de cette langue.`,
+      );
+      return false;
+    }
+    return await saveExportOnline(lang, blob, url);
+  };
+
+  /** Rattrapage groupé : toutes les langues montées mais non sauvegardées. */
+  const retrySaveAllOnline = async () => {
+    const pending = Object.keys(finalUrls).filter((l) => !exportInfos[l]);
+    if (!pending.length) {
+      toast.success("Toutes les langues sont déjà sauvegardées en ligne.");
+      return;
+    }
+    for (const lang of pending) await retrySaveOnline(lang);
+  };
+
 
   /**
    * Renouvelle les liens signés d'un projet rechargé : un lien de 7 jours peut
@@ -2418,12 +2499,17 @@ function Studio() {
     if (!skipConfirm && !(await confirmWithStep(() => confirmCost(doc)))) return;
     if (!skipConfirm) beginRun();
     setAssembling(true);
+    // Le pipeline enchaîne toutes les phases : les portes de validation du mode
+    // manuel sont ouvertes au fur et à mesure, plus aucun clic n'est attendu
+    // entre deux étapes. Seul un contrôle de DÉPENSE peut encore interrompre.
+    setTopicValidated(true);
     try {
       // b — traductions.
       setCurrentStep("Traductions…");
       // Réutilise les traductions déjà obtenues depuis CE même texte source :
       // on ne repaie pas 5 traductions pour un résultat identique.
       await onTranslateAll(doc, true);
+      setScriptValidated(true);
       if (cancelledRef.current) {
         setAssembleStep("Pipeline arrêté");
         return;
@@ -2470,6 +2556,10 @@ function Studio() {
           }
         }
       }
+      // Images produites : l'animation est débloquée sans clic supplémentaire.
+      if (Object.values(snapshot).some((st) => st?.image)) setImagesValidated(true);
+
+
 
       if (cancelledRef.current) {
         setAssembleStep("Pipeline arrêté");
@@ -3003,6 +3093,26 @@ function Studio() {
                     const { loadFinalVideo } = await import("@/lib/project-store");
                     const savedFinal = await loadFinalVideo(h.id);
                     if (savedFinal) setFinalUrl(URL.createObjectURL(savedFinal));
+
+                    // ÉTAT RESTAURÉ : un projet rechargé retrouve sa phase.
+                    // Sans cela, toutes les portes de validation repartaient à
+                    // zéro et les boutons de génération restaient inertes.
+                    const hasImages = Object.values(restoredStates).some((st) => st?.image);
+                    const hasVoices = Object.values(restoredStates).some(
+                      (st) => Object.keys(st?.voices ?? {}).length > 0,
+                    );
+                    const hasTranslations = Object.keys(saved).length > 1;
+                    setTopicValidated(true);
+                    setScriptValidated(hasTranslations || hasVoices || hasImages);
+                    setImagesValidated(hasImages);
+                    setExportErrors({});
+                    exportBlobs.current = {};
+                    setStopped(false);
+                    cancelledRef.current = false;
+                    setCurrentStep("");
+                    setAssembleStep("");
+                    if (safe.title) setTopic(safe.title);
+
                     // Les liens signés expirent : on les renouvelle au rechargement.
                     void refreshExportLinks(h.id, h.exports);
                     toast.success("Projet rechargé");
@@ -3718,12 +3828,27 @@ function Studio() {
               Object.keys(exportInfos).length > 0 ||
               finalUrl) && (
               <div className="surface-card p-4">
-                <p className="label-x">Vidéos exportées</p>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="label-x">Vidéos exportées</p>
+                  {Object.keys(finalUrls).some((l) => !exportInfos[l]) && (
+                    <button
+                      onClick={() => void retrySaveAllOnline()}
+                      disabled={Boolean(savingOnline)}
+                      className="btn-base btn-ghost px-2.5 py-1.5 text-xs"
+                    >
+                      {savingOnline ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : null}
+                      Tout sauvegarder en ligne
+                    </button>
+                  )}
+                </div>
                 <div className="mt-3 grid gap-3 md:grid-cols-2">
                   {Array.from(
                     new Set([...Object.keys(finalUrls), ...Object.keys(exportInfos)]),
                   ).map((l) => {
                     const info = exportInfos[l];
+                    const failed = exportErrors[l];
                     const playable = finalUrls[l] ?? info?.url;
                     const fileName = `${(script.title || "video")
                       .replace(/[^\p{L}\p{N}]+/gu, "-")
@@ -3735,7 +3860,17 @@ function Studio() {
                             {LANGUAGE_FLAGS[l] ?? ""} {l.toUpperCase()}
                             {info?.duration ? ` · ${Math.round(info.duration)} s` : ""}
                             {info?.size ? ` · ${formatSize(info.size)}` : ""}
-                            {!info && " · non sauvegardée en ligne"}
+                            {info ? (
+                              <span className="ml-1 text-emerald-400">· sauvegardée en ligne ✓</span>
+                            ) : savingOnline === l ? (
+                              <span className="ml-1">· sauvegarde en cours…</span>
+                            ) : failed ? (
+                              <span className="ml-1 text-destructive" title={failed}>
+                                · échec — réessayer
+                              </span>
+                            ) : (
+                              " · non sauvegardée en ligne"
+                            )}
                           </span>
                           <span className="flex flex-wrap items-center gap-2">
                             <a
@@ -3745,6 +3880,18 @@ function Studio() {
                             >
                               <Download className="h-3.5 w-3.5" /> Télécharger
                             </a>
+                            {!info && (
+                              <button
+                                onClick={() => void retrySaveOnline(l)}
+                                disabled={savingOnline === l}
+                                className="btn-base btn-ghost px-2.5 py-1.5 text-xs"
+                              >
+                                {savingOnline === l ? (
+                                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                ) : null}
+                                Sauvegarder en ligne
+                              </button>
+                            )}
                             {info?.url && (
                               <button
                                 onClick={() => {
@@ -3760,6 +3907,7 @@ function Studio() {
                             )}
                           </span>
                         </div>
+
                         {playable && (
                           <video
                             src={playable}

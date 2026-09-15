@@ -8,13 +8,115 @@ import { MusicLibrary } from "@/components/music-library";
 import { ContractMarkdown } from "@/components/contract-markdown";
 import {
   createContractVersion,
+  getDistribution,
   listContractTemplates,
   listLanguageSettings,
+  setDailyVideoStatus,
   updateLanguageSetting,
 } from "@/lib/admin.functions";
 import { generateSceneVoice } from "@/lib/studio.functions";
 import { MASTER_LANGUAGES, languageLabel } from "@/lib/languages";
 import { NARRATION_LABELS, VISUAL_LABELS } from "@/lib/style-presets";
+
+/** Vidéo du jour, par langue. */
+type DayVideo = {
+  id: string;
+  language: string;
+  status: string;
+  storage_path: string | null;
+  title: string;
+  duration_sec: number | string;
+};
+
+/**
+ * LES CINQ LANGUES DU JOUR : état de sauvegarde du fichier et publication.
+ * Une journée publiée est immédiatement visible par les posteurs.
+ */
+function DayVideos() {
+  const runDistribution = useServerFn(getDistribution);
+  const runStatus = useServerFn(setDailyVideoStatus);
+  const [date, setDate] = useState("");
+  const [videos, setVideos] = useState<DayVideo[]>([]);
+  const [busy, setBusy] = useState(false);
+
+  const refresh = useCallback(async () => {
+    const res = (await runDistribution({ data: {} })) as { date: string; videos: DayVideo[] };
+    setDate(res.date);
+    setVideos(res.videos ?? []);
+  }, [runDistribution]);
+
+  useEffect(() => {
+    void refresh();
+  }, [refresh]);
+
+  const setAll = async (status: "published" | "draft") => {
+    setBusy(true);
+    try {
+      const ready = videos.filter((v) => v.storage_path);
+      if (!ready.length) {
+        toast.error("Aucune vidéo sauvegardée en ligne pour aujourd'hui.");
+        return;
+      }
+      for (const v of ready) await runStatus({ data: { id: v.id, status } });
+      toast.success(status === "published" ? "Journée publiée" : "Journée dépubliée");
+      await refresh();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Changement impossible");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <section className="surface-card p-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="label-x">Vidéos du jour {date ? `· ${date}` : ""}</p>
+        <span className="flex gap-2">
+          <button
+            className="btn-base btn-primary px-2.5 py-1.5 text-xs"
+            disabled={busy}
+            onClick={() => void setAll("published")}
+          >
+            {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null} Publier la journée
+          </button>
+          <button
+            className="btn-base btn-ghost px-2.5 py-1.5 text-xs"
+            disabled={busy}
+            onClick={() => void setAll("draft")}
+          >
+            Dépublier la journée
+          </button>
+        </span>
+      </div>
+      <ul className="mt-2 divide-y divide-border/60 text-sm">
+        {MASTER_LANGUAGES.map((lang) => {
+          const v = videos.find((x) => x.language === lang.id);
+          return (
+            <li key={lang.id} className="flex flex-wrap items-center gap-2 py-1.5">
+              <span className="w-32">{languageLabel(lang.id)}</span>
+              <span className="flex-1 truncate text-xs text-muted-foreground">
+                {v?.title || "Aucune vidéo pour aujourd'hui"}
+              </span>
+              <span className="text-xs">
+                {!v ? (
+                  <span className="text-muted-foreground">—</span>
+                ) : v.storage_path ? (
+                  <span className="text-emerald-400">fichier sauvegardé ✓</span>
+                ) : (
+                  <span className="text-destructive">fichier manquant</span>
+                )}
+              </span>
+              <span className="w-24 text-right text-xs text-muted-foreground">
+                {v?.status === "published" ? "publiée" : v ? "brouillon" : ""}
+              </span>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  );
+}
+
 
 type LanguageRow = {
   language: string;
@@ -101,6 +203,7 @@ export function AdminContent() {
 
   return (
     <div className="space-y-4">
+      <DayVideos />
       <AdminConventions />
 
       <section className="surface-card overflow-x-auto p-0">

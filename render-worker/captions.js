@@ -23,7 +23,15 @@ const MAX_GROUP_CHARS = 18;
 /** Léger devancement : le texte apparaît juste avant la syllabe. */
 const LEAD_IN = 0.05;
 
-const cleanWord = (w) => String(w ?? "").replace(/[«»"]/g, "").replace(/\s+/g, " ").trim();
+/**
+ * PONCTUATION : on retire celle qui est collée au bord du mot (« : son »).
+ * L'apostrophe et le trait d'union internes restent (l'été, au-dessus).
+ */
+const EDGE_PUNCT = /^[\p{P}\p{S}\s]+|[\p{P}\p{S}\s]+$/gu;
+const hasLetterOrDigit = (w) => /[\p{L}\p{N}]/u.test(w ?? "");
+const cleanWord = (w) =>
+  String(w ?? "").replace(/[«»"]/g, "").replace(EDGE_PUNCT, "").replace(/\s+/g, " ").trim();
+
 
 /**
  * Fenêtre utile de la voix off : du premier au dernier mot réellement prononcé.
@@ -54,12 +62,25 @@ export function shiftTimings(words, offset) {
  * puis continuité (un groupe reste affiché jusqu'au suivant).
  */
 export function smoothTimings(timings, duration) {
-  const sorted = (timings ?? [])
+  const raw = (timings ?? [])
     .filter((t) => t?.word && t.start >= 0 && t.start < duration + 0.5)
-    .map((t) => ({ word: cleanWord(t.word), start: t.start, end: t.end }))
-    .filter((t) => t.word)
     .sort((a, b) => a.start - b.start);
+
+  // Un token sans lettre ni chiffre est fusionné avec le mot suivant, en
+  // gardant son début : le karaoké ne se décale jamais.
+  const sorted = [];
+  let pendingStart = null;
+  for (const t of raw) {
+    const word = cleanWord(t.word);
+    if (!word || !hasLetterOrDigit(word)) {
+      if (pendingStart === null) pendingStart = t.start;
+      continue;
+    }
+    sorted.push({ word, start: pendingStart ?? t.start, end: t.end });
+    pendingStart = null;
+  }
   if (!sorted.length) return [];
+
 
   // Les timestamps ElevenLabs sont déjà calés sur l'audio : jamais réétirés.
   const scaled = sorted.map((t, i) => {
