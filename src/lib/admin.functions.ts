@@ -580,6 +580,7 @@ export const updateConventions = createServerFn({ method: "POST" })
         instagramTemplate: z.string().min(3).max(200).optional(),
         gmailTemplate: z.string().min(3).max(200).optional(),
         socialPassword: z.string().min(6).max(120).optional(),
+        platformPassword: z.string().min(6).max(120).optional(),
         bioText: z.string().max(400).optional(),
         upworkMessageFr: z.string().max(4000).optional(),
         upworkMessageEn: z.string().max(4000).optional(),
