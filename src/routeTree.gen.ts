@@ -9,33 +9,33 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as IndexRouteImport } from './routes/index'
-import { Route as ParametresRouteImport } from './routes/parametres'
 import { Route as StationRouteImport } from './routes/station'
-import { Route as SujetsRouteImport } from './routes/sujets'
+import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
+import { Route as AuthenticatedParametresRouteImport } from './routes/_authenticated/parametres'
+import { Route as AuthenticatedSujetsRouteImport } from './routes/_authenticated/sujets'
 import { Route as ApiPublicVideosRouteImport } from './routes/api/public/videos'
 import { Route as ApiVideoContentIdRouteImport } from './routes/api/video-content.$id'
 import { Route as ApiPublicJobsRenderCallbackRouteImport } from './routes/api/public/jobs/render-callback'
 import { Route as ApiPublicJobsTickRouteImport } from './routes/api/public/jobs/tick'
 import { Route as ApiPublicVideosIdRouteImport } from './routes/api/public/videos.$id'
 
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ParametresRoute = ParametresRouteImport.update({
-  id: '/parametres',
-  path: '/parametres',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const StationRoute = StationRouteImport.update({
   id: '/station',
   path: '/station',
   getParentRoute: () => rootRouteImport,
 } as any)
-const SujetsRoute = SujetsRouteImport.update({
-  id: '/sujets',
+const AuthenticatedIndexRoute = AuthenticatedIndexRouteImport.update({
+  id: '/_authenticated/',
+  path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedParametresRoute = AuthenticatedParametresRouteImport.update({
+  id: '/_authenticated/parametres',
+  path: '/parametres',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedSujetsRoute = AuthenticatedSujetsRouteImport.update({
+  id: '/_authenticated/sujets',
   path: '/sujets',
   getParentRoute: () => rootRouteImport,
 } as any)
@@ -67,10 +67,10 @@ const ApiPublicVideosIdRoute = ApiPublicVideosIdRouteImport.update({
 } as any)
 
 export interface FileRoutesByFullPath {
-  '/': typeof IndexRoute
-  '/parametres': typeof ParametresRoute
   '/station': typeof StationRoute
-  '/sujets': typeof SujetsRoute
+  '/parametres': typeof AuthenticatedParametresRoute
+  '/sujets': typeof AuthenticatedSujetsRoute
+  '/': typeof AuthenticatedIndexRoute
   '/api/public/videos': typeof ApiPublicVideosRouteWithChildren
   '/api/video-content/$id': typeof ApiVideoContentIdRoute
   '/api/public/jobs/render-callback': typeof ApiPublicJobsRenderCallbackRoute
@@ -78,10 +78,10 @@ export interface FileRoutesByFullPath {
   '/api/public/videos/$id': typeof ApiPublicVideosIdRoute
 }
 export interface FileRoutesByTo {
-  '/': typeof IndexRoute
-  '/parametres': typeof ParametresRoute
   '/station': typeof StationRoute
-  '/sujets': typeof SujetsRoute
+  '/parametres': typeof AuthenticatedParametresRoute
+  '/sujets': typeof AuthenticatedSujetsRoute
+  '/': typeof AuthenticatedIndexRoute
   '/api/public/videos': typeof ApiPublicVideosRouteWithChildren
   '/api/video-content/$id': typeof ApiVideoContentIdRoute
   '/api/public/jobs/render-callback': typeof ApiPublicJobsRenderCallbackRoute
@@ -90,10 +90,10 @@ export interface FileRoutesByTo {
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
-  '/': typeof IndexRoute
-  '/parametres': typeof ParametresRoute
   '/station': typeof StationRoute
-  '/sujets': typeof SujetsRoute
+  '/_authenticated/parametres': typeof AuthenticatedParametresRoute
+  '/_authenticated/sujets': typeof AuthenticatedSujetsRoute
+  '/_authenticated/': typeof AuthenticatedIndexRoute
   '/api/public/videos': typeof ApiPublicVideosRouteWithChildren
   '/api/video-content/$id': typeof ApiVideoContentIdRoute
   '/api/public/jobs/render-callback': typeof ApiPublicJobsRenderCallbackRoute
@@ -103,10 +103,10 @@ export interface FileRoutesById {
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    | '/'
-    | '/parametres'
     | '/station'
+    | '/parametres'
     | '/sujets'
+    | '/'
     | '/api/public/videos'
     | '/api/video-content/$id'
     | '/api/public/jobs/render-callback'
@@ -114,10 +114,10 @@ export interface FileRouteTypes {
     | '/api/public/videos/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
-    | '/'
-    | '/parametres'
     | '/station'
+    | '/parametres'
     | '/sujets'
+    | '/'
     | '/api/public/videos'
     | '/api/video-content/$id'
     | '/api/public/jobs/render-callback'
@@ -125,10 +125,10 @@ export interface FileRouteTypes {
     | '/api/public/videos/$id'
   id:
     | '__root__'
-    | '/'
-    | '/parametres'
     | '/station'
-    | '/sujets'
+    | '/_authenticated/parametres'
+    | '/_authenticated/sujets'
+    | '/_authenticated/'
     | '/api/public/videos'
     | '/api/video-content/$id'
     | '/api/public/jobs/render-callback'
@@ -137,10 +137,10 @@ export interface FileRouteTypes {
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
-  IndexRoute: typeof IndexRoute
-  ParametresRoute: typeof ParametresRoute
   StationRoute: typeof StationRoute
-  SujetsRoute: typeof SujetsRoute
+  AuthenticatedParametresRoute: typeof AuthenticatedParametresRoute
+  AuthenticatedSujetsRoute: typeof AuthenticatedSujetsRoute
+  AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
   ApiPublicVideosRoute: typeof ApiPublicVideosRouteWithChildren
   ApiVideoContentIdRoute: typeof ApiVideoContentIdRoute
   ApiPublicJobsRenderCallbackRoute: typeof ApiPublicJobsRenderCallbackRoute
@@ -149,20 +149,6 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/parametres': {
-      id: '/parametres'
-      path: '/parametres'
-      fullPath: '/parametres'
-      preLoaderRoute: typeof ParametresRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/station': {
       id: '/station'
       path: '/station'
@@ -170,11 +156,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof StationRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/sujets': {
-      id: '/sujets'
+    '/_authenticated/': {
+      id: '/_authenticated/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof AuthenticatedIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/parametres': {
+      id: '/_authenticated/parametres'
+      path: '/parametres'
+      fullPath: '/parametres'
+      preLoaderRoute: typeof AuthenticatedParametresRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/sujets': {
+      id: '/_authenticated/sujets'
       path: '/sujets'
       fullPath: '/sujets'
-      preLoaderRoute: typeof SujetsRouteImport
+      preLoaderRoute: typeof AuthenticatedSujetsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/videos': {
@@ -228,10 +228,10 @@ const ApiPublicVideosRouteWithChildren = ApiPublicVideosRoute._addFileChildren(
 )
 
 const rootRouteChildren: RootRouteChildren = {
-  IndexRoute: IndexRoute,
-  ParametresRoute: ParametresRoute,
   StationRoute: StationRoute,
-  SujetsRoute: SujetsRoute,
+  AuthenticatedParametresRoute: AuthenticatedParametresRoute,
+  AuthenticatedSujetsRoute: AuthenticatedSujetsRoute,
+  AuthenticatedIndexRoute: AuthenticatedIndexRoute,
   ApiPublicVideosRoute: ApiPublicVideosRouteWithChildren,
   ApiVideoContentIdRoute: ApiVideoContentIdRoute,
   ApiPublicJobsRenderCallbackRoute: ApiPublicJobsRenderCallbackRoute,
