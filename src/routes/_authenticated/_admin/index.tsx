@@ -323,7 +323,10 @@ function migrateStates(
     out[Number(k)] = audio
       ? {
           ...rest,
-          voices: { ...(rest.voices ?? {}), [sourceLang]: { audio, words: words ?? [], duration: 0 } },
+          voices: {
+            ...(rest.voices ?? {}),
+            [sourceLang]: { audio, words: words ?? [], duration: 0, text: undefined },
+          },
         }
       : rest;
   }
@@ -668,7 +671,7 @@ function Studio() {
         let measured = false;
         const total = (s.scenes ?? []).reduce((sum, sc) => {
           const take = states[sc.index]?.voices?.[l];
-          const matchesText = take?.text === undefined || take.text === (sc.narration ?? "").trim();
+          const matchesText = take?.text === (sc.narration ?? "").trim();
           const real = take?.speaking ?? take?.duration ?? 0;
           if (real > 0 && matchesText) {
             measured = true;
