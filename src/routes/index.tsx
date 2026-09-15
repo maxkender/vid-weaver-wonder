@@ -552,21 +552,42 @@ function Studio() {
    * recalcule jamais les sous-titres et on ne touche pas à atempo au montage.
    */
   const baseVoiceSpeed = settings.voiceSpeed ?? 1.05;
+
+  /** Caractères parlés d'une version (c'est ce qu'ElevenLabs lit et facture). */
+  const scriptChars = useCallback(
+    (s: Script | null | undefined) =>
+      (s?.scenes ?? []).reduce((n, sc) => n + (sc.narration ?? "").trim().length, 0),
+    [],
+  );
+  const scriptOf = useCallback(
+    (l: string) => scripts[l] ?? (l === sourceLang ? script : null),
+    [scripts, script, sourceLang],
+  );
+
+  /** Vitesse de synthèse à retenir pour rattraper un dépassement résiduel. */
+  const plannedSpeed = useCallback(
+    (predicted: number, hi: number) => {
+      const needed = predicted > hi ? (baseVoiceSpeed * predicted) / hi : baseVoiceSpeed;
+      return Math.max(
+        MIN_VOICE_SPEED,
+        Math.min(MAX_VOICE_SPEED, Math.round(needed * 100) / 100),
+      );
+    },
+    [baseVoiceSpeed],
+  );
+
   const speedByLang = useMemo(() => {
     const hi = durationRange(targetSeconds).hi;
     const out: Record<string, number> = {};
     for (const l of langs) {
-      const s = scripts[l] ?? (l === sourceLang ? script : null);
+      const s = scriptOf(l);
       if (!s) continue;
-      const est = (s.scenes ?? []).reduce(
-        (sum, sc) => sum + estimateSpeechSeconds(sc.narration ?? "", l),
-        0,
-      );
-      const needed = est > hi ? (baseVoiceSpeed * est) / hi : baseVoiceSpeed;
-      out[l] = Math.min(MAX_VOICE_SPEED, Math.round(needed * 100) / 100);
+      // Durée PRÉDITE à partir du débit réellement mesuré de cette voix.
+      const est = predictSeconds(scriptChars(s), cpsFor(l), baseVoiceSpeed);
+      out[l] = plannedSpeed(est, hi);
     }
     return out;
-  }, [langs, scripts, script, sourceLang, targetSeconds, baseVoiceSpeed]);
+  }, [langs, scriptOf, targetSeconds, baseVoiceSpeed, cpsFor, scriptChars, plannedSpeed]);
 
   const speedFor = useCallback(
     (lang: string) => speedByLang[lang] ?? baseVoiceSpeed,
@@ -574,27 +595,54 @@ function Studio() {
   );
 
   /**
-   * Durée totale estimée par langue produite : durée réelle de la voix off dès
-   * qu'elle existe, estimation par le débit de la langue (corrigée de la
-   * vitesse retenue pour cette langue) sinon.
+   * Durée par langue : durée RÉELLEMENT PARLÉE dès que la voix existe (silences
+   * de tête et de queue retirés), sinon durée prédite à partir du débit mesuré
+   * de cette voix et de la vitesse retenue pour cette langue.
    */
   const langDurations = useMemo(() => {
     return langs
       .map((l) => {
-        const s = scripts[l] ?? (l === sourceLang ? script : null);
+        const s = scriptOf(l);
         if (!s) return null;
         const speed = speedByLang[l] ?? baseVoiceSpeed;
-        const total = (s.scenes ?? []).reduce((sum, sc, i) => {
-          const real = states[i]?.voices?.[l]?.duration ?? 0;
-          if (real > 0) return sum + real;
-          return sum + (estimateSpeechSeconds(sc.narration ?? "", l) * baseVoiceSpeed) / speed;
+        const cps = cpsFor(l);
+        let measured = false;
+        const total = (s.scenes ?? []).reduce((sum, sc) => {
+          const take = states[sc.index]?.voices?.[l];
+          const real = take?.speaking ?? take?.duration ?? 0;
+          if (real > 0) {
+            measured = true;
+            return sum + real;
+          }
+          return sum + predictSeconds((sc.narration ?? "").trim().length, cps, speed);
         }, 0);
-        return { lang: l, seconds: total, speed };
+        return { lang: l, seconds: total, speed, measured };
       })
       .filter(
-        (x): x is { lang: LanguageId; seconds: number; speed: number } => x !== null,
+        (
+          x,
+        ): x is { lang: LanguageId; seconds: number; speed: number; measured: boolean } =>
+          x !== null,
       );
-  }, [langs, scripts, script, sourceLang, states, speedByLang, baseVoiceSpeed]);
+  }, [langs, scriptOf, states, speedByLang, baseVoiceSpeed, cpsFor]);
+
+  /**
+   * Langues encore hors fenêtre APRÈS condensation et accélération : tant qu'il
+   * en reste une, aucune animation ne doit être commandée — les clips sont
+   * payés une seule fois pour toutes les langues.
+   */
+  const durationOverflow = useMemo(() => {
+    const hi = durationRange(targetSeconds).hi;
+    return langDurations
+      .filter((d) => d.seconds > hi + 0.5)
+      .map((d) => ({ lang: d.lang, over: Math.round(d.seconds - hi) }));
+  }, [langDurations, targetSeconds]);
+
+  const durationBlockMessage = durationOverflow.length
+    ? `Durée hors cible : ${durationOverflow
+        .map((d) => `${d.lang.toUpperCase()} +${d.over} s`)
+        .join(" · ")}. Condense ces versions avant d'animer : les plans animés sont payés une seule fois pour toutes les langues.`
+    : "";
 
   /** MP4 final par langue. */
   const [finalUrls, setFinalUrls] = useState<Record<string, string>>({});
