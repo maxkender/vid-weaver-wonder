@@ -232,7 +232,9 @@ async function assembleVideoInner(
 
     const args = stillOnly
       ? ["-loop", "1", "-framerate", String(OUTPUT_FPS), "-t", outDur.toFixed(3), "-i", vName]
-      : ["-i", vName];
+      : clipStart > 0
+        ? ["-ss", clipStart.toFixed(3), "-i", vName]
+        : ["-i", vName];
 
     const hasVoice = Boolean(scene.audio);
     if (scene.audio) {
