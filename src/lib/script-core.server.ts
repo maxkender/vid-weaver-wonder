@@ -12,7 +12,16 @@ import {
   fastestWordsPerSecond,
   wordsPerSecond as speechRate,
 } from "./duration";
-import { calibrationMode, charWindow, narrationChars } from "./calibration";
+import {
+  calibrationMode,
+  charWindow,
+  narrationChars,
+  perSceneChars,
+  sceneDeltas,
+} from "./calibration";
+
+/** Nombre maximum de passes de réécriture de longueur. Jamais de boucle. */
+export const MAX_LENGTH_PASSES = 3;
 import { defaultCharsPerSecond, predictSeconds } from "./voice-rate";
 
 export type BuildScriptInput = {
