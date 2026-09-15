@@ -116,8 +116,23 @@ export async function randomTrack(
   const source = pool.length > 0 ? pool : all;
   if (source.length === 0) return null;
   const pick = source[Math.floor(Math.random() * source.length)]!;
-  return { ...pick, blob: await fetchTrackBlob(pick) };
+  const blob = await fetchTrackBlob(pick);
+  let gainDb = pick.gainDb;
+  // Morceau ajouté avant la mesure : on le mesure à la volée, une seule fois,
+  // et on enregistre le résultat pour tous les montages suivants.
+  if (gainDb === null && blob) {
+    gainDb = await measureGainDb(blob, TARGET_MUSIC_DBFS);
+    if (gainDb !== null) {
+      try {
+        await setMusicTrackGain({ data: { id: pick.id, gainDb } });
+      } catch {
+        /* sans gravité : on remesurera au prochain usage */
+      }
+    }
+  }
+  return { ...pick, gainDb, blob };
 }
+
 
 /** Nombre de musiques du style demandé et nombre total, pour l'affichage. */
 export async function countTracks(style: string): Promise<{ forStyle: number; total: number }> {
