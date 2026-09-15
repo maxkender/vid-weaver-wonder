@@ -3084,6 +3084,26 @@ function Studio() {
                     const { loadFinalVideo } = await import("@/lib/project-store");
                     const savedFinal = await loadFinalVideo(h.id);
                     if (savedFinal) setFinalUrl(URL.createObjectURL(savedFinal));
+
+                    // ÉTAT RESTAURÉ : un projet rechargé retrouve sa phase.
+                    // Sans cela, toutes les portes de validation repartaient à
+                    // zéro et les boutons de génération restaient inertes.
+                    const hasImages = Object.values(restoredStates).some((st) => st?.image);
+                    const hasVoices = Object.values(restoredStates).some(
+                      (st) => Object.keys(st?.voices ?? {}).length > 0,
+                    );
+                    const hasTranslations = Object.keys(saved).length > 1;
+                    setTopicValidated(true);
+                    setScriptValidated(hasTranslations || hasVoices || hasImages);
+                    setImagesValidated(hasImages);
+                    setExportErrors({});
+                    exportBlobs.current = {};
+                    setStopped(false);
+                    cancelledRef.current = false;
+                    setCurrentStep("");
+                    setAssembleStep("");
+                    if (h.topic) setTopic(h.topic);
+
                     // Les liens signés expirent : on les renouvelle au rechargement.
                     void refreshExportLinks(h.id, h.exports);
                     toast.success("Projet rechargé");
