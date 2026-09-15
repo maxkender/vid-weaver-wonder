@@ -453,6 +453,8 @@ export const listAllAccounts = createServerFn({ method: "POST" })
       id: string;
       poster_id: string;
       platform: string;
+      language: string;
+      country_code: string;
       handle: string;
       gmail_address: string | null;
       status: string;
@@ -460,13 +462,140 @@ export const listAllAccounts = createServerFn({ method: "POST" })
       profile_url: string | null;
       notes: string | null;
       created_at: string;
+      gmail_done_at: string | null;
+      handle_done_at: string | null;
+      photo_done_at: string | null;
+      warmup_started_at: string | null;
+      warmup_done_at: string | null;
     };
+    const conv = await conventions();
     return {
+      conventions: conv,
       accounts: ((accounts ?? []) as AccountRow[]).map((a) => ({
         ...a,
+        expected_handle: conventionHandle(conv, a.country_code),
+        expected_gmail: conventionGmail(conv, a.country_code),
         poster: byId.get(a.poster_id) ?? null,
       })),
     };
+  });
+
+/** Ajoute un compte à un posteur existant (autre langue, autre plateforme). */
+export const createAccountForPoster = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z
+      .object({
+        posterId: z.string().uuid(),
+        platform: z.enum(["instagram", "tiktok", "youtube"]).default("instagram"),
+        language: z.enum(["fr", "en", "es", "de", "it"]),
+        countryCode: z.string().max(4).optional(),
+      })
+      .parse(d),
+  )
+  .handler(async ({ context, data }) => {
+    const actor = await requireAdmin(context);
+    const db = await adminDb();
+    const country = normalizeCountry(data.countryCode || defaultCountryFor(data.language));
+    const conv = await conventions();
+    const { error } = await db.from("poster_accounts").insert({
+      poster_id: data.posterId,
+      platform: data.platform,
+      language: data.language,
+      country_code: country,
+      handle: conventionHandle(conv, country),
+      gmail_address: conventionGmail(conv, country),
+      status: "pending",
+    });
+    if (error) throw new Error(error.message);
+    await audit(actor, "account.created", "poster_accounts", data.posterId, {
+      language: data.language,
+      country,
+    });
+    return { ok: true };
+  });
+
+/** Remet une étape du parcours à zéro (le posteur devra la refaire). */
+export const resetAccountStep = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z
+      .object({
+        accountId: z.string().uuid(),
+        step: z.enum(["gmail", "handle", "photo", "warmup"]),
+      })
+      .parse(d),
+  )
+  .handler(async ({ context, data }) => {
+    const actor = await requireAdmin(context);
+    const db = await adminDb();
+    const patch: Record<string, unknown> = {};
+    if (data.step === "gmail") {
+      Object.assign(patch, {
+        gmail_done_at: null,
+        handle_done_at: null,
+        photo_done_at: null,
+        warmup_started_at: null,
+        warmup_done_at: null,
+      });
+    }
+    if (data.step === "handle") {
+      Object.assign(patch, {
+        handle_done_at: null,
+        photo_done_at: null,
+        warmup_started_at: null,
+        warmup_done_at: null,
+      });
+    }
+    if (data.step === "photo") {
+      Object.assign(patch, { photo_done_at: null, warmup_started_at: null, warmup_done_at: null });
+    }
+    if (data.step === "warmup") Object.assign(patch, { warmup_done_at: null });
+    const { error } = await db.from("poster_accounts").update(patch as never).eq("id", data.accountId);
+    if (error) throw new Error(error.message);
+    await audit(actor, `onboarding.reset_${data.step}`, "poster_accounts", data.accountId);
+    return { ok: true };
+  });
+
+/* --------------------------------------------------------- conventions */
+
+export const getConventions = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await requireAdmin(context);
+    return { conventions: await conventions() };
+  });
+
+export const updateConventions = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z
+      .object({
+        instagramTemplate: z.string().min(3).max(200).optional(),
+        gmailTemplate: z.string().min(3).max(200).optional(),
+        socialPassword: z.string().min(6).max(120).optional(),
+        bioText: z.string().max(400).optional(),
+        upworkMessageFr: z.string().max(4000).optional(),
+        upworkMessageEn: z.string().max(4000).optional(),
+      })
+      .parse(d),
+  )
+  .handler(async ({ context, data }) => {
+    const actor = await requireAdmin(context);
+    const db = await adminDb();
+    const patch: Record<string, unknown> = {};
+    if (data.instagramTemplate !== undefined) patch["instagram_template"] = data.instagramTemplate.trim();
+    if (data.gmailTemplate !== undefined) patch["gmail_template"] = data.gmailTemplate.trim();
+    if (data.socialPassword !== undefined) patch["social_password"] = data.socialPassword;
+    if (data.bioText !== undefined) patch["bio_text"] = data.bioText;
+    if (data.upworkMessageFr !== undefined) patch["upwork_message_fr"] = data.upworkMessageFr;
+    if (data.upworkMessageEn !== undefined) patch["upwork_message_en"] = data.upworkMessageEn;
+    const { error } = await db
+      .from("account_conventions")
+      .upsert({ id: 1, ...patch } as never, { onConflict: "id" });
+    if (error) throw new Error(error.message);
+    await audit(actor, "conventions.updated", "account_conventions", "1", patch);
+    return { ok: true };
   });
 
 export const updateAccount = createServerFn({ method: "POST" })
