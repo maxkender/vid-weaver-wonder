@@ -1677,8 +1677,8 @@ function Studio() {
    * qui est en retard au milieu d'un pipeline). Durée réellement parlée dès
    * qu'une voix existe, prédiction par le débit mesuré sinon.
    */
-  const overflowFrom = (doc: Script, snapshot: Record<number, SceneState>) => {
-    const hi = durationRange(targetSeconds).hi;
+  const outOfWindowFrom = (doc: Script, snapshot: Record<number, SceneState>) => {
+    const { lo, hi } = durationRange(targetSeconds);
     const out: { lang: LanguageId; over: number }[] = [];
     for (const l of langs) {
       const s = l === sourceLang ? doc : scriptsRef.current[l];
@@ -1694,13 +1694,22 @@ function Studio() {
           (real > 0 ? real : predictSeconds((sc.narration ?? "").trim().length, cps, speed))
         );
       }, 0);
+      // SYMÉTRIQUE : une version trop COURTE est un échec au même titre qu'une
+      // version trop longue (écart négatif).
       if (total > hi + 0.5) out.push({ lang: l, over: Math.round(total - hi) });
+      else if (total < lo - 0.5) out.push({ lang: l, over: -Math.round(lo - total) });
     }
     return out;
   };
 
+  /** Conservé : ne signale que les langues qui DÉPASSENT (avant animation). */
+  const overflowFrom = (doc: Script, snapshot: Record<number, SceneState>) =>
+    outOfWindowFrom(doc, snapshot).filter((o) => o.over > 0);
+
   const overflowLabel = (over: { lang: LanguageId; over: number }[]) =>
-    over.map((o) => `${o.lang.toUpperCase()} +${o.over} s`).join(" · ");
+    over
+      .map((o) => `${o.lang.toUpperCase()} ${o.over > 0 ? "+" : "−"}${Math.abs(o.over)} s`)
+      .join(" · ");
 
   const onGenerateAll = async () => {
     if (!script) return;
