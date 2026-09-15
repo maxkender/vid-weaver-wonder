@@ -7,8 +7,18 @@ import type { CaptionCue } from "./karaoke-overlay";
 
 /** Cadence unique de tout le pipeline (studio ET service de rendu). */
 export const OUTPUT_FPS = 30;
-/** Étirement maximal d'un clip pour couvrir une voix plus longue. */
-const MAX_STRETCH = 1.6;
+/**
+ * Étirement maximal d'un clip pour couvrir une voix plus longue.
+ * Au-delà, le plan paraît mou et « bizarre » : on préfère le signaler.
+ */
+const MAX_STRETCH = 1.2;
+/**
+ * Normalisation de sonie (EBU R128), une passe. Voix ET musique passent par la
+ * même cible : la musique est ensuite posée à un niveau FIXE sous la voix,
+ * au lieu d'un pourcentage d'un signal dont le niveau varie selon le narrateur.
+ */
+const LOUDNORM = "loudnorm=I=-16:TP=-1.5:LRA=11";
+const VOICE_LOUDNORM = LOUDNORM;
 /** Au-delà de cet étirement, on accélère d'abord un peu la voix. */
 const STRETCH_BEFORE_TEMPO = 1.25;
 /** Accélération maximale de la voix (inaudible à ce niveau). */
@@ -296,6 +306,11 @@ async function assembleVideoInner(
       "list.txt",
       "-vf",
       `fps=${OUTPUT_FPS},scale=${width}:${height},setsar=1,format=yuv420p`,
+      // Normalisation de la VOIX assemblée : chaque narrateur ElevenLabs sort à
+      // un niveau différent, la musique serait donc tantôt noyée tantôt dominante.
+      // Après ce filtre, toutes les langues sortent au même niveau perçu.
+      "-af",
+      VOICE_LOUDNORM,
       "-r",
       String(OUTPUT_FPS),
       "-c:v",
