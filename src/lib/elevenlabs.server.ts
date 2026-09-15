@@ -162,7 +162,17 @@ type SpeechResult = {
 };
 
 /** Prise refusée pour débit anormal : c'est un aléa, on peut relancer. */
-class AbnormalRateError extends Error {}
+class AbnormalRateError extends Error {
+  constructor(
+    message: string,
+    /** Prise concernée : conservée pour pouvoir garder la moins mauvaise. */
+    readonly take: SpeechResult,
+    /** Écart au débit acceptable, en caractères par seconde. */
+    readonly gap: number,
+  ) {
+    super(message);
+  }
+}
 
 async function speechAttempt(
   text: string,
