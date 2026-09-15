@@ -98,21 +98,16 @@ function SettingsPage() {
           {(Object.keys(NARRATION_LABELS) as NarrationStyleId[]).map((id) => (
             <section key={id} className="surface-card p-4">
               <h2 className="text-base font-semibold">{NARRATION_LABELS[id]}</h2>
-              <label className="label-x mt-3">
-                Consignes d'écriture
-              </label>
+              <FieldHeader
+                label="Consignes d'écriture"
+                path={narrationPath(id)}
+                settings={settings}
+                persist={persist}
+              />
               <textarea
                 rows={4}
                 value={settings.narration[id].brief}
-                onChange={(e) =>
-                  persist({
-                    ...settings,
-                    narration: {
-                      ...settings.narration,
-                      [id]: { ...settings.narration[id], brief: e.target.value },
-                    },
-                  })
-                }
+                onChange={(e) => persist(setField(settings, narrationPath(id), e.target.value))}
                 className={field}
               />
               <label className="label-x mt-4">
