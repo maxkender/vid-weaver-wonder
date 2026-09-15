@@ -162,6 +162,9 @@ function writeField(settings: StudioSettings, path: FieldPath, value: string): S
       narration: { ...settings.narration, [k]: { ...settings.narration[k], brief: value } },
     };
   }
+  if (group === "opening") {
+    return { ...settings, opening: { ...settings.opening, [key as string]: value } };
+  }
   const k = id as VisualStyleId;
   return {
     ...settings,
