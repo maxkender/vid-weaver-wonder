@@ -160,7 +160,7 @@ export function AdminPosters() {
             <input value={firstName} onChange={(e) => setFirstName(e.target.value)} className="field mt-1 w-40 text-xs" />
           </div>
           <div>
-            <p className="label-x">Nom</p>
+            <p className="label-x">Nom (facultatif)</p>
             <input value={lastName} onChange={(e) => setLastName(e.target.value)} className="field mt-1 w-40 text-xs" />
           </div>
           <div>
