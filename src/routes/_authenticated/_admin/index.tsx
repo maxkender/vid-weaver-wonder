@@ -176,11 +176,21 @@ function UsageRecap({
       </div>
       {Object.keys(usage.voiceChars).length > 0 && (
         <div className="flex flex-wrap gap-2 text-muted-foreground">
-          {Object.entries(usage.voiceChars).map(([l, n]) => (
-            <span key={l}>
-              {l.toUpperCase()} {n.toLocaleString("fr-FR")} car.
-            </span>
-          ))}
+          {Object.entries(usage.voiceChars).map(([l, n]) => {
+            const sent = usage.voiceTextChars?.[l] ?? 0;
+            // ÉCART FACTURÉ / ENVOYÉ : au-delà de 5 %, une partie du texte n'a
+            // pas été synthétisée (ou pas facturée) — on le dit en clair.
+            const gap = sent > 0 ? Math.abs(n - sent) / sent : 0;
+            return (
+              <span key={l} className={gap > 0.05 ? "font-medium text-destructive" : undefined}>
+                {l.toUpperCase()} {n.toLocaleString("fr-FR")} car. facturés
+                {sent > 0 ? ` / ${sent.toLocaleString("fr-FR")} envoyés` : ""}
+                {gap > 0.05
+                  ? ` ⚠ écart ${Math.round(gap * 100)} % — vérifie qu'aucun plan n'est tronqué`
+                  : ""}
+              </span>
+            );
+          })}
         </div>
       )}
       {usage.tokens && (
