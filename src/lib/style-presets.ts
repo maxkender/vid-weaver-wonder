@@ -400,6 +400,7 @@ export function loadSettings(): StudioSettings {
       narration: { ...base.narration, ...(saved.narration ?? {}) },
       visual: { ...base.visual, ...(saved.visual ?? {}) },
       opening: { ...base.opening, ...(saved.opening ?? {}) },
+      guides: { ...base.guides, ...(saved.guides ?? {}) },
       customFields: saved.customFields ?? [],
     };
 
