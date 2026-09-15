@@ -41,19 +41,32 @@ export function AdminDiffusion() {
   const runEstimate = useServerFn(estimateProduction);
   const runProduce = useServerFn(produceNow);
 
+  const runFailed = useServerFn(listFailedJobs);
+  const runRetry = useServerFn(retryJob);
+
   const [date, setDate] = useState(isoDay(new Date()));
   const [data, setData] = useState<Distribution | null>(null);
   const [previews, setPreviews] = useState<Record<string, string>>({});
   const [estimate, setEstimate] = useState<Estimate | null>(null);
   const [producing, setProducing] = useState(false);
+  const [failed, setFailed] = useState<FailedJob[]>([]);
+  const [retrying, setRetrying] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     setData((await runGet({ data: { date } })) as Distribution);
   }, [runGet, date]);
 
+  const loadFailed = useCallback(async () => {
+    setFailed((await runFailed({ data: {} } as never)) as FailedJob[]);
+  }, [runFailed]);
+
   useEffect(() => {
     void refresh();
   }, [refresh]);
+
+  useEffect(() => {
+    void loadFailed();
+  }, [loadFailed]);
 
   if (!data) {
     return (
