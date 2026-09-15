@@ -917,12 +917,42 @@ function Studio() {
           ...prev,
           scenes: prev.scenes.map((s) => (s.index === index ? { ...s, [field]: value } : s)),
         };
-        if (projectId) saveHistory(projectId, next);
+        // La langue source vit AUSSI dans `scripts` : sans cette mise à jour, la
+        // carte du plan continuait d'afficher l'ancienne phrase et les voix off
+        // partaient sur le texte d'avant.
+        const nextAll = { ...scriptsRef.current, [sourceLang]: next };
+        scriptsRef.current = nextAll;
+        setScripts(nextAll);
+        if (projectId) saveHistory(projectId, next, nextAll);
         return next;
       });
     },
-    [projectId, saveHistory],
+    [projectId, saveHistory, sourceLang],
   );
+
+  /** Remplace tout le script source à partir d'un texte collé, une ligne par plan. */
+  const replaceScriptFromText = useCallback(
+    (raw: string) => {
+      const lines = raw
+        .split(/\r?\n+/)
+        .map((l) => l.replace(/^\s*\d+[.)\-–]\s*/, "").trim())
+        .filter(Boolean);
+      if (!script) return 0;
+      if (!lines.length) return 0;
+      const next: Script = {
+        ...script,
+        scenes: script.scenes.map((s, i) => ({ ...s, narration: lines[i] ?? s.narration })),
+      };
+      setScript(next);
+      const nextAll = { ...scriptsRef.current, [sourceLang]: next };
+      scriptsRef.current = nextAll;
+      setScripts(nextAll);
+      if (projectId) saveHistory(projectId, next, nextAll);
+      return Math.min(lines.length, next.scenes.length);
+    },
+    [script, projectId, saveHistory, sourceLang],
+  );
+
 
   const deleteHistory = useCallback((id: string) => {
     const updated = readHistory().filter((h) => h.id !== id);
