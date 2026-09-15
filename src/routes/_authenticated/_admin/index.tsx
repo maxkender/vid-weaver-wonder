@@ -1135,6 +1135,8 @@ function Studio() {
           // Niveau de langue et règles d'accroche (page Paramètres).
           languageBrief: settings.guides.language,
           hookBrief: settings.guides.hook,
+          structureBrief: settings.guides.structure,
+          auditBrief: settings.guides.audit,
         },
       })) as Script;
       setScript(result);
