@@ -514,10 +514,13 @@ export type Database = {
           id: string
           include_cta: boolean
           language: string
+          languages: string[]
           lease_until: string | null
+          master_id: string | null
           narration_style: string
           poster_id: string | null
           progress: number
+          publish_date: string | null
           scenes: Json
           script: Json | null
           status: string
@@ -540,10 +543,13 @@ export type Database = {
           id?: string
           include_cta?: boolean
           language?: string
+          languages?: string[]
           lease_until?: string | null
+          master_id?: string | null
           narration_style?: string
           poster_id?: string | null
           progress?: number
+          publish_date?: string | null
           scenes?: Json
           script?: Json | null
           status?: string
@@ -566,10 +572,13 @@ export type Database = {
           id?: string
           include_cta?: boolean
           language?: string
+          languages?: string[]
           lease_until?: string | null
+          master_id?: string | null
           narration_style?: string
           poster_id?: string | null
           progress?: number
+          publish_date?: string | null
           scenes?: Json
           script?: Json | null
           status?: string
@@ -588,6 +597,13 @@ export type Database = {
             columns: ["client_id"]
             isOneToOne: false
             referencedRelation: "api_clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "render_jobs_master_id_fkey"
+            columns: ["master_id"]
+            isOneToOne: false
+            referencedRelation: "render_jobs"
             referencedColumns: ["id"]
           },
         ]
@@ -733,10 +749,13 @@ export type Database = {
           id: string
           include_cta: boolean
           language: string
+          languages: string[]
           lease_until: string | null
+          master_id: string | null
           narration_style: string
           poster_id: string | null
           progress: number
+          publish_date: string | null
           scenes: Json
           script: Json | null
           status: string
