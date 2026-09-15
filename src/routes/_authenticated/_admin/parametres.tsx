@@ -263,6 +263,37 @@ function SettingsPage() {
               />
             </div>
           ))}
+
+          <div className="border-t border-border/60 pt-4">
+            <h2 className="text-base font-semibold">Écriture et cadrages</h2>
+            <p className="text-muted-foreground mt-1 text-sm">
+              Trois consignes appliquées à toutes les vidéos : le niveau de langue (écriture
+              ET traductions), les règles de l'accroche, et la rotation des types de plan qui
+              évite que les huit images se ressemblent.
+            </p>
+          </div>
+          {(
+            [
+              ["language", "Niveau de langue (écriture et traductions)"],
+              ["hook", "Règles de l'accroche"],
+              ["shots", "Rotation des types de plan (anglais)"],
+            ] as const
+          ).map(([key, label]) => (
+            <div key={key}>
+              <FieldHeader
+                label={label}
+                path={guidePath(key)}
+                settings={settings}
+                persist={persist}
+              />
+              <textarea
+                rows={8}
+                value={settings.guides[key]}
+                onChange={(e) => persist(setField(settings, guidePath(key), e.target.value))}
+                className={field}
+              />
+            </div>
+          ))}
         </section>
       )}
 
