@@ -58,6 +58,10 @@ export type RenderJob = {
   script: unknown;
   scenes: JobScene[];
   video_path: string | null;
+  /** Dernier envoi du manifeste au service de rendu (attente du rappel). */
+  rendering_sent_at: string | null;
+  /** Nombre d'envois du manifeste (plafonné : jamais de boucle de rendu). */
+  rendering_sends: number;
   error: string | null;
   attempts: number;
   lease_until: string | null;
@@ -87,6 +91,27 @@ export async function logEvent(
 export async function patchJob(jobId: string, patch: Record<string, unknown>) {
   const db = await admin();
   await db.from("render_jobs").update(patch).eq("id", jobId);
+}
+
+/**
+ * Écriture CONDITIONNÉE au statut attendu : si le rappel du service de rendu
+ * est arrivé entre-temps (le job est passé en `done`), l'écriture périmée du
+ * tick est refusée. Le rappel gagne toujours.
+ */
+export async function patchJobIfStatus(
+  jobId: string,
+  expectedStatus: JobStatus | JobStatus[],
+  patch: Record<string, unknown>,
+): Promise<boolean> {
+  const db = await admin();
+  const expected = Array.isArray(expectedStatus) ? expectedStatus : [expectedStatus];
+  const { data } = await db
+    .from("render_jobs")
+    .update(patch)
+    .eq("id", jobId)
+    .in("status", expected)
+    .select("id");
+  return ((data ?? []) as unknown[]).length > 0;
 }
 
 export async function getJob(jobId: string): Promise<RenderJob | null> {
@@ -120,8 +145,13 @@ export async function claimJob(leaseSeconds = 240): Promise<RenderJob | null> {
   return rows[0] ?? null;
 }
 
+/**
+ * Libère UNIQUEMENT le bail. Ne touche jamais `status`, `step`, `progress`
+ * ni `video_path` : un rappel arrivé pendant le tick ne doit pas être écrasé.
+ */
 export async function releaseJob(jobId: string) {
-  await patchJob(jobId, { lease_until: null });
+  const db = await admin();
+  await db.from("render_jobs").update({ lease_until: null }).eq("id", jobId);
 }
 
 // ---------- Stockage ----------
