@@ -305,10 +305,26 @@ export function smoothTimings(
   duration: number,
   preserveExact = false,
 ) {
-  const sorted = [...timings]
+  const raw = [...timings]
     .filter((t) => t.word && t.start >= 0 && t.start < duration + 0.5)
     .sort((a, b) => a.start - b.start);
+
+  // 0. NETTOYAGE DE LA PONCTUATION. Un token réduit à de la ponctuation
+  // (« : », « — ») n'est jamais affiché seul : il est fusionné avec le mot
+  // suivant, en gardant SON début pour ne pas décaler le karaoké.
+  const sorted: { word: string; start: number; end: number }[] = [];
+  let pendingStart: number | null = null;
+  for (const t of raw) {
+    const word = cleanToken(t.word);
+    if (!word || !hasLetterOrDigit(word)) {
+      if (pendingStart === null) pendingStart = t.start;
+      continue;
+    }
+    sorted.push({ word, start: pendingStart ?? t.start, end: t.end });
+    pendingStart = null;
+  }
   if (!sorted.length) return [];
+
 
   // 1. Les timestamps ElevenLabs sont déjà calés sur l'audio : ne jamais les
   // étirer pour remplir le silence final. Le recalage reste réservé au fallback estimé.
