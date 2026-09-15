@@ -126,6 +126,10 @@ async function assembleVideoInner(
     height: number;
     music?: Blob | undefined;
     musicVolume?: number | undefined;
+    /** Gain statique appliqué à la voix de cette langue (dB), mesuré en amont. */
+    voiceGainDb?: number | undefined;
+    /** Gain statique du morceau de musique (dB), mesuré une seule fois. */
+    musicGainDb?: number | undefined;
     /** Langue du montage, pour nommer la langue dans les avertissements. */
     langLabel?: string | undefined;
     /** Signalé quand un plan doit être ralenti au-delà du plafond. */
@@ -138,10 +142,13 @@ async function assembleVideoInner(
     height,
     music,
     musicVolume = 0.22,
+    voiceGainDb = 0,
+    musicGainDb = 0,
     langLabel,
     onStretchWarning,
     onProgress,
   } = opts;
+
   const ffmpeg = await getFFmpeg();
   const parts: string[] = [];
 
