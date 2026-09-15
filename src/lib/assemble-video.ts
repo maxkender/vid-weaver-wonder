@@ -14,6 +14,8 @@ export const OUTPUT_FPS = 30;
  * Au-delà, le plan paraît mou et « bizarre » : on préfère le signaler.
  */
 const MAX_STRETCH = 1.2;
+/** Plan 1 : on entre dans le clip 0,6 s plus loin pour éviter la pose initiale. */
+const OPENING_CLIP_OFFSET = 0.6;
 /**
  * PAS de `loudnorm` ici : en passe unique il bascule en mode dynamique, ce qui
  * force tout le graphe audio à 192 kHz et multipliait par trois la durée du
@@ -181,7 +183,14 @@ async function assembleVideoInner(
           ? scene.duration
           : 4;
 
-    const clipLen = stillOnly ? 0 : await videoDuration(scene.videoUrl!);
+    const rawClipLen = stillOnly ? 0 : await videoDuration(scene.videoUrl!);
+    // PLAN 1 UNIQUEMENT : Veo pose souvent un temps mort quasi immobile au
+    // début du clip. On entre dans le clip 0,6 s plus loin pour ouvrir la
+    // vidéo sur du mouvement déjà en cours. Jamais de suppression du plan :
+    // c'est un décalage INTERNE au clip. Si le reste devient trop court
+    // (< 2 s), on garde le comportement actuel.
+    const clipStart = !stillOnly && i === 0 && rawClipLen - OPENING_CLIP_OFFSET >= 2 ? OPENING_CLIP_OFFSET : 0;
+    const clipLen = stillOnly ? 0 : rawClipLen - clipStart;
     if (!stillOnly && !(clipLen > 0.2)) {
       // Durée illisible = clip non chargé. Continuer produirait une dernière
       // image figée en silence : on préfère une erreur explicite.
@@ -223,7 +232,9 @@ async function assembleVideoInner(
 
     const args = stillOnly
       ? ["-loop", "1", "-framerate", String(OUTPUT_FPS), "-t", outDur.toFixed(3), "-i", vName]
-      : ["-i", vName];
+      : clipStart > 0
+        ? ["-ss", clipStart.toFixed(3), "-i", vName]
+        : ["-i", vName];
 
     const hasVoice = Boolean(scene.audio);
     if (scene.audio) {

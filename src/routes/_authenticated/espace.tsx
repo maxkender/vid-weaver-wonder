@@ -199,19 +199,18 @@ function PosterSpace() {
               onDone={refresh}
             />
 
-            {ready && videoData ? (
+            {videoData ? (
               <>
-                {videoData.accounts
-                  .filter((a) => a.ready)
-                  .map((a) => (
-                    <AccountVideos
-                      key={a.id}
-                      account={a}
-                      videos={videoData.videos.filter((v) => v.account_id === a.id)}
-                      today={videoData.today}
-                      onChange={refresh}
-                    />
-                  ))}
+                {videoData.accounts.map((a) => (
+                  <AccountVideos
+                    key={a.id}
+                    account={a}
+                    videos={videoData.videos.filter((v) => v.account_id === a.id)}
+                    today={videoData.today}
+                    warmDone={a.ready}
+                    onChange={refresh}
+                  />
+                ))}
               </>
             ) : null}
 
@@ -688,11 +687,13 @@ function AccountVideos({
   account,
   videos,
   today,
+  warmDone = true,
   onChange,
 }: {
   account: { id: string; language: string; handle: string };
   videos: DailyVideo[];
   today: string;
+  warmDone?: boolean;
   onChange: () => Promise<void>;
 }) {
   const video = videos.find((v) => v.publish_date === today);
@@ -706,6 +707,12 @@ function AccountVideos({
         </h2>
         {video?.posted_at ? <Badge variant="secondary">Publiée</Badge> : null}
       </div>
+      {!warmDone ? (
+        <p className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-200">
+          Ton compte n'a pas terminé ses 24 h de chauffe. Prépare ta publication, mais ne publie
+          qu'une fois la chauffe validée.
+        </p>
+      ) : null}
       {video ? (
         <TodayVideo video={video} onChange={onChange} />
       ) : (

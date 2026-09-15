@@ -482,7 +482,9 @@ export const listMyVideos = createServerFn({ method: "GET" })
       platform: string;
       warmup_done_at: string | null;
     }[];
-    const ready = rows.filter((a) => a.warmup_done_at);
+    // TOUS les comptes reçoivent la vidéo du jour de leur langue : la chauffe
+    // reste obligatoire dans le parcours mais ne conditionne plus l'accès.
+    const ready = rows;
     const languages = Array.from(new Set(ready.map((a) => a.language)));
 
     const since = new Date();

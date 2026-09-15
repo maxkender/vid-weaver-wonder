@@ -382,13 +382,20 @@ export function motionPrompt(
   const brief = o.visualBrief?.trim() || DEFAULT_VISUAL_BRIEF[visual];
   const quality = o.quality?.trim() || DEFAULT_QUALITY[visual];
   // Plan 1 : consigne de mouvement propre, qui remplace celle des autres plans.
+  const isOpening = Boolean(o.opening?.trim());
   const motion = o.opening?.trim() || o.motion?.trim() || DEFAULT_MOTION[visual];
+  // Plan 1 UNIQUEMENT : le mouvement doit être déjà lancé sur la toute première
+  // image. Veo a tendance à poser un temps mort de 0,5 à 1 s au démarrage, or
+  // c'est exactement la seconde où le spectateur décide de scroller.
+  const openingMotion = isOpening
+    ? " CRITICAL: the motion is ALREADY IN PROGRESS on the very first frame. No hold, no static establishing beat, no slow ramp-up, no fade-in, no easing from stillness: frame 1 already shows elements mid-movement, at full speed, as if the clip started a second earlier."
+    : "";
   return `${videoPrompt}. Vertical short-form video. ${brief}. ${quality}.${bibleLine(o.bible)}${storyLine(o.story)} ${
     square
       ? SQUARE_FRAME +
         " The frame is locked: the centered square never moves, never changes size and is never re-framed. The black bands above and below the square must stay perfectly pure black, completely static and empty for the whole clip. No element, character, particle, shadow or effect may leave the square, cross into the black bands or overlap them. No camera movement, no pan, no tilt, no dolly, no zoom in or out, no push in: absolutely all motion happens strictly inside the square. "
       : ""
-  }${motion} Consistent art direction, same characters and same colors as the reference image, no on-screen text, no subtitles, no watermark.`;
+  }${motion}${openingMotion} Consistent art direction, same characters and same colors as the reference image, no on-screen text, no subtitles, no watermark.`;
 }
 
 export const TOPIC_BRIEF: Record<NarrationStyle, string> = {
