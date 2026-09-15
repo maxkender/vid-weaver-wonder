@@ -10,6 +10,7 @@ import {
   isCustomField,
   loadSettings,
   narrationPath,
+  guidePath,
   openingPath,
   NARRATION_LABELS,
   resetField,
