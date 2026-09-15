@@ -1382,6 +1382,10 @@ function Studio() {
           visual,
           square: orientation === "square",
           ...sceneVisualOpts,
+          // Plan 1 : composition d'accroche, quel que soit le style visuel.
+          ...(scene.index === 0 && settings.opening.image.trim()
+            ? { opening: settings.opening.image.trim() }
+            : {}),
           ...(story ? { story } : {}),
           ...(ref ? { referenceImage: ref } : {}),
           ...(prev && prev !== ref ? { previousImage: prev } : {}),
@@ -1456,6 +1460,10 @@ function Studio() {
           bible: bibleFor(doc),
           ...(story ? { story } : {}),
           motion: settings.visual[visual].motion,
+          // Plan 1 : mouvement d'accroche dès la première image.
+          ...(scene.index === 0 && settings.opening.motion.trim()
+            ? { opening: settings.opening.motion.trim() }
+            : {}),
           hd: !draft,
         },
       })) as { id: string };
