@@ -544,6 +544,12 @@ function Studio() {
 
   const [orientation, setOrientation] = useState<"vertical" | "square" | "horizontal">("square");
   const [script, setScript] = useState<Script | null>(null);
+  /** Miroir du script source, toujours à jour pour les mises à jour successives. */
+  const scriptRef = useRef<Script | null>(null);
+  useEffect(() => {
+    scriptRef.current = script;
+  }, [script]);
+
   const [loadingScript, setLoadingScript] = useState(false);
   const [states, setStates] = useState<Record<number, SceneState>>({});
   const patch = useCallback((i: number, value: SceneState) => {
