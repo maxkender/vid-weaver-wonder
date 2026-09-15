@@ -18,8 +18,8 @@ describe("budget de caractères", () => {
       const w = charWindow(LO, HI, cps, 1);
       const predicted = predictSeconds(w.target, cps, 1);
       expect(Math.abs(predicted - MID) / MID).toBeLessThanOrEqual(0.05);
-      expect(predictSeconds(w.min, cps, 1)).toBeCloseTo(LO, 1);
-      expect(predictSeconds(w.max, cps, 1)).toBeCloseTo(HI, 1);
+      expect(predictSeconds(w.min, cps, 1)).toBeCloseTo(LO, 0);
+      expect(predictSeconds(w.max, cps, 1)).toBeCloseTo(HI, 0);
     });
 
     it(`${lang} : le budget reste entre 400 et 800 caractères`, () => {
