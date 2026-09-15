@@ -205,6 +205,7 @@ export const proposeTopicBatch = createServerFn({ method: "POST" })
         `Propose exactement ${data.count} sujets DIFFÉRENTS, variés (pas deux fois le même domaine, pas deux fois le même levier d'affilée).`,
         "Chaque sujet est formulé comme la première phrase de la vidéo : une seule phrase de 8 à 20 mots, mots du quotidien.",
         "Évite les sujets ultra rebattus (pyramides, Titanic, Mozart enfant prodige, Grande Muraille visible de l'espace, Cléopâtre, Einstein mauvais élève).",
+        "CHAQUE sujet doit avoir de quoi DÉROULER 60 secondes : un mécanisme en plusieurs étapes ou une enquête qui avance. Avant de retenir un sujet, écris mentalement ses trois étapes de déroulé ; si tu n'en trouves pas trois qui apportent chacune une information nouvelle, remplace-le. Aucun sujet dont le fait tient entier dans la phrase d'accroche.",
         'Réponds uniquement en JSON: {"topics": [{"topic": string, "angle": string (la révélation en une phrase), "lever": string (le levier viral utilisé)}]}',
       ].join("\n"),
       avoid.length
