@@ -134,24 +134,26 @@ export async function generateImageDataUrl(
         ...referenceImages.map((url) => ({ type: "image_url", image_url: { url } })),
       ]
     : prompt;
-  const res = await fetch(`${GATEWAY}/chat/completions`, {
-    method: "POST",
-    headers: gatewayHeaders(),
-    body: JSON.stringify({
-      model: "google/gemini-3.1-flash-image",
-      modalities: ["image", "text"],
-      messages: [{ role: "user", content }],
-    }),
-  });
+  return withRetry("image", async () => {
+    const res = await fetch(`${GATEWAY}/chat/completions`, {
+      method: "POST",
+      headers: gatewayHeaders(),
+      body: JSON.stringify({
+        model: "google/gemini-3.1-flash-image",
+        modalities: ["image", "text"],
+        messages: [{ role: "user", content }],
+      }),
+    });
 
-  if (!res.ok) throw new Error(await readError(res));
-  const data = (await res.json()) as {
-    choices: { message: { images?: { image_url?: { url?: string } }[] } }[];
-  };
-  if (usageOut) usageOut.usage = readUsage(data);
-  const url = data.choices?.[0]?.message?.images?.[0]?.image_url?.url;
-  if (!url) throw new Error("Aucune image générée.");
-  return url;
+    if (!res.ok) throw await gatewayError(res);
+    const data = (await res.json()) as {
+      choices: { message: { images?: { image_url?: { url?: string } }[] } }[];
+    };
+    if (usageOut) usageOut.usage = readUsage(data);
+    const url = data.choices?.[0]?.message?.images?.[0]?.image_url?.url;
+    if (!url) throw new Error("Aucune image générée.");
+    return url;
+  });
 }
 
 export type VideoJob = {
