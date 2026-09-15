@@ -23,7 +23,7 @@ import {
   type VisualStyleId,
 } from "@/lib/style-presets";
 
-export const Route = createFileRoute("/parametres")({
+export const Route = createFileRoute("/_authenticated/_admin/parametres")({
   head: () => ({
     meta: [
       { title: "Paramètres du studio — styles de narration et direction artistique" },

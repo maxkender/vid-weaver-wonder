@@ -9,24 +9,34 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as IndexRouteImport } from './routes/index'
-import { Route as ParametresRouteImport } from './routes/parametres'
+import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
+import { Route as ConnexionRouteImport } from './routes/connexion'
+import { Route as ReinitialisationRouteImport } from './routes/reinitialisation'
 import { Route as StationRouteImport } from './routes/station'
-import { Route as SujetsRouteImport } from './routes/sujets'
+import { Route as AuthenticatedAdminRouteRouteImport } from './routes/_authenticated/_admin/route'
+import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
+import { Route as AuthenticatedEspaceRouteImport } from './routes/_authenticated/espace'
+import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/_admin/index'
+import { Route as AuthenticatedAdminParametresRouteImport } from './routes/_authenticated/_admin/parametres'
+import { Route as AuthenticatedAdminSujetsRouteImport } from './routes/_authenticated/_admin/sujets'
 import { Route as ApiPublicVideosRouteImport } from './routes/api/public/videos'
 import { Route as ApiVideoContentIdRouteImport } from './routes/api/video-content.$id'
 import { Route as ApiPublicJobsRenderCallbackRouteImport } from './routes/api/public/jobs/render-callback'
 import { Route as ApiPublicJobsTickRouteImport } from './routes/api/public/jobs/tick'
 import { Route as ApiPublicVideosIdRouteImport } from './routes/api/public/videos.$id'
 
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
+const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
+  id: '/_authenticated',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ParametresRoute = ParametresRouteImport.update({
-  id: '/parametres',
-  path: '/parametres',
+const ConnexionRoute = ConnexionRouteImport.update({
+  id: '/connexion',
+  path: '/connexion',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ReinitialisationRoute = ReinitialisationRouteImport.update({
+  id: '/reinitialisation',
+  path: '/reinitialisation',
   getParentRoute: () => rootRouteImport,
 } as any)
 const StationRoute = StationRouteImport.update({
@@ -34,11 +44,37 @@ const StationRoute = StationRouteImport.update({
   path: '/station',
   getParentRoute: () => rootRouteImport,
 } as any)
-const SujetsRoute = SujetsRouteImport.update({
-  id: '/sujets',
-  path: '/sujets',
-  getParentRoute: () => rootRouteImport,
+const AuthenticatedAdminRouteRoute = AuthenticatedAdminRouteRouteImport.update({
+  id: '/_admin',
+  getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedEspaceRoute = AuthenticatedEspaceRouteImport.update({
+  id: '/espace',
+  path: '/espace',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedAdminIndexRoute = AuthenticatedAdminIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AuthenticatedAdminRouteRoute,
+} as any)
+const AuthenticatedAdminParametresRoute =
+  AuthenticatedAdminParametresRouteImport.update({
+    id: '/parametres',
+    path: '/parametres',
+    getParentRoute: () => AuthenticatedAdminRouteRoute,
+  } as any)
+const AuthenticatedAdminSujetsRoute =
+  AuthenticatedAdminSujetsRouteImport.update({
+    id: '/sujets',
+    path: '/sujets',
+    getParentRoute: () => AuthenticatedAdminRouteRoute,
+  } as any)
 const ApiPublicVideosRoute = ApiPublicVideosRouteImport.update({
   id: '/api/public/videos',
   path: '/api/public/videos',
@@ -67,10 +103,14 @@ const ApiPublicVideosIdRoute = ApiPublicVideosIdRouteImport.update({
 } as any)
 
 export interface FileRoutesByFullPath {
-  '/': typeof IndexRoute
-  '/parametres': typeof ParametresRoute
+  '/': typeof AuthenticatedAdminIndexRoute
+  '/connexion': typeof ConnexionRoute
+  '/reinitialisation': typeof ReinitialisationRoute
   '/station': typeof StationRoute
-  '/sujets': typeof SujetsRoute
+  '/admin': typeof AuthenticatedAdminRoute
+  '/espace': typeof AuthenticatedEspaceRoute
+  '/parametres': typeof AuthenticatedAdminParametresRoute
+  '/sujets': typeof AuthenticatedAdminSujetsRoute
   '/api/public/videos': typeof ApiPublicVideosRouteWithChildren
   '/api/video-content/$id': typeof ApiVideoContentIdRoute
   '/api/public/jobs/render-callback': typeof ApiPublicJobsRenderCallbackRoute
@@ -78,10 +118,14 @@ export interface FileRoutesByFullPath {
   '/api/public/videos/$id': typeof ApiPublicVideosIdRoute
 }
 export interface FileRoutesByTo {
-  '/': typeof IndexRoute
-  '/parametres': typeof ParametresRoute
+  '/': typeof AuthenticatedAdminIndexRoute
+  '/connexion': typeof ConnexionRoute
+  '/reinitialisation': typeof ReinitialisationRoute
   '/station': typeof StationRoute
-  '/sujets': typeof SujetsRoute
+  '/admin': typeof AuthenticatedAdminRoute
+  '/espace': typeof AuthenticatedEspaceRoute
+  '/parametres': typeof AuthenticatedAdminParametresRoute
+  '/sujets': typeof AuthenticatedAdminSujetsRoute
   '/api/public/videos': typeof ApiPublicVideosRouteWithChildren
   '/api/video-content/$id': typeof ApiVideoContentIdRoute
   '/api/public/jobs/render-callback': typeof ApiPublicJobsRenderCallbackRoute
@@ -90,12 +134,18 @@ export interface FileRoutesByTo {
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
-  '/': typeof IndexRoute
-  '/parametres': typeof ParametresRoute
+  '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
+  '/connexion': typeof ConnexionRoute
+  '/reinitialisation': typeof ReinitialisationRoute
   '/station': typeof StationRoute
-  '/sujets': typeof SujetsRoute
+  '/_authenticated/_admin': typeof AuthenticatedAdminRouteRouteWithChildren
+  '/_authenticated/admin': typeof AuthenticatedAdminRoute
+  '/_authenticated/espace': typeof AuthenticatedEspaceRoute
+  '/_authenticated/_admin/parametres': typeof AuthenticatedAdminParametresRoute
+  '/_authenticated/_admin/sujets': typeof AuthenticatedAdminSujetsRoute
   '/api/public/videos': typeof ApiPublicVideosRouteWithChildren
   '/api/video-content/$id': typeof ApiVideoContentIdRoute
+  '/_authenticated/_admin/': typeof AuthenticatedAdminIndexRoute
   '/api/public/jobs/render-callback': typeof ApiPublicJobsRenderCallbackRoute
   '/api/public/jobs/tick': typeof ApiPublicJobsTickRoute
   '/api/public/videos/$id': typeof ApiPublicVideosIdRoute
@@ -104,8 +154,12 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
-    | '/parametres'
+    | '/connexion'
+    | '/reinitialisation'
     | '/station'
+    | '/admin'
+    | '/espace'
+    | '/parametres'
     | '/sujets'
     | '/api/public/videos'
     | '/api/video-content/$id'
@@ -115,8 +169,12 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
-    | '/parametres'
+    | '/connexion'
+    | '/reinitialisation'
     | '/station'
+    | '/admin'
+    | '/espace'
+    | '/parametres'
     | '/sujets'
     | '/api/public/videos'
     | '/api/video-content/$id'
@@ -125,22 +183,28 @@ export interface FileRouteTypes {
     | '/api/public/videos/$id'
   id:
     | '__root__'
-    | '/'
-    | '/parametres'
+    | '/_authenticated'
+    | '/connexion'
+    | '/reinitialisation'
     | '/station'
-    | '/sujets'
+    | '/_authenticated/_admin'
+    | '/_authenticated/admin'
+    | '/_authenticated/espace'
+    | '/_authenticated/_admin/parametres'
+    | '/_authenticated/_admin/sujets'
     | '/api/public/videos'
     | '/api/video-content/$id'
+    | '/_authenticated/_admin/'
     | '/api/public/jobs/render-callback'
     | '/api/public/jobs/tick'
     | '/api/public/videos/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
-  IndexRoute: typeof IndexRoute
-  ParametresRoute: typeof ParametresRoute
+  AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
+  ConnexionRoute: typeof ConnexionRoute
+  ReinitialisationRoute: typeof ReinitialisationRoute
   StationRoute: typeof StationRoute
-  SujetsRoute: typeof SujetsRoute
   ApiPublicVideosRoute: typeof ApiPublicVideosRouteWithChildren
   ApiVideoContentIdRoute: typeof ApiVideoContentIdRoute
   ApiPublicJobsRenderCallbackRoute: typeof ApiPublicJobsRenderCallbackRoute
@@ -149,18 +213,25 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/': {
-      id: '/'
-      path: '/'
+    '/_authenticated': {
+      id: '/_authenticated'
+      path: ''
       fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+      preLoaderRoute: typeof AuthenticatedRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/parametres': {
-      id: '/parametres'
-      path: '/parametres'
-      fullPath: '/parametres'
-      preLoaderRoute: typeof ParametresRouteImport
+    '/connexion': {
+      id: '/connexion'
+      path: '/connexion'
+      fullPath: '/connexion'
+      preLoaderRoute: typeof ConnexionRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reinitialisation': {
+      id: '/reinitialisation'
+      path: '/reinitialisation'
+      fullPath: '/reinitialisation'
+      preLoaderRoute: typeof ReinitialisationRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/station': {
@@ -170,12 +241,47 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof StationRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/sujets': {
-      id: '/sujets'
+    '/_authenticated/_admin': {
+      id: '/_authenticated/_admin'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AuthenticatedAdminRouteRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/admin': {
+      id: '/_authenticated/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AuthenticatedAdminRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/espace': {
+      id: '/_authenticated/espace'
+      path: '/espace'
+      fullPath: '/espace'
+      preLoaderRoute: typeof AuthenticatedEspaceRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/_admin/': {
+      id: '/_authenticated/_admin/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof AuthenticatedAdminIndexRouteImport
+      parentRoute: typeof AuthenticatedAdminRouteRoute
+    }
+    '/_authenticated/_admin/parametres': {
+      id: '/_authenticated/_admin/parametres'
+      path: '/parametres'
+      fullPath: '/parametres'
+      preLoaderRoute: typeof AuthenticatedAdminParametresRouteImport
+      parentRoute: typeof AuthenticatedAdminRouteRoute
+    }
+    '/_authenticated/_admin/sujets': {
+      id: '/_authenticated/_admin/sujets'
       path: '/sujets'
       fullPath: '/sujets'
-      preLoaderRoute: typeof SujetsRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof AuthenticatedAdminSujetsRouteImport
+      parentRoute: typeof AuthenticatedAdminRouteRoute
     }
     '/api/public/videos': {
       id: '/api/public/videos'
@@ -215,6 +321,39 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface AuthenticatedAdminRouteRouteChildren {
+  AuthenticatedAdminParametresRoute: typeof AuthenticatedAdminParametresRoute
+  AuthenticatedAdminSujetsRoute: typeof AuthenticatedAdminSujetsRoute
+  AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
+}
+
+const AuthenticatedAdminRouteRouteChildren: AuthenticatedAdminRouteRouteChildren =
+  {
+    AuthenticatedAdminParametresRoute: AuthenticatedAdminParametresRoute,
+    AuthenticatedAdminSujetsRoute: AuthenticatedAdminSujetsRoute,
+    AuthenticatedAdminIndexRoute: AuthenticatedAdminIndexRoute,
+  }
+
+const AuthenticatedAdminRouteRouteWithChildren =
+  AuthenticatedAdminRouteRoute._addFileChildren(
+    AuthenticatedAdminRouteRouteChildren,
+  )
+
+interface AuthenticatedRouteRouteChildren {
+  AuthenticatedAdminRouteRoute: typeof AuthenticatedAdminRouteRouteWithChildren
+  AuthenticatedAdminRoute: typeof AuthenticatedAdminRoute
+  AuthenticatedEspaceRoute: typeof AuthenticatedEspaceRoute
+}
+
+const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedAdminRouteRoute: AuthenticatedAdminRouteRouteWithChildren,
+  AuthenticatedAdminRoute: AuthenticatedAdminRoute,
+  AuthenticatedEspaceRoute: AuthenticatedEspaceRoute,
+}
+
+const AuthenticatedRouteRouteWithChildren =
+  AuthenticatedRouteRoute._addFileChildren(AuthenticatedRouteRouteChildren)
+
 interface ApiPublicVideosRouteChildren {
   ApiPublicVideosIdRoute: typeof ApiPublicVideosIdRoute
 }
@@ -228,10 +367,10 @@ const ApiPublicVideosRouteWithChildren = ApiPublicVideosRoute._addFileChildren(
 )
 
 const rootRouteChildren: RootRouteChildren = {
-  IndexRoute: IndexRoute,
-  ParametresRoute: ParametresRoute,
+  AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
+  ConnexionRoute: ConnexionRoute,
+  ReinitialisationRoute: ReinitialisationRoute,
   StationRoute: StationRoute,
-  SujetsRoute: SujetsRoute,
   ApiPublicVideosRoute: ApiPublicVideosRouteWithChildren,
   ApiVideoContentIdRoute: ApiVideoContentIdRoute,
   ApiPublicJobsRenderCallbackRoute: ApiPublicJobsRenderCallbackRoute,
