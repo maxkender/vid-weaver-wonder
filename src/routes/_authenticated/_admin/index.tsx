@@ -485,7 +485,12 @@ function Studio() {
   }, [voiceRates]);
   /** Caractères par seconde (à la vitesse 1,0) de la voix de cette langue. */
   const cpsFor = useCallback(
-    (l: string) => charsPerSecond(l, voiceRates[rateKey(voiceForLang(l), l)]),
+    (l: string) => {
+      const k = rateKey(voiceForLang(l), l);
+      // La référence est mise à jour dès la prise de calibration, sans attendre
+      // le prochain rendu React.
+      return charsPerSecond(l, voiceRates[k] ?? voiceRatesRef.current[k]);
+    },
     [voiceRates, voiceForLang],
   );
 
