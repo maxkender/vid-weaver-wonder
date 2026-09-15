@@ -116,6 +116,12 @@ async function stepTopic(job: RenderJob) {
 
 async function stepScript(job: RenderJob) {
   const { buildScript } = await import("../script-core.server");
+  // Le script source est calibré pour TOUTES les langues de la production :
+  // c'est ce qui permet de n'écrire qu'une fois et de ne traduire ensuite.
+  const productionLanguages = [
+    job.language,
+    ...(Array.isArray(job.languages) ? job.languages : []),
+  ].filter((l, i, a) => l && a.indexOf(l) === i);
   const script = await buildScript({
     topic: job.topic ?? "",
     kind: "culture",
@@ -124,6 +130,7 @@ async function stepScript(job: RenderJob) {
     targetSeconds: job.duration_sec,
     language: job.language,
     includeCta: job.include_cta !== false,
+    productionLanguages,
   });
   const scenes: JobScene[] = (script.scenes ?? []).map((s, i) => ({
     index: i,
