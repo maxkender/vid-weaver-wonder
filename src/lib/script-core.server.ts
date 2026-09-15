@@ -82,7 +82,12 @@ export async function buildScript(data: BuildScriptInput): Promise<Script> {
   // la durée demandée + 10 %, CTA déduit.
   const sourceCps = data.sourceCharsPerSecond ?? defaultCharsPerSecond(data.language);
   const sourceSpeed = data.voiceSpeed ?? 1;
-  const loNarrationSeconds = narrationSeconds;
+  // BORNE BASSE : 60 s est un MINIMUM, pas une moyenne. On vise donc le milieu
+  // haut de la fenêtre (cible − 2 s au plus bas), jamais la cible moins le CTA.
+  const loNarrationSeconds = Math.max(
+    8,
+    data.targetSeconds - 2 - (includeCta ? 6 : 0),
+  );
   const hiNarrationSeconds = Math.max(
     loNarrationSeconds + 2,
     maxTotalSeconds - (includeCta ? 6 : 0),
