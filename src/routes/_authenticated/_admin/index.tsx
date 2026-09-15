@@ -1263,8 +1263,10 @@ function Studio() {
             },
             Boolean(existing),
           );
-          // CONTRÔLE DU TOTAL : jusqu'à trois passes de condensation sur CETTE
-          // langue uniquement, puis on garde le résultat le plus proche.
+          // CONTRÔLE DU TOTAL, SYMÉTRIQUE ET SUR LE TEXTE SEUL (aucune voix
+          // n'est synthétisée ici) : jusqu'à trois passes sur CETTE langue,
+          // qui RACCOURCISSENT ou RALLONGENT selon le sens de l'écart, puis on
+          // garde le résultat le plus proche de la fenêtre.
           let best = res;
           let bestGap = gap(predicted(res.scenes));
           for (
@@ -1272,8 +1274,12 @@ function Studio() {
             pass < MAX_CONDENSE_PASSES && bestGap > 0 && !cancelledRef.current;
             pass++
           ) {
-            setCurrentStep(`Condensation — ${languageLabel(lang)}…`);
-            res = await callTranslate(res, true);
+            const mode = calibrationMode(charsOf(res.scenes), window);
+            if (mode === "ok") break;
+            setCurrentStep(
+              `${mode === "shorten" ? "Condensation" : "Étoffement"} — ${languageLabel(lang)}…`,
+            );
+            res = await callTranslate(res, true, mode);
             const g = gap(predicted(res.scenes));
             if (g < bestGap) {
               best = res;
