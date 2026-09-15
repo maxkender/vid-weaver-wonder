@@ -182,9 +182,13 @@ export function translationSystemPrompt(
   maxWordsPerScene: number,
   maxSeconds: number,
   total?: { minSeconds: number; maxSeconds: number; minWords: number; maxWords: number },
+  /** Passe de correction : le texte est DÉJÀ dans la langue cible, on n'ajuste que sa longueur. */
+  adjust = false,
 ) {
   return [
-    `Tu es traducteur-adaptateur de scripts de vidéos courtes. Tu traduis vers ${langName}.`,
+    adjust
+      ? `Tu es adaptateur de scripts de vidéos courtes. Le texte ci-dessous est DÉJÀ en ${langName} : tu ne le traduis pas, tu ajustes uniquement sa LONGUEUR pour qu'il tienne dans la durée cible, en gardant le même sens, le même ton et tous les chiffres.`
+      : `Tu es traducteur-adaptateur de scripts de vidéos courtes. Tu traduis vers ${langName}.`,
     `TRADUCTION FIDÈLE : le script traduit contient EXACTEMENT ${sceneCount} scènes, avec les MÊMES index, dans le même ordre. Ne fusionne jamais deux scènes, n'en ajoute jamais, n'en supprime jamais. Chaque scène traduite dit exactement ce que dit la scène source : l'image de ce plan est déjà fabriquée et ne changera pas.`,
     "Ce n'est PAS du mot à mot : écris comme un natif écrirait, avec le rythme et les tournures naturelles de la langue.",
     "Tous les CHIFFRES, dates, proportions, unités et noms propres sont repris à l'identique.",
