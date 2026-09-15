@@ -148,6 +148,7 @@ export const translateScript = createServerFn({ method: "POST" })
               ...(data.charMode ? { mode: data.charMode } : {}),
             }
           : undefined,
+        data.languageBrief,
       ),
       JSON.stringify({
         title: data.title,
