@@ -1714,6 +1714,18 @@ function Studio() {
       snapshot = await generateAllVoices(script, snapshot);
       if (cancelledRef.current) return;
 
+      // MESURE AVANT DE PAYER : une langue hors fenêtre fige le défaut dans
+      // toutes les versions, puisque les clips sont communs. On n'anime pas.
+      const over = overflowFrom(script, snapshot);
+      if (over.length) {
+        toast.error(
+          `Animation bloquée — ${overflowLabel(over)}. Condense ces versions (bouton Traduire) avant d'animer : les plans sont payés une seule fois pour toutes les langues.`,
+        );
+        setCurrentStep("Durée hors cible : animation bloquée");
+        return;
+      }
+
+
       // e/f — un seul clip par plan, dimensionné sur la langue la plus longue.
       const videoJobs: Promise<unknown>[] = [];
       for (const scene of script.scenes) {
