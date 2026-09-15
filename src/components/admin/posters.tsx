@@ -1,23 +1,43 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { Check, Copy, KeyRound, Loader2, Pause, Play, Trash2, UserPlus, X } from "lucide-react";
+import { Check, Copy, KeyRound, Loader2, Pause, Play, RotateCcw, Trash2, UserPlus, X } from "lucide-react";
 import { toast } from "sonner";
 
 import { ContractMarkdown } from "@/components/contract-markdown";
 import {
-  INITIAL_PASSWORD,
   buildLogin,
+  createAccountForPoster,
   createPoster,
   deletePoster,
+  getConventions,
   getPosterDetail,
   listPosters,
+  resetAccountStep,
   resetPosterPassword,
   setPosterStatus,
   type AdminPoster,
 } from "@/lib/admin.functions";
+import {
+  DEFAULT_CONVENTIONS,
+  conventionGmail,
+  conventionHandle,
+  defaultCountryFor,
+  normalizeCountry,
+  type ConventionRow,
+} from "@/lib/conventions";
 import { MASTER_LANGUAGES } from "@/lib/languages";
 
 type Detail = Awaited<ReturnType<typeof getPosterDetail>>;
+type DetailAccount = Detail["accounts"][number];
+
+type CreatedAccess = {
+  email: string;
+  password: string;
+  handle: string;
+  gmail: string;
+  messageFr: string;
+  messageEn: string;
+};
 
 function CopyButton({ value, label }: { value: string; label?: string }) {
   const [done, setDone] = useState(false);
@@ -36,6 +56,22 @@ function CopyButton({ value, label }: { value: string; label?: string }) {
   );
 }
 
+const STEP_LABELS: { key: "gmail" | "handle" | "photo" | "warmup"; label: string }[] = [
+  { key: "gmail", label: "Gmail" },
+  { key: "handle", label: "Instagram" },
+  { key: "photo", label: "Photo" },
+  { key: "warmup", label: "Chauffe" },
+];
+
+function stepState(a: DetailAccount) {
+  return {
+    gmail: Boolean(a.gmail_done_at),
+    handle: Boolean(a.handle_done_at),
+    photo: Boolean(a.photo_done_at),
+    warmup: Boolean(a.warmup_done_at),
+  };
+}
+
 export function AdminPosters() {
   const runList = useServerFn(listPosters);
   const runCreate = useServerFn(createPoster);
@@ -43,45 +79,61 @@ export function AdminPosters() {
   const runStatus = useServerFn(setPosterStatus);
   const runDelete = useServerFn(deletePoster);
   const runDetail = useServerFn(getPosterDetail);
+  const runConventions = useServerFn(getConventions);
+  const runAddAccount = useServerFn(createAccountForPoster);
+  const runResetStep = useServerFn(resetAccountStep);
 
   const [posters, setPosters] = useState<AdminPoster[]>([]);
+  const [conv, setConv] = useState<ConventionRow>(DEFAULT_CONVENTIONS);
   const [loading, setLoading] = useState(true);
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
-  const [country, setCountry] = useState("FR");
   const [language, setLanguage] = useState("fr");
+  const [country, setCountry] = useState("fr");
+  const [countryTouched, setCountryTouched] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [created, setCreated] = useState<{ email: string; password: string } | null>(null);
+  const [created, setCreated] = useState<CreatedAccess | null>(null);
+  const [messageLang, setMessageLang] = useState<"fr" | "en">("fr");
   const [detail, setDetail] = useState<Detail | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<AdminPoster | null>(null);
 
   const refresh = useCallback(async () => {
     try {
-      const res = (await runList()) as { posters: AdminPoster[] };
-      setPosters(res.posters);
+      const [list, c] = await Promise.all([runList(), runConventions()]);
+      setPosters((list as { posters: AdminPoster[] }).posters);
+      setConv((c as { conventions: ConventionRow }).conventions);
     } finally {
       setLoading(false);
     }
-  }, [runList]);
+  }, [runList, runConventions]);
 
   useEffect(() => {
     void refresh();
   }, [refresh]);
 
-  const preview = useMemo(
+  const login = useMemo(
     () => (firstName.trim() ? buildLogin(firstName, lastName) : "—"),
     [firstName, lastName],
   );
+  const code = normalizeCountry(country || defaultCountryFor(language));
+  const handlePreview = conventionHandle(conv, code);
+  const gmailPreview = conventionGmail(conv, code);
+
+  const onLanguage = (value: string) => {
+    setLanguage(value);
+    if (!countryTouched) setCountry(defaultCountryFor(value));
+  };
 
   const onCreate = async () => {
     setBusy(true);
     try {
       const res = (await runCreate({
-        data: { firstName, lastName, country, language: language as "fr" },
-      })) as { email: string; password: string };
-      setCreated({ email: res.email, password: res.password });
+        data: { firstName, lastName, language: language as "fr", countryCode: code },
+      })) as CreatedAccess;
+      setCreated(res);
       setFirstName("");
       setLastName("");
+      setCountryTouched(false);
       await refresh();
       toast.success("Posteur créé");
     } catch (e) {
@@ -112,20 +164,8 @@ export function AdminPosters() {
             <input value={lastName} onChange={(e) => setLastName(e.target.value)} className="field mt-1 w-40 text-xs" />
           </div>
           <div>
-            <p className="label-x">Pays</p>
-            <input
-              value={country}
-              onChange={(e) => setCountry(e.target.value.toUpperCase().slice(0, 3))}
-              className="field mt-1 w-20 text-xs"
-            />
-          </div>
-          <div>
             <p className="label-x">Langue de publication</p>
-            <select
-              value={language}
-              onChange={(e) => setLanguage(e.target.value)}
-              className="field mt-1 w-36 text-xs"
-            >
+            <select value={language} onChange={(e) => onLanguage(e.target.value)} className="field mt-1 w-36 text-xs">
               {MASTER_LANGUAGES.map((l) => (
                 <option key={l.id} value={l.id}>
                   {l.label}
@@ -133,9 +173,16 @@ export function AdminPosters() {
               ))}
             </select>
           </div>
-          <div className="min-w-[220px]">
-            <p className="label-x">Identifiant calculé</p>
-            <p className="mt-1 font-mono text-sm">{preview}</p>
+          <div>
+            <p className="label-x">Code pays</p>
+            <input
+              value={country}
+              onChange={(e) => {
+                setCountryTouched(true);
+                setCountry(e.target.value.toLowerCase().slice(0, 2));
+              }}
+              className="field mt-1 w-20 text-xs"
+            />
           </div>
           <button
             onClick={onCreate}
@@ -145,21 +192,66 @@ export function AdminPosters() {
             {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null} Créer l'accès
           </button>
         </div>
+
+        <div className="mt-3 grid gap-2 text-xs sm:grid-cols-3">
+          <div className="rounded-[10px] border border-border p-2">
+            <p className="label-x">Identifiant de connexion</p>
+            <p className="mt-1 font-mono text-sm">{login}</p>
+          </div>
+          <div className="rounded-[10px] border border-border p-2">
+            <p className="label-x">Pseudo Instagram</p>
+            <p className="mt-1 font-mono text-sm">{handlePreview}</p>
+          </div>
+          <div className="rounded-[10px] border border-border p-2">
+            <p className="label-x">Adresse Gmail</p>
+            <p className="mt-1 font-mono text-sm">{gmailPreview}</p>
+          </div>
+        </div>
         <p className="mt-2 text-[11px] text-muted-foreground">
           L'identifiant n'est pas une vraie boîte mail : il sert uniquement à se connecter ici. Le mot
-          de passe initial est <span className="font-mono">{INITIAL_PASSWORD}</span> pour tous.
+          de passe de la plateforme est généré, différent pour chaque posteur, et affiché une seule
+          fois ci-dessous.
         </p>
 
         {created ? (
-          <div className="mt-3 flex flex-wrap items-center gap-3 rounded-[10px] border border-primary/50 bg-primary/10 p-3 text-sm">
-            <span>
-              Accès créé : <span className="font-mono">{created.email}</span> · mot de passe{" "}
-              <span className="font-mono">{created.password}</span>
-            </span>
-            <CopyButton value={`${created.email} / ${created.password}`} label="Copier l'accès" />
-            <button className="btn-base btn-ghost px-2 py-1 text-xs" onClick={() => setCreated(null)}>
-              <X className="h-3.5 w-3.5" />
-            </button>
+          <div className="mt-3 space-y-3 rounded-[10px] border border-primary/50 bg-primary/10 p-3 text-sm">
+            <div className="flex flex-wrap items-center gap-3">
+              <span>
+                Accès créé : <span className="font-mono">{created.email}</span> · mot de passe{" "}
+                <span className="font-mono">{created.password}</span>
+              </span>
+              <CopyButton value={created.password} label="Copier le mot de passe" />
+              <button className="btn-base btn-ghost px-2 py-1 text-xs" onClick={() => setCreated(null)}>
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+            <p className="text-[11px] text-muted-foreground">
+              Ce mot de passe ne sera plus affiché. Compte à créer : {created.handle} ·{" "}
+              {created.gmail}
+            </p>
+            <div>
+              <div className="flex items-center gap-2">
+                <p className="label-x">Message à envoyer sur Upwork</p>
+                <div className="flex gap-1">
+                  {(["fr", "en"] as const).map((l) => (
+                    <button
+                      key={l}
+                      onClick={() => setMessageLang(l)}
+                      className={`rounded-[6px] px-2 py-0.5 text-[11px] ${messageLang === l ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}
+                    >
+                      {l.toUpperCase()}
+                    </button>
+                  ))}
+                </div>
+                <CopyButton
+                  value={messageLang === "fr" ? created.messageFr : created.messageEn}
+                  label="Copier le message"
+                />
+              </div>
+              <pre className="mt-2 max-h-56 overflow-y-auto whitespace-pre-wrap rounded-[10px] border border-border bg-background p-3 text-xs">
+                {messageLang === "fr" ? created.messageFr : created.messageEn}
+              </pre>
+            </div>
           </div>
         ) : null}
       </section>
@@ -171,8 +263,8 @@ export function AdminPosters() {
             <tr className="border-b border-border">
               <th className="px-3 py-2">Identifiant</th>
               <th className="px-3 py-2">Nom</th>
-              <th className="px-3 py-2">Langue</th>
-              <th className="px-3 py-2">Parcours</th>
+              <th className="px-3 py-2">Comptes</th>
+              <th className="px-3 py-2">Contrat</th>
               <th className="px-3 py-2">Dernière connexion</th>
               <th className="px-3 py-2">Dernier téléchargement</th>
               <th className="px-3 py-2">Dernière publication</th>
@@ -192,13 +284,11 @@ export function AdminPosters() {
                     <span className="ml-2 rounded-[6px] bg-muted px-1.5 py-0.5 text-[10px]">admin</span>
                   ) : null}
                 </td>
-                <td className="px-3 py-1.5 text-xs uppercase">{p.language}</td>
+                <td className="px-3 py-1.5 text-xs">{p.accounts}</td>
                 <td className="px-3 py-1.5 text-[11px]">
-                  <span className={p.gmail_address ? "text-foreground" : "text-muted-foreground"}>Gmail</span>
-                  {" · "}
-                  <span className={p.accounts > 0 ? "text-foreground" : "text-muted-foreground"}>Compte</span>
-                  {" · "}
-                  <span className={p.has_contract ? "text-foreground" : "text-muted-foreground"}>Contrat</span>
+                  <span className={p.has_contract ? "text-foreground" : "text-muted-foreground"}>
+                    {p.has_contract ? "signé" : "non signé"}
+                  </span>
                 </td>
                 <td className="px-3 py-1.5 text-xs text-muted-foreground">
                   {p.last_sign_in_at ? new Date(p.last_sign_in_at).toLocaleString("fr-FR") : "jamais"}
@@ -214,10 +304,22 @@ export function AdminPosters() {
                   <div className="flex justify-end gap-1">
                     <button
                       className="btn-base btn-ghost px-2 py-1 text-xs"
-                      title="Réinitialiser le mot de passe"
+                      title="Régénérer le mot de passe de la plateforme"
                       onClick={async () => {
-                        await runReset({ data: { id: p.id } });
-                        toast.success(`Mot de passe remis à ${INITIAL_PASSWORD}`);
+                        const res = (await runReset({ data: { id: p.id } })) as {
+                          password: string;
+                          messageFr: string;
+                          messageEn: string;
+                        };
+                        setCreated({
+                          email: p.email,
+                          password: res.password,
+                          handle: "",
+                          gmail: "",
+                          messageFr: res.messageFr,
+                          messageEn: res.messageEn,
+                        });
+                        toast.success("Nouveau mot de passe généré");
                       }}
                     >
                       <KeyRound className="h-3.5 w-3.5" />
@@ -272,23 +374,77 @@ export function AdminPosters() {
           <div className="mt-2 grid gap-3 lg:grid-cols-2">
             <div>
               <p className="text-xs text-muted-foreground">
-                Identifiant : <span className="font-mono">{detail.profile.email}</span> · langue{" "}
-                {detail.profile.language.toUpperCase()} · pays {detail.profile.country ?? "—"}
+                Identifiant : <span className="font-mono">{detail.profile.email}</span>
               </p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                Gmail déclaré : {detail.profile.gmail_address ?? "non renseigné"}
-              </p>
-              <p className="label-x mt-3">Comptes ({detail.accounts.length})</p>
-              <ul className="mt-1 space-y-1 text-sm">
-                {detail.accounts.map((a) => (
-                  <li key={a.id}>
-                    <span className="capitalize">{a.platform}</span> · @{a.handle} · {a.status}
-                  </li>
-                ))}
+
+              <div className="mt-3 flex items-center gap-2">
+                <p className="label-x">Comptes ({detail.accounts.length})</p>
+                <select
+                  className="field w-28 text-[11px]"
+                  value=""
+                  onChange={async (e) => {
+                    if (!e.target.value) return;
+                    await runAddAccount({
+                      data: { posterId: detail.profile!.id, language: e.target.value as "fr" },
+                    });
+                    await openDetail(detail.profile!.id);
+                    toast.success("Compte ajouté");
+                  }}
+                >
+                  <option value="">+ Ajouter</option>
+                  {MASTER_LANGUAGES.map((l) => (
+                    <option key={l.id} value={l.id}>
+                      {l.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <ul className="mt-2 space-y-2 text-sm">
+                {detail.accounts.map((a) => {
+                  const state = stepState(a);
+                  const expectedHandle = conventionHandle(conv, a.country_code);
+                  const expectedGmail = conventionGmail(conv, a.country_code);
+                  return (
+                    <li key={a.id} className="rounded-[10px] border border-border p-2">
+                      <p className="text-sm">
+                        <span className="capitalize">{a.platform}</span> · @{a.handle} ·{" "}
+                        {a.language.toUpperCase()} / {a.country_code.toUpperCase()}
+                      </p>
+                      <p className="text-[11px] text-muted-foreground">{a.gmail_address ?? "—"}</p>
+                      {a.handle !== expectedHandle || a.gmail_address !== expectedGmail ? (
+                        <p className="mt-0.5 text-[11px] text-amber-500">
+                          Diverge de la convention ({expectedHandle} · {expectedGmail})
+                        </p>
+                      ) : null}
+                      <div className="mt-1.5 flex flex-wrap gap-1.5">
+                        {STEP_LABELS.map((s) => (
+                          <span
+                            key={s.key}
+                            className={`inline-flex items-center gap-1 rounded-[6px] px-1.5 py-0.5 text-[10px] ${state[s.key] ? "bg-primary/20 text-foreground" : "bg-muted text-muted-foreground"}`}
+                          >
+                            {s.label}
+                            <button
+                              title={`Réinitialiser l'étape ${s.label}`}
+                              onClick={async () => {
+                                await runResetStep({ data: { accountId: a.id, step: s.key } });
+                                await openDetail(detail.profile!.id);
+                                toast.success("Étape réinitialisée");
+                              }}
+                            >
+                              <RotateCcw className="h-3 w-3" />
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                    </li>
+                  );
+                })}
                 {detail.accounts.length === 0 ? (
                   <li className="text-xs text-muted-foreground">Aucun compte.</li>
                 ) : null}
               </ul>
+
               <p className="label-x mt-3">Téléchargements & publications</p>
               <ul className="mt-1 max-h-48 space-y-1 overflow-y-auto text-xs text-muted-foreground">
                 {detail.downloads.map((d) => (
