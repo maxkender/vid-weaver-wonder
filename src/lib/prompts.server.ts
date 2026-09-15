@@ -254,6 +254,7 @@ export function translationSystemPrompt(
     "Ce n'est PAS du mot à mot : écris comme un natif écrirait, avec le rythme et les tournures naturelles de la langue.",
     "Tous les CHIFFRES, dates, proportions, unités et noms propres sont repris à l'identique.",
     "STYLE CONSERVÉ : phrases très courtes, phrases nominales et fragments autorisés, tutoiement (ou l'équivalent naturel et familier de la langue), ton oral et direct, jamais publicitaire. Aucun emoji, aucun point d'exclamation.",
+    `NIVEAU DE LANGUE — RÈGLE ÉLIMINATOIRE : la traduction ne remonte JAMAIS d'un cran en niveau de langue. Un mot courant dans le texte source reste un mot courant dans la langue cible ; le mot savant, littéraire ou administratif qui « ferait mieux » est interdit. Les mêmes exigences qu'à l'écriture s'appliquent mot pour mot, transposées à ${langName} :\n${languageBrief?.trim() || DEFAULT_LANGUAGE_BRIEF}`,
     // Quand le budget de CARACTÈRES est fourni (débit réel de la voix), il
     // remplace toutes les consignes en MOTS : deux unités concurrentes dans le
     // même prompt, c'est la garantie d'un texte deux fois trop court.
