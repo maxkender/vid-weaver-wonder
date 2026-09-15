@@ -125,10 +125,13 @@ export const translateScript = createServerFn({ method: "POST" })
           maxWords: maxWordsForSeconds(data.maxTotalSeconds, data.language),
         },
         data.adjust,
-        data.charBudget
+        data.charTarget
           ? {
-              total: data.charBudget,
-              perScene: Math.max(20, Math.round(data.charBudget / Math.max(1, data.scenes.length))),
+              target: data.charTarget,
+              min: data.charMin ?? Math.round(data.charTarget * 0.95),
+              max: data.charMax ?? Math.round(data.charTarget * 1.05),
+              perScene: Math.max(20, Math.round(data.charTarget / Math.max(1, data.scenes.length))),
+              ...(data.charMode ? { mode: data.charMode } : {}),
             }
           : undefined,
       ),
