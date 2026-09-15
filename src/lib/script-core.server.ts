@@ -201,6 +201,36 @@ export async function buildScript(data: BuildScriptInput): Promise<Script> {
     }
   }
 
+  // PASSE DE RELECTURE : on remplace les mots savants par des mots du
+  // quotidien. Elle vient en dernier, à longueur constante, pour ne pas
+  // défaire le calage des durées. Best-effort : en cas d'échec on garde le texte.
+  try {
+    const simple = await chatJSON<{ scenes: { index: number; narration: string }[] }>(
+      "google/gemini-3.7-flash",
+      simplifySystemPrompt(langName, script.scenes.length, data.languageBrief),
+      `Scènes (JSON) : ${JSON.stringify(
+        script.scenes.map((s) => ({ index: s.index, narration: s.narration })),
+      )}`,
+      0.2,
+    );
+    for (const s of simple.scenes ?? []) {
+      const target = script.scenes[s.index];
+      const text = (s.narration ?? "").trim();
+      // Garde-fou : une relecture ne doit pas raccourcir ou allonger le plan.
+      if (target && text) {
+        const before = (target.narration ?? "").length;
+        if (before === 0 || Math.abs(text.length - before) / before <= 0.15) {
+          target.narration = text;
+        }
+      }
+    }
+    const newHook = script.scenes[0]?.narration?.trim();
+    if (newHook) script.hook = newHook;
+  } catch {
+    // relecture best-effort
+  }
+
+
   // « Sophia » n'est prononcé qu'une seule fois, dans le CTA final — et jamais
   // du tout quand le CTA est désactivé.
   const strip = (t: string) =>
