@@ -203,6 +203,7 @@ export function AdminContent() {
 
   return (
     <div className="space-y-4">
+      <DayVideos />
       <AdminConventions />
 
       <section className="surface-card overflow-x-auto p-0">
