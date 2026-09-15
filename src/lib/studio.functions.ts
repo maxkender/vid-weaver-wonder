@@ -88,8 +88,16 @@ export const translateScript = createServerFn({ method: "POST" })
         maxTotalSeconds: z.number().min(10).max(180).default(66),
         /** Passe de correction de durée : le texte est déjà dans la langue cible. */
         adjust: z.boolean().default(false),
-        /** Budget de caractères total, calculé sur le débit mesuré de la voix. */
-        charBudget: z.number().int().min(80).max(6000).optional(),
+        /**
+         * FENÊTRE DE CARACTÈRES calculée sur le débit MESURÉ de la voix de cette
+         * langue (caractères par seconde, jamais des mots). C'est la contrainte
+         * de longueur prioritaire : cible + bornes basse et haute.
+         */
+        charTarget: z.number().int().min(80).max(6000).optional(),
+        charMin: z.number().int().min(80).max(6000).optional(),
+        charMax: z.number().int().min(80).max(6000).optional(),
+        /** Sens de la correction demandée quand le texte est hors fenêtre. */
+        charMode: z.enum(["ok", "shorten", "lengthen"]).optional(),
       })
       .parse(input),
   )
