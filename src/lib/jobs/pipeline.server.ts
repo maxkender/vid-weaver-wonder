@@ -497,14 +497,21 @@ export async function runTick(origin: string) {
       return { jobId: job.id, paused: true, error: message };
     }
     // Une seule tentative payante par job : au premier échec, on s'arrête.
-    await patchJob(job.id, {
-      status: "failed",
-      step: "failed",
-      error: message.slice(0, 1000),
-      lease_until: null,
-    });
-    const { notifyClient } = await import("./notify.server");
-    await notifyClient(job.id);
+    // Écriture conditionnée : un rappel arrivé entre-temps (job « done ») gagne.
+    const marked = await patchJobIfStatus(
+      job.id,
+      ["queued", "scripting", "images", "voice", "clips", "rendering"],
+      {
+        status: "failed",
+        step: "failed",
+        error: message.slice(0, 1000),
+        lease_until: null,
+      },
+    );
+    if (marked) {
+      const { notifyClient } = await import("./notify.server");
+      await notifyClient(job.id);
+    }
     return { jobId: job.id, error: message };
   }
 }
