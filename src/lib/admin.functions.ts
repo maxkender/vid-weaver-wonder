@@ -607,6 +607,9 @@ export const updateAccount = createServerFn({ method: "POST" })
         status: z.enum(["pending", "active", "suspended", "recovered"]).optional(),
         followers: z.number().int().min(0).max(100_000_000).optional(),
         handle: z.string().min(1).max(80).optional(),
+        gmail: z.string().max(160).optional(),
+        language: z.enum(["fr", "en", "es", "de", "it"]).optional(),
+        countryCode: z.string().max(4).optional(),
         profileUrl: z.string().max(300).optional(),
         notes: z.string().max(2000).optional(),
       })
@@ -619,6 +622,9 @@ export const updateAccount = createServerFn({ method: "POST" })
     if (data.status !== undefined) patch["status"] = data.status;
     if (data.followers !== undefined) patch["followers"] = data.followers;
     if (data.handle !== undefined) patch["handle"] = data.handle.trim().replace(/^@/, "");
+    if (data.gmail !== undefined) patch["gmail_address"] = data.gmail.trim().toLowerCase() || null;
+    if (data.language !== undefined) patch["language"] = data.language;
+    if (data.countryCode !== undefined) patch["country_code"] = normalizeCountry(data.countryCode);
     if (data.profileUrl !== undefined) patch["profile_url"] = data.profileUrl.trim() || null;
     if (data.notes !== undefined) patch["notes"] = data.notes.trim() || null;
     const { error } = await db.from("poster_accounts").update(patch as never).eq("id", data.id);
