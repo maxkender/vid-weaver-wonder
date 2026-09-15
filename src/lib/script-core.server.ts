@@ -154,7 +154,9 @@ export async function buildScript(data: BuildScriptInput): Promise<Script> {
       data.structureBrief,
     ),
     `${scriptUserPrompt(data.kind, data.topic)}\nÉcris tout le script en ${langName}.`,
-  );
+    ),
+  ) as Script;
+
 
   script.scenes = (script.scenes ?? []).slice(0, sceneCount).map((s, i) => ({ ...s, index: i }));
 
