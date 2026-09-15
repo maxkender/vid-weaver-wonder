@@ -415,7 +415,7 @@ function SettingsPage() {
             <input
               id="voice-speed"
               type="range"
-              min={0.9}
+              min={0.95}
               max={1.15}
               step={0.05}
               value={settings.voiceSpeed ?? 1}
