@@ -325,7 +325,7 @@ function migrateStates(
           ...rest,
           voices: {
             ...(rest.voices ?? {}),
-            [sourceLang]: { audio, words: words ?? [], duration: 0, text: undefined },
+            [sourceLang]: { audio, words: words ?? [], duration: 0 },
           },
         }
       : rest;
