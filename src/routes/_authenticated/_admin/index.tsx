@@ -2556,6 +2556,10 @@ function Studio() {
           }
         }
       }
+      // Images produites : l'animation est débloquée sans clic supplémentaire.
+      if (Object.values(snapshot).some((st) => st?.image)) setImagesValidated(true);
+
+
 
       if (cancelledRef.current) {
         setAssembleStep("Pipeline arrêté");
