@@ -25,12 +25,66 @@ export function gatewayHeaders(json = true): Record<string, string> {
   return h;
 }
 
+/** Erreur de passerelle portant son code HTTP (pour décider d'un réessai). */
+export class GatewayError extends Error {
+  status: number;
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = "GatewayError";
+    this.status = status;
+  }
+}
+
 async function readError(res: Response) {
   const body = (await res.json().catch(() => null)) as { message?: string } | null;
   const msg = body?.message ?? `Erreur du service IA (${res.status})`;
   if (res.status === 429) return "Trop de requêtes, réessayez dans quelques instants.";
   if (res.status === 402) return msg;
   return msg;
+}
+
+/** Erreur prête à lever : message lisible + code HTTP conservé. */
+async function gatewayError(res: Response) {
+  return new GatewayError(await readError(res), res.status);
+}
+
+/**
+ * ERREURS TRANSITOIRES UNIQUEMENT : hoquet du service ou coupure réseau.
+ * 401/402/403 (clé, crédits, politique) et refus de contenu ne sont JAMAIS
+ * réessayés : ils gardent leur droit de veto immédiat sur la dépense.
+ */
+const TRANSIENT_STATUS = new Set([408, 425, 429, 500, 502, 503, 504]);
+
+export function isTransientError(e: unknown): boolean {
+  if (e instanceof GatewayError) return TRANSIENT_STATUS.has(e.status);
+  if (e instanceof Error) {
+    if (/\b(401|402|403)\b|credit|insufficient|forbidden|refus/i.test(e.message)) return false;
+    // Coupures réseau : la requête n'a jamais abouti, rien n'est facturé.
+    return /fetch failed|network|ECONNRESET|ETIMEDOUT|EAI_AGAIN|socket hang up|aborted|timeout/i.test(
+      e.message,
+    );
+  }
+  return false;
+}
+
+/** Attentes croissantes : 2 s, 8 s, 20 s. Trois tentatives au total. */
+export const RETRY_DELAYS_MS = [2_000, 8_000, 20_000];
+
+export async function withRetry<T>(label: string, fn: () => Promise<T>): Promise<T> {
+  let last: unknown;
+  for (let attempt = 0; attempt < RETRY_DELAYS_MS.length; attempt++) {
+    try {
+      return await fn();
+    } catch (e) {
+      last = e;
+      if (!isTransientError(e) || attempt === RETRY_DELAYS_MS.length - 1) throw e;
+      console.warn(
+        `[ai] ${label} : erreur transitoire, nouvelle tentative dans ${RETRY_DELAYS_MS[attempt]! / 1000} s`,
+      );
+      await new Promise((r) => setTimeout(r, RETRY_DELAYS_MS[attempt]!));
+    }
+  }
+  throw last instanceof Error ? last : new Error(String(last));
 }
 
 export async function chatJSON<T>(
