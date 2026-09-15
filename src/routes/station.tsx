@@ -127,7 +127,7 @@ function StationPage() {
     const blob = await assembleVideo(scenes, {
       ...dims,
       music: track?.blob ?? undefined,
-      musicVolume: 0.14,
+      musicVolume: 0.22,
       onProgress: (s) => setStep(s),
     });
 
