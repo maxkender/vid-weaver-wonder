@@ -18,7 +18,13 @@ import { estimateSpeechSeconds } from "../duration";
 import { defaultVoiceFor } from "../voices";
 import { TOPIC_CATEGORIES } from "../topic-categories";
 import { languageName } from "../languages";
-import { DEFAULT_MOTION, DEFAULT_QUALITY, DEFAULT_VISUAL_BRIEF } from "../style-presets";
+import {
+  DEFAULT_MOTION,
+  DEFAULT_OPENING_IMAGE,
+  DEFAULT_OPENING_MOTION,
+  DEFAULT_QUALITY,
+  DEFAULT_VISUAL_BRIEF,
+} from "../style-presets";
 import type { VisualStyleId } from "../style-presets";
 import {
   claimJob,
