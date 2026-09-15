@@ -11,6 +11,7 @@ import express from "express";
 import { createHmac, timingSafeEqual } from "node:crypto";
 
 import { renderJob } from "./render.js";
+import { buildMaskPng } from "./mask.js";
 
 const PORT = process.env.PORT ?? 8787;
 const SECRET = process.env.RENDER_WORKER_SECRET;
@@ -99,4 +100,8 @@ app.get("/files/:name", (req, res) => {
   res.send(bytes);
 });
 
-app.listen(PORT, () => console.log(`Service de rendu Sophia sur ${PORT}`));
+app.listen(PORT, () => {
+  // Masque de la fenêtre carrée calculé une seule fois, au démarrage.
+  buildMaskPng(1080, 1920);
+  console.log(`Service de rendu Sophia sur ${PORT}`);
+});

@@ -1,74 +1,153 @@
 /**
  * Sous-titres mot par mot, alignés sur les horodatages ElevenLabs.
  *
- * Règles reprises du studio (à ne pas changer sans demande explicite) :
- * - un mot à la fois, casse d'origine conservée,
- * - taille = 0.062 × largeur, police Anton,
- * - fondu court, aucun zoom,
- * - centré verticalement dans la fenêtre carrée.
+ * Règles reprises TELLES QUELLES de src/lib/karaoke-overlay.ts :
+ * - un seul mot à l'écran, casse d'origine conservée ;
+ * - fusion avec le mot suivant quand sa fenêtre dure moins de 0,25 s
+ *   (le début d'un mot n'est JAMAIS décalé) ;
+ * - police Anton, blanc, contour noir épais, ombre portée ;
+ * - taille calculée sur le CÔTÉ DU CARRÉ, centré horizontalement et
+ *   verticalement dans la fenêtre carrée.
+ *
+ * Le navigateur dessine un PNG par mot ; ici on produit un fichier ASS
+ * incrusté par le filtre `subtitles`, ce qui donne le même rendu.
  */
+import { CAPTION_MAX_WIDTH_RATIO, CAPTION_SIZE_RATIO, squareSide } from "./geometry.js";
 
-// Taille relative au CÔTÉ DU CARRÉ (identique à src/lib/karaoke-overlay.ts).
-export const SQUARE_MARGIN_RATIO = 0.148;
-export const CAPTION_SIZE_RATIO = 0.062 / 0.88;
-export const squareSide = (width, height) =>
-  Math.round(Math.min(width * (1 - 2 * SQUARE_MARGIN_RATIO), height));
-export const CAPTION_FADE = 0.08;
+/** Tenue minimale d'un mot à l'écran avant fusion avec le suivant. */
+export const MIN_CAPTION_HOLD = 0.25;
+/** Nombre maximal de mots affichés ensemble (2 uniquement en cas de fusion). */
+const MAX_GROUP_WORDS = 2;
+/** Longueur maximale d'un groupe (une seule ligne). */
+const MAX_GROUP_CHARS = 18;
+/** Léger devancement : le texte apparaît juste avant la syllabe. */
+const LEAD_IN = 0.05;
 
-/** Échappe le texte pour le filtre drawtext de ffmpeg. */
-export function escapeDrawText(text) {
-  return text
-    .replace(/\\/g, "\\\\")
-    .replace(/:/g, "\\:")
-    .replace(/'/g, "\u2019")
-    .replace(/%/g, "\\%")
-    .replace(/,/g, "\\,")
-    .replace(/\[/g, "\\[")
-    .replace(/\]/g, "\\]");
+const cleanWord = (w) => String(w ?? "").replace(/[«»"]/g, "").replace(/\s+/g, " ").trim();
+
+/**
+ * Fenêtre utile de la voix off : du premier au dernier mot réellement prononcé.
+ * Identique à voiceWindow() du studio.
+ */
+export function voiceWindow(words, duration) {
+  const valid = (words ?? []).filter((w) => w?.word && w.end > w.start && w.start < duration + 1);
+  if (!valid.length) return { start: 0, end: duration };
+  const first = valid.reduce((a, b) => (b.start < a.start ? b : a));
+  const last = valid.reduce((a, b) => (b.end > a.end ? b : a));
+  const start = Math.max(0, Math.min(first.start - 0.08, duration - 0.5));
+  const end = Math.min(duration, Math.max(last.end + 0.15, start + 0.6));
+  return { start, end };
+}
+
+/** Décale les timings pour coller à l'audio rogné. */
+export function shiftTimings(words, offset) {
+  if (!words?.length || !offset) return words ?? [];
+  return words.map((w) => ({
+    word: w.word,
+    start: Math.max(0, w.start - offset),
+    end: Math.max(0.05, w.end - offset),
+  }));
 }
 
 /**
- * Étire/normalise les horodatages pour qu'aucun mot ne disparaisse avant le
- * suivant : chaque mot reste affiché jusqu'au début du mot d'après.
+ * Groupes affichés : un mot par groupe, fusion uniquement des fenêtres < 0,25 s,
+ * puis continuité (un groupe reste affiché jusqu'au suivant).
  */
-export function smoothTimings(words, duration) {
-  const clean = (words ?? []).filter((w) => w?.word && w.word.trim());
-  if (!clean.length) return [];
-  const last = Math.max(...clean.map((w) => w.end));
-  const scale = last > 0 && duration > 0 ? Math.min(1, duration / last) : 1;
-  return clean.map((w, i) => {
-    const start = Math.max(0, w.start * scale - 0.05);
-    const next = clean[i + 1];
-    const end = next ? Math.max(start + 0.1, next.start * scale - 0.02) : Math.min(duration, w.end * scale + 0.25);
-    return { word: w.word.trim(), start, end };
+export function smoothTimings(timings, duration) {
+  const sorted = (timings ?? [])
+    .filter((t) => t?.word && t.start >= 0 && t.start < duration + 0.5)
+    .map((t) => ({ word: cleanWord(t.word), start: t.start, end: t.end }))
+    .filter((t) => t.word)
+    .sort((a, b) => a.start - b.start);
+  if (!sorted.length) return [];
+
+  // Les timestamps ElevenLabs sont déjà calés sur l'audio : jamais réétirés.
+  const scaled = sorted.map((t, i) => {
+    const next = sorted[i + 1];
+    const end = Math.max(next ? next.start : t.end, t.start + 0.06);
+    return { word: t.word, start: t.start, end };
+  });
+
+  const text = (g) => g.items.join(" ");
+  const groups = scaled.map((t) => ({ items: [t.word], start: t.start, end: t.end }));
+
+  for (let i = 0; i < groups.length - 1; i++) {
+    const g = groups[i];
+    const next = groups[i + 1];
+    if (next.start - g.start >= MIN_CAPTION_HOLD) continue;
+    const canMerge =
+      g.items.length + next.items.length <= MAX_GROUP_WORDS &&
+      text(g).length + 1 + text(next).length <= MAX_GROUP_CHARS;
+    if (!canMerge) continue;
+    g.items = [...g.items, ...next.items];
+    g.end = next.end;
+    groups.splice(i + 1, 1);
+    i--;
+  }
+
+  return groups.map((g, i) => {
+    const next = groups[i + 1];
+    const start = Math.max(0, g.start - LEAD_IN);
+    const end = next
+      ? Math.max(next.start - LEAD_IN, start + 0.18)
+      : Math.min(duration, Math.max(g.end, start + 0.5));
+    return { word: text(g), start, end };
   });
 }
 
+/** h:mm:ss.cc, format des temps ASS. */
+function assTime(t) {
+  const s = Math.max(0, t);
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const sec = s % 60;
+  return `${h}:${String(m).padStart(2, "0")}:${sec.toFixed(2).padStart(5, "0")}`;
+}
+
+/** Largeur approximative d'un texte en Anton (police étroite). */
+const approxWidth = (text, fontSize) => text.length * fontSize * 0.46;
+
+const escapeAss = (t) => t.replace(/\\/g, "\\\\").replace(/\{/g, "(").replace(/\}/g, ")");
+
 /**
- * Construit la chaîne de filtres drawtext pour une piste de mots.
- * `offset` décale la piste dans la timeline globale.
+ * Fichier ASS complet pour un plan. Renvoie null si aucun mot.
+ * `fontName` doit être installée dans le conteneur (Anton).
  */
-export function drawTextFilters(words, { width, height, fontFile, offset = 0 }) {
-  const size = Math.round(squareSide(width, height) * CAPTION_SIZE_RATIO);
-  return words
-    .map((w) => {
-      const start = (w.start + offset).toFixed(3);
-      const end = (w.end + offset).toFixed(3);
-      const alpha =
-        `if(lt(t-${start},${CAPTION_FADE}),(t-${start})/${CAPTION_FADE},` +
-        `if(lt(${end}-t,${CAPTION_FADE}),(${end}-t)/${CAPTION_FADE},1))`;
-      return [
-        `drawtext=fontfile='${fontFile}'`,
-        `text='${escapeDrawText(w.word)}'`,
-        `fontsize=${size}`,
-        "fontcolor=white",
-        "borderw=" + Math.max(3, Math.round(size * 0.09)),
-        "bordercolor=black@0.85",
-        "x=(w-text_w)/2",
-        `y=(h-text_h)/2`,
-        `alpha='${alpha}'`,
-        `enable='between(t,${start},${end})'`,
-      ].join(":");
-    })
-    .join(",");
+export function buildAss(groups, { width, height, fontName = "Anton" }) {
+  if (!groups?.length) return null;
+  const side = squareSide(width, height);
+  const baseSize = Math.round(side * CAPTION_SIZE_RATIO);
+  const maxWidth = side * CAPTION_MAX_WIDTH_RATIO;
+  // Contour : le navigateur trace un lineWidth centré, donc la moitié déborde.
+  const outline = Math.max(4, Math.round(Math.max(8, baseSize * 0.16) / 2));
+  const shadow = Math.max(1, Math.round(baseSize * 0.08));
+
+  const header = [
+    "[Script Info]",
+    "ScriptType: v4.00+",
+    "WrapStyle: 2",
+    "ScaledBorderAndShadow: yes",
+    `PlayResX: ${width}`,
+    `PlayResY: ${height}`,
+    "",
+    "[V4+ Styles]",
+    "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding",
+    `Style: Mot,${fontName},${baseSize},&H00FFFFFF,&H00FFFFFF,&H00000000,&H8C000000,0,0,0,0,100,100,0,0,1,${outline},${shadow},5,0,0,0,1`,
+    "",
+    "[Events]",
+    "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text",
+  ];
+
+  const events = groups
+    .filter((g) => g.end > g.start && g.word)
+    .map((g) => {
+      // Une seule ligne : on réduit la police si le mot est trop large,
+      // exactement comme le canvas du navigateur.
+      let size = baseSize;
+      while (size > 18 && approxWidth(g.word, size) > maxWidth) size -= 2;
+      const override = size !== baseSize ? `{\\fs${size}}` : "";
+      return `Dialogue: 0,${assTime(g.start)},${assTime(g.end)},Mot,,0,0,0,,${override}${escapeAss(g.word)}`;
+    });
+
+  return `${header.join("\n")}\n${events.join("\n")}\n`;
 }
