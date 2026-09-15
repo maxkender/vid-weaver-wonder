@@ -2,17 +2,17 @@
  * Sous-titres mot par mot, alignés sur les horodatages ElevenLabs.
  *
  * Règles reprises TELLES QUELLES de src/lib/karaoke-overlay.ts :
- * - un seul mot à l'écran, casse d'origine conservée ;
+ * - un seul mot à l'écran, affiché en minuscules ;
  * - fusion avec le mot suivant quand sa fenêtre dure moins de 0,25 s
  *   (le début d'un mot n'est JAMAIS décalé) ;
- * - police Anton, blanc, contour noir épais, ombre portée ;
+ * - police Poppins 800, blanc, contour sombre fin, ombre portée ;
  * - taille calculée sur le CÔTÉ DU CARRÉ, centré horizontalement et
  *   verticalement dans la fenêtre carrée.
  *
  * Le navigateur dessine un PNG par mot ; ici on produit un fichier ASS
  * incrusté par le filtre `subtitles`, ce qui donne le même rendu.
  */
-import { CAPTION_MAX_WIDTH_RATIO, CAPTION_SIZE_RATIO, squareSide } from "./geometry.js";
+import { CAPTION_MAX_WIDTH_RATIO, CAPTION_SIZE_RATIO, squareBox } from "./geometry.js";
 
 /** Tenue minimale d'un mot à l'écran avant fusion avec le suivant. */
 export const MIN_CAPTION_HOLD = 0.25;
@@ -104,22 +104,22 @@ function assTime(t) {
   return `${h}:${String(m).padStart(2, "0")}:${sec.toFixed(2).padStart(5, "0")}`;
 }
 
-/** Largeur approximative d'un texte en Anton (police étroite). */
-const approxWidth = (text, fontSize) => text.length * fontSize * 0.46;
+/** Largeur approximative d'un texte en Poppins ExtraBold. */
+const approxWidth = (text, fontSize) => text.length * fontSize * 0.58;
 
 const escapeAss = (t) => t.replace(/\\/g, "\\\\").replace(/\{/g, "(").replace(/\}/g, ")");
 
 /**
  * Fichier ASS complet pour un plan. Renvoie null si aucun mot.
- * `fontName` doit être installée dans le conteneur (Anton).
+ * `fontName` doit être installée dans le conteneur (Poppins ExtraBold).
  */
-export function buildAss(groups, { width, height, fontName = "Anton" }) {
+export function buildAss(groups, { width, height, fontName = "Poppins" }) {
   if (!groups?.length) return null;
-  const side = squareSide(width, height);
+  const { side, centerY } = squareBox(width, height);
   const baseSize = Math.round(side * CAPTION_SIZE_RATIO);
   const maxWidth = side * CAPTION_MAX_WIDTH_RATIO;
   // Contour : le navigateur trace un lineWidth centré, donc la moitié déborde.
-  const outline = Math.max(4, Math.round(Math.max(8, baseSize * 0.16) / 2));
+  const outline = Math.max(2, Math.round(Math.max(4, baseSize * 0.06) / 2));
   const shadow = Math.max(1, Math.round(baseSize * 0.08));
 
   const header = [
@@ -132,7 +132,7 @@ export function buildAss(groups, { width, height, fontName = "Anton" }) {
     "",
     "[V4+ Styles]",
     "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding",
-    `Style: Mot,${fontName},${baseSize},&H00FFFFFF,&H00FFFFFF,&H00000000,&H8C000000,0,0,0,0,100,100,0,0,1,${outline},${shadow},5,0,0,0,1`,
+    `Style: Mot,${fontName},${baseSize},&H00FFFFFF,&H00FFFFFF,&H001F1F1F,&H8C000000,-1,0,0,0,100,100,0,0,1,${outline},${shadow},5,0,0,0,1`,
     "",
     "[Events]",
     "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text",
@@ -146,7 +146,7 @@ export function buildAss(groups, { width, height, fontName = "Anton" }) {
       let size = baseSize;
       while (size > 18 && approxWidth(g.word, size) > maxWidth) size -= 2;
       const override = size !== baseSize ? `{\\fs${size}}` : "";
-      return `Dialogue: 0,${assTime(g.start)},${assTime(g.end)},Mot,,0,0,0,,${override}${escapeAss(g.word)}`;
+      return `Dialogue: 0,${assTime(g.start)},${assTime(g.end)},Mot,,0,0,0,,{\\pos(${Math.round(width / 2)},${Math.round(centerY)})}${override}${escapeAss(g.word.toLocaleLowerCase())}`;
     });
 
   return `${header.join("\n")}\n${events.join("\n")}\n`;

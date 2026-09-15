@@ -4,10 +4,10 @@ RUN apt-get update \
  && apt-get install -y --no-install-recommends ffmpeg fontconfig ca-certificates curl \
  && rm -rf /var/lib/apt/lists/*
 
-# Police Anton (sous-titres du studio).
-RUN mkdir -p /usr/share/fonts/truetype/anton \
- && curl -fsSL -o /usr/share/fonts/truetype/anton/Anton-Regular.ttf \
-    https://github.com/google/fonts/raw/main/ofl/anton/Anton-Regular.ttf \
+# Police Poppins ExtraBold (sous-titres du studio).
+RUN mkdir -p /usr/share/fonts/truetype/poppins \
+ && curl -fsSL -o /usr/share/fonts/truetype/poppins/Poppins-ExtraBold.ttf \
+    https://github.com/google/fonts/raw/main/ofl/poppins/Poppins-ExtraBold.ttf \
  && fc-cache -f
 
 WORKDIR /app
