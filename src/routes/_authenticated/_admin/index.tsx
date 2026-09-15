@@ -2060,12 +2060,20 @@ function Studio() {
       snapshot = await generateAllVoices(script, snapshot);
       if (cancelledRef.current) return;
 
+      // Un contrôle de durée n'a de droit de veto QUE tant qu'il reste des
+      // plans animés à payer. Si tous les clips existent déjà, il avertit.
       const over = overflowFrom(script, snapshot);
-      if (over.length) {
+      const clipsToPay = script.scenes.some((sc) => !snapshot[sc.index]?.videoUrl);
+      if (over.length && clipsToPay) {
         toast.error(
           `Animation bloquée — ${overflowLabel(over)}. Durées mesurées hors cible : le débit des voix vient d'être recalé, relance le calibrage avant d'animer.`,
         );
         return;
+      }
+      if (over.length && !clipsToPay) {
+        toast.warning(
+          `Durées hors cible — ${overflowLabel(over)}. Les plans animés existent déjà : le montage continue.`,
+        );
       }
 
 
@@ -2157,28 +2165,23 @@ function Studio() {
       .filter((x) => Boolean(x.st.videoUrl || x.st.image));
     if (!all.length) throw new Error("Aucune scène à assembler.");
 
-    // Un plan sans voix off produirait un blanc silencieux : on refabrique la
-    // voix manquante de CETTE langue avant d'assembler.
+    // Un plan sans voix off produirait un blanc silencieux : on tente de
+    // refabriquer la voix manquante de CETTE langue avant d'assembler.
     for (const item of all) {
       if (voiceOf(item.st, lang)) continue;
       setAssembleStep(`Voix off manquante — ${languageLabel(lang)}, scène ${item.scene.index + 1}…`);
-      const res = await onVoice(item.scene, lang);
-      if (!res) {
-        throw new Error(
-          `La voix off de la scène ${item.scene.index + 1} (${languageLabel(lang)}) n'a pas pu être générée : relance l'export.`,
-        );
-      }
+      const res = await onVoice(item.scene, lang).catch(() => null);
+      if (!res) continue;
       item.st = { ...item.st, voices: { ...(item.st.voices ?? {}), [lang]: res } };
     }
-    // DERNIER VERROU AVANT FFMPEG : aucun plan ne part sans voix off. Si l'un
-    // d'eux manque encore, on nomme précisément lesquels plutôt que de monter
-    // une vidéo muette par endroits.
+    // AVERTISSEMENT, PAS DE VETO : un plan sans voix est signalé mais la vidéo
+    // sort quand même — le contenu existe, on ne bloque pas le livrable.
     const missing = all.filter((x) => !voiceOf(x.st, lang)).map((x) => x.scene.index + 1);
     if (missing.length) {
-      throw new Error(
-        `Montage annulé (${languageLabel(lang)}) : voix off manquante pour ${
+      toast.warning(
+        `${languageLabel(lang)} : voix off manquante pour ${
           missing.length > 1 ? "les plans" : "le plan"
-        } ${missing.join(", ")}. Relance la voix off de ${missing.length > 1 ? "ces plans" : "ce plan"}.`,
+        } ${missing.join(", ")}. Ces plans sont montés sans voix.`,
       );
     }
     const ordered = all;
@@ -2196,7 +2199,9 @@ function Studio() {
         // Silences de tête/queue retirés : la voix démarre tout de suite et le
         // plan s'arrête au dernier mot.
         const win = raw ? voiceWindow(take?.words ?? null, raw) : null;
-        const duration = win ? win.end - win.start : raw;
+        // Sans voix, le plan garde la durée prévue de son clip : il est muet
+        // mais présent, plutôt que d'empêcher tout le montage.
+        const duration = win ? win.end - win.start : (raw ?? clipSecondsFor(st));
         const words = win ? shiftTimings(take?.words ?? null, win.start) : (take?.words ?? []);
         const narration = scene.narration;
         return {
@@ -2492,12 +2497,18 @@ function Studio() {
         return;
       }
       const realOver = outOfWindowFrom(doc, snapshot);
-      if (realOver.length) {
+      const clipsToPay = doc.scenes.some((sc) => !snapshot[sc.index]?.videoUrl);
+      if (realOver.length && clipsToPay) {
         toast.warning(
           `Durées mesurées hors cible — ${overflowLabel(realOver)}. Le débit des voix vient d'être recalé : relance le calibrage avant d'animer.`,
         );
         setAssembleStep("Durée mesurée hors cible : animation bloquée");
         return;
+      }
+      if (realOver.length && !clipsToPay) {
+        toast.warning(
+          `Durées hors cible — ${overflowLabel(realOver)}. Les plans animés existent déjà : le montage continue.`,
+        );
       }
 
 
