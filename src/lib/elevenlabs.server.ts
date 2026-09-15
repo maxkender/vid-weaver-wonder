@@ -185,7 +185,24 @@ export async function generateElevenSpeechWithTimings(
       `Alignement mot à mot vide (${where}). Aucune vidéo n'est montée sans sous-titres calés sur la voix réelle.`,
     );
   }
-  return { audioDataUrl: `data:audio/mpeg;base64,${json.audio_base64}`, words, characters };
+  // GARDE-FOU ANTI-TRONCATURE : l'alignement renvoyé couvre exactement le texte
+  // réellement prononcé. S'il manque des mots, la synthèse n'a lu qu'une partie
+  // du plan — on refuse un demi-plan payé et on le dit clairement.
+  const expectedWords = text.trim().split(/\s+/).filter(Boolean).length;
+  const spokenChars = words.reduce((n, w) => n + w.word.length, 0);
+  const textChars = text.trim().replace(/\s+/g, "").length;
+  if (expectedWords && (words.length < expectedWords * 0.95 || spokenChars < textChars * 0.95)) {
+    throw new Error(
+      `Texte tronqué par la synthèse (${where}) : ${words.length} mots prononcés sur ${expectedWords} attendus ` +
+        `(${spokenChars} caractères sur ${textChars}). Aucune voix off partielle n'est conservée.`,
+    );
+  }
+  return {
+    audioDataUrl: `data:audio/mpeg;base64,${json.audio_base64}`,
+    words,
+    characters,
+    textChars: text.trim().length,
+  };
 }
 
 /** Voix FR recommandées, épinglées en tête de liste quand la langue active est le français. */
