@@ -10,6 +10,7 @@ export type ConventionRow = {
   instagram_template: string;
   gmail_template: string;
   social_password: string;
+  platform_password: string;
   bio_text: string;
   upwork_message_fr: string;
   upwork_message_en: string;
@@ -19,6 +20,7 @@ export const DEFAULT_CONVENTIONS: ConventionRow = {
   instagram_template: "sophia.app.{pays}",
   gmail_template: "social.sophia.{pays}@gmail.com",
   social_password: "VikStudios123!",
+  platform_password: "12345678",
   bio_text: "Sophia — la culture générale en 60 secondes. Un fait fascinant par jour.",
   upwork_message_fr: "",
   upwork_message_en: "",
