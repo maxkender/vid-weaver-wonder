@@ -105,24 +105,66 @@ export type VideoJob = {
   error?: { code?: string; message?: string };
 };
 
+// Veo génère une piste audio par défaut — et la facture (~40 % du prix du clip).
+// Or ce studio n'utilise JAMAIS cet audio : la bande-son est refaite
+// intégralement en aval (voix off ElevenLabs + musique), et le montage ne
+// mappe que la piste vidéo du clip. On demande donc generateAudio: false ;
+// si la passerelle rejette le paramètre, on retombe sur l'appel sans lui
+// (l'économie est alors indisponible, mais la génération ne doit pas échouer).
+let audioOptOutUnavailableLogged = false;
+
+function videoJobBody(input: {
+  prompt: string;
+  seconds: "4" | "6" | "8";
+  size: string;
+  inputReference?: string;
+}): Record<string, unknown> {
+  return {
+    model: "google/veo-3.1-lite",
+    prompt: input.prompt,
+    seconds: input.seconds,
+    size: input.size,
+    ...(input.inputReference ? { input_reference: input.inputReference } : {}),
+  };
+}
+
+async function postVideoJob(body: Record<string, unknown>): Promise<Response> {
+  return fetch(`${GATEWAY}/videos`, {
+    method: "POST",
+    headers: gatewayHeaders(),
+    body: JSON.stringify(body),
+  });
+}
+
 export async function createVideoJob(input: {
   prompt: string;
   seconds: "4" | "6" | "8";
   size: string;
   inputReference?: string;
 }): Promise<VideoJob> {
-  const res = await fetch(`${GATEWAY}/videos`, {
-    method: "POST",
-    headers: gatewayHeaders(),
-    body: JSON.stringify({
-      model: "google/veo-3.1-lite",
-      prompt: input.prompt,
-      seconds: input.seconds,
-      size: input.size,
-      ...(input.inputReference ? { input_reference: input.inputReference } : {}),
-    }),
-  });
-  if (!res.ok) throw new Error(await readError(res));
+  const base = videoJobBody(input);
+
+  // 1er essai : audio désactivé (tarif sans audio).
+  let res = await postVideoJob({ ...base, generateAudio: false });
+  if (!res.ok) {
+    const firstError = await readError(res);
+    // 2e essai avec la variante snake_case, au cas où.
+    res = await postVideoJob({ ...base, generate_audio: false });
+    if (!res.ok) {
+      await readError(res); // consomme le corps
+      // 3e essai : sans le paramètre — la génération ne doit jamais échouer
+      // à cause de cette optimisation de coût.
+      res = await postVideoJob(base);
+      if (!res.ok) throw new Error(await readError(res));
+      if (!audioOptOutUnavailableLogged) {
+        audioOptOutUnavailableLogged = true;
+        console.warn(
+          "[video] La passerelle refuse generateAudio=false — audio natif généré et facturé. Première erreur :",
+          firstError,
+        );
+      }
+    }
+  }
   return (await res.json()) as VideoJob;
 }
 
