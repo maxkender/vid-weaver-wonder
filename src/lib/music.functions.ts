@@ -17,9 +17,12 @@ export type MusicTrackRow = {
   path: string;
   durationSec: number;
   styles: string[];
+  /** Gain de normalisation mesuré une seule fois (dB), null si jamais mesuré. */
+  gainDb: number | null;
   /** Lien signé de lecture (valable 24 h). */
   url: string;
 };
+
 
 function safeName(name: string) {
   return (
