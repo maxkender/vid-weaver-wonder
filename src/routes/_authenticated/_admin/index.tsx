@@ -1207,7 +1207,10 @@ function Studio() {
           structureBrief: settings.guides.structure,
           auditBrief: settings.guides.audit,
         },
-      })) as Script;
+      })) as unknown;
+      // Le modèle peut renvoyer un champ mal formé (hashtags en chaîne…) :
+      // on remet le script en forme AVANT qu'il n'entre dans l'application.
+      const result = normalizeScript(raw) as Script;
       setScript(result);
       // Nouveau script = nouvelle vidéo : le compteur de coût repart de zéro,
       // en conservant la vérification des faits déjà payée pour ce sujet.
