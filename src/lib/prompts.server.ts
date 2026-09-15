@@ -118,6 +118,9 @@ export function scriptSystemPrompt(
     "Le champ hook reprend exactement la ou les phrases de la scène 1.",
 
     "",
+    `RÈGLE N°1 BIS — NIVEAU DE LANGUE (règle éliminatoire, elle prime sur le style) :\n${languageBrief?.trim() || DEFAULT_LANGUAGE_BRIEF}`,
+
+    "",
     "RÈGLE N°2 — FORME DU RÉCIT : trois formes sont autorisées, choisis librement celle qui convient au sujet, sans en privilégier aucune.",
     "• LE MÉCANISME : on part d'un fait connu et on explique comment ça marche vraiment, étape par étape, jusqu'à une conséquence qu'on n'attendait pas.",
     "• LA DÉMONSTRATION : on pose une question concrète et on la résout par le raisonnement et les chiffres, jusqu'à une conclusion nette.",
