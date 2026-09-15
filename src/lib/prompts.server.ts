@@ -34,6 +34,10 @@ export type CharacterSheet = { name: string; description: string };
 export type Script = {
   title: string;
   hook: string;
+  /** Les trois accroches proposées par l'IA (la retenue devient le plan 1). */
+  hookOptions?: string[];
+  /** Justification en une ligne du choix d'accroche, affichée dans le studio. */
+  hookChoice?: string;
   scenes: Scene[];
   cta: string;
   hashtags: string[];
