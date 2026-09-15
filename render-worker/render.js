@@ -1,27 +1,54 @@
 /**
- * Assemblage ffmpeg : un plan = clip animé (ou image fixe si le clip a échoué)
- * + voix off + sous-titres mot par mot, puis concaténation.
+ * Assemblage ffmpeg, calqué sur le montage navigateur (src/lib/assemble-video.ts).
+ *
+ * Un plan = clip animé (ou image fixe avec léger zoom si le clip a échoué)
+ * + voix off calée + sous-titres mot par mot + masque carré, puis concaténation
+ * toujours ré-encodée.
+ *
+ * Aucune boucle vidéo (`-stream_loop`) et aucun gel : quand la voix dépasse le
+ * clip, on étire le clip et on accélère très légèrement la voix.
  */
 import { spawn } from "node:child_process";
 import { mkdtemp, writeFile, rm, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { drawTextFilters, smoothTimings } from "./captions.js";
+import { buildAss, shiftTimings, smoothTimings, voiceWindow } from "./captions.js";
+import { buildMaskPng } from "./mask.js";
 
 const FONT_FILE = process.env.CAPTION_FONT_FILE ?? "/usr/share/fonts/truetype/anton/Anton-Regular.ttf";
-// Doit rester identique à SQUARE_MARGIN_RATIO de src/lib/karaoke-overlay.ts.
-const SQUARE_MARGIN_RATIO = 0.148;
-const SQUARE_RADIUS_RATIO = 0.07;
+const FONT_NAME = process.env.CAPTION_FONT_NAME ?? "Anton";
 
-function run(args) {
+/** Constantes strictement identiques à src/lib/assemble-video.ts. */
+export const OUTPUT_FPS = 30;
+const MAX_STRETCH = 1.6;
+const STRETCH_BEFORE_TEMPO = 1.25;
+const MAX_TEMPO = 1.12;
+const AUDIO_FADE = 0.03;
+
+function run(args, cwd) {
   return new Promise((resolve, reject) => {
-    const p = spawn("ffmpeg", ["-hide_banner", "-loglevel", "error", ...args]);
+    const p = spawn("ffmpeg", ["-hide_banner", "-loglevel", "error", ...args], { cwd });
     let err = "";
     p.stderr.on("data", (d) => (err += d.toString().slice(0, 4000)));
     p.on("close", (code) =>
       code === 0 ? resolve() : reject(new Error(`ffmpeg (${code}) : ${err.slice(0, 1500)}`)),
     );
+  });
+}
+
+/** Durée d'un média, via ffprobe. */
+function probeDuration(path, cwd) {
+  return new Promise((resolve) => {
+    const p = spawn(
+      "ffprobe",
+      ["-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", path],
+      { cwd },
+    );
+    let out = "";
+    p.stdout.on("data", (d) => (out += d.toString()));
+    p.on("close", () => resolve(Number.parseFloat(out.trim()) || 0));
+    p.on("error", () => resolve(0));
   });
 }
 
@@ -31,110 +58,194 @@ async function download(url, path) {
   await writeFile(path, Buffer.from(await res.arrayBuffer()));
 }
 
-/** Masque carré à coins arrondis, identique pour tous les plans. */
-function squareFilter(width, height) {
-  const side = Math.round(Math.min(width * (1 - 2 * SQUARE_MARGIN_RATIO), height));
-  const r = Math.round(side * SQUARE_RADIUS_RATIO);
-  const x = Math.round((width - side) / 2);
-  const y = Math.round((height - side) / 2);
-  return (
-    `scale=${side}:${side}:force_original_aspect_ratio=increase,crop=${side}:${side},` +
-    `geq=lum='p(X,Y)':cb='p(X,Y)':cr='p(X,Y)',` +
-    `pad=${width}:${height}:${x}:${y}:black,` +
-    // Coins arrondis : masque alpha généré à la volée.
-    `format=yuv420p`
-  ).replace("geq=lum='p(X,Y)':cb='p(X,Y)':cr='p(X,Y)',", `format=rgba,` +
-    `geq=r='r(X,Y)':g='g(X,Y)':b='b(X,Y)':` +
-    `a='if(gt(hypot(max(0,${r}-X)+max(0,X-(${side}-${r})),max(0,${r}-Y)+max(0,Y-(${side}-${r}))),${r}),0,255)',`);
-}
-
-/** Rend un plan : vidéo (ou image bouclée) + audio + sous-titres. */
+/** Rend un plan : vidéo (ou image animée d'un lent zoom) + voix + sous-titres. */
 async function renderScene(scene, dir, opts) {
   const i = scene.index;
-  const out = join(dir, `scene-${i}.mp4`);
-  const duration = Math.max(0.8, Number(scene.duration) || 3);
-  const args = ["-y"];
+  const out = `part-${i}.mp4`;
+  const args = [];
 
-  let source;
-  if (scene.videoUrl) {
-    source = join(dir, `clip-${i}.mp4`);
-    await download(scene.videoUrl, source);
-    args.push("-stream_loop", "-1", "-i", source);
-  } else if (scene.imageUrl) {
-    source = join(dir, `img-${i}.png`);
-    await download(scene.imageUrl, source);
-    args.push("-loop", "1", "-i", source);
+  const stillOnly = !scene.videoUrl;
+  let sourceName;
+  if (stillOnly) {
+    if (!scene.imageUrl) throw new Error(`Plan ${i} : ni clip ni image.`);
+    sourceName = `img-${i}.png`;
+    await download(scene.imageUrl, join(dir, sourceName));
   } else {
-    throw new Error(`Plan ${i} : ni clip ni image.`);
+    sourceName = `clip-${i}.mp4`;
+    await download(scene.videoUrl, join(dir, sourceName));
   }
 
-  let hasAudio = false;
-  if (scene.audioUrl) {
-    const audio = join(dir, `voice-${i}.mp3`);
-    await download(scene.audioUrl, audio);
-    args.push("-i", audio);
-    hasAudio = true;
+  const hasVoice = Boolean(scene.audioUrl);
+  let audioName = null;
+  let audioLen = 0;
+  if (hasVoice) {
+    audioName = `voice-${i}.mp3`;
+    await download(scene.audioUrl, join(dir, audioName));
+    audioLen = await probeDuration(audioName, dir);
   }
 
-  const chain = [
-    opts.squareMask
-      ? squareFilter(opts.width, opts.height)
-      : `scale=${opts.width}:${opts.height}:force_original_aspect_ratio=increase,crop=${opts.width}:${opts.height}`,
-    "fps=30",
-  ];
-  const words = smoothTimings(scene.words, duration);
-  if (words.length) {
-    chain.push(drawTextFilters(words, { width: opts.width, height: opts.height, fontFile: FONT_FILE }));
+  // --- Calage du plan sur la voix ---------------------------------------
+  // Cible = fenêtre utile de la voix off (silences de tête/queue retirés).
+  const rawWords = (scene.words ?? []).filter((w) => w?.word && w.end > w.start);
+  const declared = Math.max(0.8, Number(scene.duration) || audioLen || 4);
+  const win = hasVoice ? voiceWindow(rawWords, audioLen || declared) : { start: 0, end: declared };
+  const tStart = Math.max(0, win.start);
+  const tEnd = win.end > tStart + 0.3 ? win.end : undefined;
+  const voiceSpan = tEnd ? tEnd - tStart : undefined;
+  const target = voiceSpan && voiceSpan > 0.5 ? voiceSpan : declared;
+
+  const clipLen = stillOnly ? 0 : await probeDuration(sourceName, dir);
+  let tempo = 1; // accélération de la voix
+  let stretch = 1; // ralentissement du clip
+  if (!stillOnly && clipLen > 0.2 && target > clipLen) {
+    const needed = target / clipLen;
+    if (needed > STRETCH_BEFORE_TEMPO) {
+      tempo = Math.min(MAX_TEMPO, needed / STRETCH_BEFORE_TEMPO);
+    }
+    stretch = Math.min(MAX_STRETCH, target / tempo / clipLen);
+    // Filet de sécurité : si les plafonds laissent la piste vidéo plus courte
+    // que la voix, on dépasse volontairement le plafond d'étirement — un plan
+    // très ralenti vaut mieux qu'une image gelée en fin de plan.
+    const needTotal = target / tempo / clipLen;
+    if (needTotal > stretch) stretch = needTotal;
   }
-  chain.push("format=yuv420p");
+  const outDur = target / tempo;
+
+  const { width, height } = opts;
+  if (stillOnly) {
+    args.push("-loop", "1", "-framerate", String(OUTPUT_FPS), "-t", outDur.toFixed(3), "-i", sourceName);
+  } else {
+    args.push("-i", sourceName);
+  }
+  if (hasVoice) args.push("-i", audioName);
+  else args.push("-f", "lavfi", "-i", "anullsrc=channel_layout=stereo:sample_rate=44100");
+
+  const big = { w: Math.round(width * 1.2), h: Math.round(height * 1.2) };
+  const base = `scale=${width}:${height}:force_original_aspect_ratio=decrease,pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2:black,setsar=1`;
+  const vf = stillOnly
+    ? // Image fixe : très léger zoom lent, jamais parfaitement immobile.
+      `scale=${big.w}:${big.h}:force_original_aspect_ratio=decrease,pad=${big.w}:${big.h}:(ow-iw)/2:(oh-ih)/2:black,` +
+      `zoompan=z='min(1+0.00035*on,1.07)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':` +
+      `d=${Math.max(1, Math.ceil(outDur * OUTPUT_FPS))}:s=${width}x${height}:fps=${OUTPUT_FPS},setsar=1,fps=${OUTPUT_FPS}`
+    : `${base}${stretch > 1.001 ? `,setpts=PTS*${stretch.toFixed(4)}` : ""},fps=${OUTPUT_FPS}`;
+
+  const chain = [`[0:v]${vf}[base]`];
+  let last = "base";
+  let nextInput = 2;
+
+  if (opts.squareMask) {
+    args.push("-i", opts.maskName);
+    const idx = nextInput++;
+    chain.push(`[${idx}:v]scale=${width}:${height},format=rgba[mask]`);
+    chain.push(`[${last}][mask]overlay=0:0[masked]`);
+    last = "masked";
+  }
+
+  // Sous-titres : timings recalés sur l'audio rogné, puis divisés par le
+  // facteur d'accélération de la voix pour ce plan.
+  let groups = smoothTimings(shiftTimings(rawWords, tStart), outDur * tempo);
+  if (tempo > 1.001) {
+    groups = groups.map((g) => ({ word: g.word, start: g.start / tempo, end: g.end / tempo }));
+  }
+  const ass = buildAss(groups, { width, height, fontName: FONT_NAME });
+  if (ass) {
+    const assName = `subs-${i}.ass`;
+    await writeFile(join(dir, assName), ass, "utf8");
+    chain.push(`[${last}]subtitles=${assName}:fontsdir=/usr/share/fonts[subbed]`);
+    last = "subbed";
+  }
+  chain.push(`[${last}]format=yuv420p[v]`);
+
+  // Audio : coupe uniquement aux bornes (jamais au milieu), fondus anti-clic.
+  const fadeOutAt = Math.max(0, outDur - AUDIO_FADE);
+  const fades = `afade=t=in:st=0:d=${AUDIO_FADE},afade=t=out:st=${fadeOutAt.toFixed(3)}:d=${AUDIO_FADE}`;
+  const trim = `atrim=start=${tStart.toFixed(3)}${tEnd ? `:end=${tEnd.toFixed(3)}` : ""},asetpts=PTS-STARTPTS`;
+  const af = hasVoice
+    ? `[1:a]${trim}${tempo > 1.001 ? `,atempo=${tempo.toFixed(4)}` : ""},${fades},aresample=44100,aformat=sample_fmts=fltp:channel_layouts=stereo[a]`
+    : `[1:a]atrim=0:${outDur.toFixed(3)},${fades},aresample=44100,aformat=sample_fmts=fltp:channel_layouts=stereo[a]`;
 
   args.push(
-    "-t", String(duration),
-    "-filter_complex", `[0:v]${chain.join(",")}[v]`,
+    "-filter_complex", `${chain.join(";")};${af}`,
     "-map", "[v]",
-  );
-  if (hasAudio) args.push("-map", "1:a", "-c:a", "aac", "-b:a", "192k");
-  args.push(
+    "-map", "[a]",
+    "-r", String(OUTPUT_FPS),
     "-c:v", "libx264",
     "-preset", "veryfast",
     "-crf", "20",
     "-pix_fmt", "yuv420p",
-    "-r", "30",
-    "-shortest",
-    out,
+    "-c:a", "aac",
+    "-b:a", "128k",
+    "-ar", "44100",
+    "-ac", "2",
+    "-t", outDur.toFixed(3),
+    "-max_interleave_delta", "0",
+    "-y", out,
   );
 
-  await run(args);
-  return out;
+  await run(args, dir);
+  return { name: out, duration: outDur };
 }
 
 export async function renderJob(manifest) {
   const dir = await mkdtemp(join(tmpdir(), "sophia-"));
   try {
-    const opts = {
-      width: manifest.width ?? 1080,
-      height: manifest.height ?? 1920,
-      squareMask: Boolean(manifest.squareMask),
-    };
+    const width = manifest.width ?? 1080;
+    const height = manifest.height ?? 1920;
+    const squareMask = Boolean(manifest.squareMask);
+    const maskName = "mask.png";
+    if (squareMask) await writeFile(join(dir, maskName), buildMaskPng(width, height));
+    const opts = { width, height, squareMask, maskName };
+
     const parts = [];
+    let duration = 0;
     for (const scene of [...manifest.scenes].sort((a, b) => a.index - b.index)) {
-      parts.push(await renderScene(scene, dir, opts));
+      const part = await renderScene(scene, dir, opts);
+      parts.push(part.name);
+      duration += part.duration;
     }
 
-    const listPath = join(dir, "list.txt");
-    await writeFile(listPath, parts.map((p) => `file '${p}'`).join("\n"));
-    const finalPath = join(dir, "final.mp4");
-    await run([
-      "-y", "-f", "concat", "-safe", "0", "-i", listPath,
-      "-c:v", "libx264", "-preset", "veryfast", "-crf", "20",
-      "-c:a", "aac", "-b:a", "192k", "-movflags", "+faststart",
-      finalPath,
-    ]);
+    await writeFile(join(dir, "list.txt"), parts.map((p) => `file '${p}'`).join("\n"));
+    // TOUJOURS ré-encoder : la copie de flux laisse des trous et une dérive audio.
+    await run(
+      [
+        "-f", "concat", "-safe", "0", "-i", "list.txt",
+        "-vf", `fps=${OUTPUT_FPS},scale=${width}:${height},setsar=1,format=yuv420p`,
+        "-r", String(OUTPUT_FPS),
+        "-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-pix_fmt", "yuv420p",
+        "-c:a", "aac", "-b:a", "128k", "-ar", "44100", "-ac", "2",
+        "-movflags", "+faststart",
+        "-y", "concat.mp4",
+      ],
+      dir,
+    );
 
-    const bytes = await readFile(finalPath);
-    const duration = manifest.scenes.reduce((s, sc) => s + (Number(sc.duration) || 0), 0);
+    let finalName = "concat.mp4";
+    if (manifest.musicUrl) {
+      await download(manifest.musicUrl, join(dir, "music.mp3"));
+      const volume = Number(manifest.musicVolume) > 0 ? Number(manifest.musicVolume) : 0.14;
+      await run(
+        [
+          "-i", "concat.mp4",
+          "-stream_loop", "-1", "-i", "music.mp3",
+          // normalize=0 : sans ça, amix divise chaque entrée par 2 et la voix
+          // off perd 6 dB. Seule la musique est atténuée, par son propre volume.
+          "-filter_complex",
+          `[1:a]volume=${volume}[bg];[0:a][bg]amix=inputs=2:duration=first:dropout_transition=0:normalize=0[a]`,
+          "-map", "0:v:0", "-map", "[a]",
+          "-c:v", "copy", "-c:a", "aac", "-b:a", "160k",
+          "-movflags", "+faststart",
+          "-y", "final.mp4",
+        ],
+        dir,
+      );
+      finalName = "final.mp4";
+    }
+
+    const bytes = await readFile(join(dir, finalName));
     return { bytes, duration };
   } finally {
     await rm(dir, { recursive: true, force: true });
   }
 }
+
+export { FONT_FILE };
