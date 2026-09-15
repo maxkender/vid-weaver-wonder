@@ -1025,15 +1025,32 @@ function Studio() {
   const runExportUrl = useServerFn(getExportDownloadUrl);
 
   /**
+   * Empreinte du texte source : sert à savoir si une traduction déjà faite est
+   * encore valable. Seul le texte parlé compte (les visuels ne sont pas traduits).
+   */
+  const sourceSignature = (doc: Script) =>
+    [doc.title ?? "", doc.hook ?? "", doc.cta ?? "", ...doc.scenes.map((s) => `${s.index}:${s.narration}`)].join("¦");
+  /** Empreinte source de la traduction déjà obtenue, par langue. */
+  const translationSourceRef = useRef<Record<string, string>>({});
+
+  /**
    * MASTER : traduit le script source dans chaque autre langue cochée.
    * Les visuels ne sont jamais régénérés — seuls les textes parlés changent.
+   * `reuse` : une langue déjà traduite depuis CE texte source n'est pas refaite.
    */
   const onTranslateAll = async (
     doc: Script | null = script,
+    reuse = false,
   ): Promise<Record<string, Script> | undefined> => {
     if (!doc) return undefined;
-    const others = langs.filter((l) => l !== sourceLang);
+    const sig = sourceSignature(doc);
+    let others = langs.filter((l) => l !== sourceLang);
     const next: Record<string, Script> = { ...scriptsRef.current, [sourceLang]: doc };
+    if (reuse) {
+      others = others.filter(
+        (l) => !next[l] || translationSourceRef.current[l] !== sig,
+      );
+    }
     if (!others.length) {
       setScripts(next);
       scriptsRef.current = next;
