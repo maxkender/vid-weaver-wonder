@@ -152,20 +152,17 @@ function SettingsPage() {
                 ] as const
               ).map(([key, label]) => (
                 <div key={key}>
-                  <label className="label-x mt-3">
-                    {label}
-                  </label>
+                  <FieldHeader
+                    label={label}
+                    path={visualPath(id, key)}
+                    settings={settings}
+                    persist={persist}
+                  />
                   <textarea
                     rows={key === "brief" ? 5 : 2}
                     value={settings.visual[id][key]}
                     onChange={(e) =>
-                      persist({
-                        ...settings,
-                        visual: {
-                          ...settings.visual,
-                          [id]: { ...settings.visual[id], [key]: e.target.value },
-                        },
-                      })
+                      persist(setField(settings, visualPath(id, key), e.target.value))
                     }
                     className={field}
                   />
