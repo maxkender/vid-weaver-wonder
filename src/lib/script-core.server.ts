@@ -71,6 +71,23 @@ export async function buildScript(data: BuildScriptInput): Promise<Script> {
   );
   const wordsBias = data.wordsBias ?? 0;
 
+  // FENÊTRE DE CARACTÈRES DU SCRIPT SOURCE — l'unique mesure de longueur qui
+  // tienne : caractères ÷ débit MESURÉ de la voix source. La borne haute est
+  // la durée demandée + 10 %, CTA déduit.
+  const sourceCps = data.sourceCharsPerSecond ?? defaultCharsPerSecond(data.language);
+  const sourceSpeed = data.voiceSpeed ?? 1;
+  const loNarrationSeconds = narrationSeconds;
+  const hiNarrationSeconds = Math.max(
+    loNarrationSeconds + 2,
+    maxTotalSeconds - (includeCta ? 6 : 0),
+  );
+  const charsWindow = charWindow(
+    loNarrationSeconds,
+    hiNarrationSeconds,
+    sourceCps,
+    sourceSpeed,
+  );
+
   // Le nombre de plans vient de l'interface : il correspond à la durée choisie.
   // On ne le gonfle JAMAIS (chaque plan en plus = un clip animé payant en plus).
   const sceneCount = Math.max(2, data.sceneCount);
