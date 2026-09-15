@@ -4,7 +4,7 @@ Ce petit service assemble les vidéos **sans qu'aucun navigateur soit ouvert**.
 C'est lui qui permet la génération automatique de nuit.
 
 Il fait exactement le même montage que le studio : fenêtre carrée à coins
-arrondis, sous-titres mot par mot en Anton, voix off calée au plan près,
+arrondis, sous-titres mot par mot en Poppins ExtraBold, voix off calée au plan près,
 musique de fond éventuelle, export 1080 × 1920 à 30 images par seconde.
 
 ---
@@ -31,7 +31,7 @@ musique de fond éventuelle, export 1080 × 1920 à 30 images par seconde.
      (c'est indispensable : sans ça Railway essaierait de déployer le studio).
    - Railway détecte tout seul le `Dockerfile` présent dans ce dossier.
 4. Cliquez sur **Deploy**. Le premier build prend 3 à 5 minutes (il installe
-   ffmpeg et la police Anton).
+   ffmpeg et la police Poppins ExtraBold).
 
 ## Étape 3 — Renseigner les variables
 
@@ -42,7 +42,7 @@ Toujours dans le service Railway, onglet **Variables**, ajoutez :
 | `RENDER_WORKER_SECRET` | une longue chaîne aléatoire (40 caractères) | inventez-la, ou demandez-la à Lovable ; elle doit être **identique** des deux côtés |
 | `PUBLIC_URL` | l'adresse publique du service | voir l'étape 4 (à remplir juste après) |
 | `PORT` | `8787` | valeur par défaut, à ne changer que si Railway l'impose |
-| `CAPTION_FONT_FILE` | *(facultatif)* chemin d'une autre police | par défaut Anton, déjà installée |
+| `CAPTION_FONT_FILE` | *(facultatif)* chemin d'une autre police | par défaut Poppins ExtraBold, déjà installée |
 
 ## Étape 4 — Récupérer l'adresse publique
 

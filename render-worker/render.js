@@ -16,8 +16,8 @@ import { join } from "node:path";
 import { buildAss, shiftTimings, smoothTimings, voiceWindow } from "./captions.js";
 import { buildMaskPng } from "./mask.js";
 
-const FONT_FILE = process.env.CAPTION_FONT_FILE ?? "/usr/share/fonts/truetype/anton/Anton-Regular.ttf";
-const FONT_NAME = process.env.CAPTION_FONT_NAME ?? "Anton";
+const FONT_FILE = process.env.CAPTION_FONT_FILE ?? "/usr/share/fonts/truetype/poppins/Poppins-ExtraBold.ttf";
+const FONT_NAME = process.env.CAPTION_FONT_NAME ?? "Poppins";
 
 /** Constantes strictement identiques à src/lib/assemble-video.ts. */
 export const OUTPUT_FPS = 30;

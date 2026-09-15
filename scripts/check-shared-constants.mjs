@@ -28,6 +28,7 @@ const workerRender = read("render-worker/render.js");
 const checks = [
   ["SQUARE_MARGIN_RATIO", studioGeometry, workerGeometry],
   ["SQUARE_RADIUS_RATIO", studioGeometry, workerGeometry],
+  ["SQUARE_CENTER_OFFSET_RATIO", studioGeometry, workerGeometry],
   ["CAPTION_SIZE_RATIO", studioGeometry, workerGeometry],
   ["CAPTION_MAX_WIDTH_RATIO", studioGeometry, workerGeometry],
   ["OUTPUT_FPS", studioRender, workerRender],

@@ -9,7 +9,7 @@ export type CaptionCue = { blob: Blob; start: number; end: number };
 /** Charge la police d'affichage avant de dessiner (sinon canvas retombe sur Arial). */
 async function ensureFont(size: number) {
   try {
-    await (document as unknown as { fonts: FontFaceSet }).fonts.load(`900 ${size}px Anton`);
+    await (document as unknown as { fonts: FontFaceSet }).fonts.load(`800 ${size}px Poppins`);
   } catch {
     /* police indisponible : on garde la fallback */
   }
@@ -21,7 +21,7 @@ async function ensureFont(size: number) {
  * soit la marge choisie, et rien ne déborde sur les bandes noires.
  * Ancienne valeur : 0.062 de la largeur pour un carré de 88 % → 0.062 / 0.88.
  */
-export const CAPTION_SIZE_RATIO = 0.062 / 0.88;
+export const CAPTION_SIZE_RATIO = 0.135;
 /** Largeur maximale d'une ligne, relative au côté du carré (0.86 / 0.88). */
 export const CAPTION_MAX_WIDTH_RATIO = 0.86 / 0.88;
 
@@ -42,12 +42,12 @@ function drawWord(
 ) {
   const words = cleanWord(word).split(" ").filter(Boolean);
   if (!words.length) return;
-  const clean = words.join(" ");
+  const clean = words.join(" ").toLocaleLowerCase();
   // Tout est calé sur le CÔTÉ DU CARRÉ : le texte ne sort jamais de la fenêtre.
   const side = squareSide(width, height);
   let fontSize = Math.round(side * CAPTION_SIZE_RATIO);
   const maxWidth = side * CAPTION_MAX_WIDTH_RATIO;
-  const font = (s: number) => `400 ${s}px "Anton", "Arial Narrow", Impact, sans-serif`;
+  const font = (s: number) => `800 ${s}px "Poppins", "Nunito", "Baloo 2", sans-serif`;
   ctx.font = font(fontSize);
 
   // Toujours une seule ligne : on réduit légèrement la police si nécessaire.
@@ -57,7 +57,7 @@ function drawWord(
   }
 
   const cx = width / 2;
-  const cy = height * 0.5;
+  const cy = squareBox(width, height).centerY;
 
   ctx.save();
   ctx.globalAlpha = Math.max(0, Math.min(1, alpha));
@@ -83,8 +83,8 @@ function drawWord(
 
   ctx.lineJoin = "round";
   ctx.miterLimit = 2;
-  ctx.lineWidth = Math.max(8, fontSize * 0.16);
-  ctx.strokeStyle = "#000000";
+  ctx.lineWidth = Math.max(4, fontSize * 0.06);
+  ctx.strokeStyle = "rgba(0,0,0,0.88)";
   ctx.fillStyle = "#ffffff";
 
   words.forEach((w, i) => {
@@ -164,13 +164,28 @@ async function renderPng(
  * aperçu de l'interface et sous-titres en dépendent tous.
  * 0.0776 → côté = 84,5 % de la largeur (carré 20 % plus grand qu'à 0.148).
  */
-export const SQUARE_MARGIN_RATIO = 0.0776;
+export const SQUARE_MARGIN_RATIO = 0.036;
 /** Rayon des coins de la fenêtre carrée (fraction du côté). */
-export const SQUARE_RADIUS_RATIO = 0.07;
+export const SQUARE_RADIUS_RATIO = 0.1;
+/** Décalage du centre du carré, relatif à la hauteur du cadre (négatif = vers le haut). */
+export const SQUARE_CENTER_OFFSET_RATIO = -0.0475;
 
 /** Côté de la fenêtre carrée centrée dans un cadre width × height. */
 export function squareSide(width: number, height: number) {
   return Math.round(Math.min(width * (1 - 2 * SQUARE_MARGIN_RATIO), height));
+}
+
+/** Géométrie complète de la fenêtre carrée, source unique pour tous les rendus. */
+export function squareBox(width: number, height: number) {
+  const side = squareSide(width, height);
+  const centerY = height * (0.5 + SQUARE_CENTER_OFFSET_RATIO);
+  return {
+    side,
+    x: Math.round((width - side) / 2),
+    y: Math.round(centerY - side / 2),
+    centerY,
+    radius: Math.round(side * SQUARE_RADIUS_RATIO),
+  };
 }
 
 /**
@@ -187,10 +202,9 @@ export async function makeRoundedSquareMask(
   canvas.height = height;
   const ctx = canvas.getContext("2d");
   if (!ctx) return null;
-  const side = squareSide(width, height);
-  const x = Math.round((width - side) / 2);
-  const y = Math.round((height - side) / 2);
-  const r = side * radiusRatio;
+  const box = squareBox(width, height);
+  const { side, x, y } = box;
+  const r = radiusRatio === SQUARE_RADIUS_RATIO ? box.radius : side * radiusRatio;
 
 
   ctx.fillStyle = "#000000";
@@ -348,7 +362,7 @@ export function smoothTimings(
 /**
  * Sous-titres prêts pour FFmpeg : UN PNG par mot affiché, avec sa fenêtre
  * temporelle (au lieu d'une image par frame). Le dessin est strictement le
- * même qu'avant (Anton, blanc, contour noir, ombre, centré à height * 0.5) :
+ * même qu'avant (Poppins 800, blanc, contour sombre fin, centré dans le carré) :
  * le rendu à l'écran est indiscernable, seule la mécanique change.
  *
  * Le logo Sophia, lui, est animé : il est produit en cues séparées (une par

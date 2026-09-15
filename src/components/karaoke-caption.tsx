@@ -4,6 +4,7 @@ import {
   CAPTION_FADE,
   CAPTION_MAX_WIDTH_RATIO,
   CAPTION_SIZE_RATIO,
+  SQUARE_CENTER_OFFSET_RATIO,
   SQUARE_MARGIN_RATIO,
   smoothTimings,
   sophiaWindow,
@@ -110,24 +111,27 @@ export function KaraokeCaption({ text, fallback, getMedia, words, showLogo = tru
       >
         {logoNode}
         <span
-          className="select-none truncate text-center tracking-tight text-white"
+          className="absolute left-1/2 select-none truncate text-center text-white"
           style={{
-            fontFamily: '"Anton", "Arial Narrow", Impact, sans-serif',
+            fontFamily: '"Poppins", "Nunito", "Baloo 2", sans-serif',
+            fontWeight: 800,
             // Même proportion que dans l'export MP4 : taille et largeur maximale
             // calculées sur le CÔTÉ DU CARRÉ, pas sur la largeur du cadre.
             maxWidth: `${(SIDE_RATIO * CAPTION_MAX_WIDTH_RATIO * 100).toFixed(1)}%`,
             fontSize: `${CAPTION_CQW.toFixed(2)}cqw`,
             lineHeight: 1.08,
             whiteSpace: "nowrap",
-            WebkitTextStroke: `${(CAPTION_CQW * 0.045).toFixed(3)}cqw #000`,
+            top: `${((0.5 + SQUARE_CENTER_OFFSET_RATIO) * 100).toFixed(2)}%`,
+            transform: "translate(-50%, -50%)",
+            WebkitTextStroke: `${(CAPTION_CQW * 0.03).toFixed(3)}cqw rgba(0,0,0,0.88)`,
             paintOrder: "stroke fill",
-            textShadow: `0 ${(CAPTION_CQW * 0.045).toFixed(3)}cqw ${(CAPTION_CQW * 0.18).toFixed(
+            textShadow: `0 ${(CAPTION_CQW * 0.06).toFixed(3)}cqw ${(CAPTION_CQW * 0.16).toFixed(
               3,
             )}cqw rgba(0,0,0,0.55)`,
             opacity: state.pop,
           }}
         >
-          {state.word.replace(/[«»"]/g, "")}
+          {state.word.replace(/[«»"]/g, "").toLocaleLowerCase()}
         </span>
       </div>
     );
