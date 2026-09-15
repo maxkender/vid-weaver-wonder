@@ -14,6 +14,8 @@ export const OUTPUT_FPS = 30;
  * Au-delà, le plan paraît mou et « bizarre » : on préfère le signaler.
  */
 const MAX_STRETCH = 1.2;
+/** Plan 1 : on entre dans le clip 0,6 s plus loin pour éviter la pose initiale. */
+const OPENING_CLIP_OFFSET = 0.6;
 /**
  * PAS de `loudnorm` ici : en passe unique il bascule en mode dynamique, ce qui
  * force tout le graphe audio à 192 kHz et multipliait par trois la durée du
