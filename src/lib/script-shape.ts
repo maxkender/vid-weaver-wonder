@@ -73,11 +73,15 @@ export function asHashtags(value: unknown): string[] {
   return out;
 }
 
+/**
+ * CONVENTION UNIQUE : l'index d'un plan est SA POSITION DANS LA LISTE, à
+ * partir de 0. C'est aussi la clé de stockage de ses médias. Le numéro montré
+ * à l'utilisateur est `index + 1`, jamais la clé.
+ */
 function asScene(value: unknown, index: number): SafeScene {
   const o = (value && typeof value === "object" ? value : {}) as Record<string, unknown>;
-  const declared = Number(o["index"]);
   return {
-    index: Number.isFinite(declared) && declared > 0 ? declared : index + 1,
+    index,
     narration: asText(o["narration"]),
     overlay: asText(o["overlay"]),
     imagePrompt: asText(o["imagePrompt"]),
