@@ -92,16 +92,28 @@ export const DEFAULT_LANGUAGE_BRIEF = [
 
 /** ACCROCHE — le plan 1 a ses propres règles, ce sont les plus importantes. */
 export const DEFAULT_HOOK_BRIEF = [
-  "L'ACCROCHE (plan 1) : c'est la seule phrase qui décide du sort de la vidéo. Elle doit remplir SIX CONDITIONS, toutes vérifiables une par une.",
-  "1. ELLE SE DIT D'UN SOUFFLE : douze mots maximum.",
-  "2. ELLE CONTIENT AU MOINS UN NOM CONCRET QU'ON POURRAIT PHOTOGRAPHIER : un crâne, une porte, une main, un os, une pièce de monnaie. INTERDIT : « mythe », « hypothèse », « phénomène », « civilisation », « légende », « théorie » et toute autre abstraction.",
-  "3. ELLE SONNE FAUX MAIS ELLE EST VRAIE : elle énonce une chose qui paraît impossible, ou révèle qu'une chose familière n'est pas ce qu'on croit. Le spectateur doit penser « attends, quoi ? ».",
-  "4. ELLE NE DONNE PAS LA RÉPONSE : le hook pose, la vidéo paie. Si l'explication est déjà dans le hook, la vidéo n'a plus de raison d'exister — c'est l'erreur la plus fréquente.",
-  "5. ELLE SE COMPREND SANS L'IMAGE, et l'image la renforce sans la répéter.",
-  "6. ELLE NE COMMENCE JAMAIS PAR UNE MISE EN CONTEXTE. Interdits en ouverture : « Saviez-vous que », « Il y a X ans », « Dans la Grèce antique », « Imagine », « Voici », « Selon », toute date, tout nom propre qui aurait besoin d'être expliqué.",
-  "ÉCART DE NIVEAU À COMPRENDRE (exemple du Cyclope) — TIÈDE, à rejeter : « Le monstre à un œil de l'Odyssée dort sous la terre en Sicile. » (abstrait, aucune contradiction). BON : « Des bergers grecs ont déterré un crâne avec un seul œil au milieu du front. » BON : « Le cyclope a vraiment existé. Il mesurait un mètre. »",
-  "On s'adresse à la personne, avec « tu », dès que le sujet le permet.",
-  "TU PROPOSES TROIS accroches candidates dans hookOptions. Tu NOTES chacune sur les six conditions dans hookScores (une ligne par candidate : le texte, les conditions remplies, celles qui manquent). Tu gardes la meilleure : elle devient le champ hook ET la narration du plan 1, mot pour mot. Tu expliques ton choix en UNE ligne dans hookChoice.",
+  "L'ACCROCHE (plan 1) : elle décide du sort de la vidéo. AVANT D'ÉCRIRE, RELIS LES NEUF ACCROCHES DE RÉFÉRENCE CI-DESSOUS ET PRODUIS UNE ACCROCHE DE LA MÊME FAMILLE. Elles sont la vérité en matière de ton et de mécanique — elles priment sur toute autre consigne.",
+  "",
+  "LES NEUF ACCROCHES DE RÉFÉRENCE (mot pour mot) :",
+  "1. « Le Spider Sense de Spider-Man n'a pas été inventé. Il a été copié sur les vraies araignées. Et dans la nature, il fonctionne encore mieux que dans le film. »",
+  "2. « De tous les pouvoirs de Spider-Man, un seul est vraiment impossible : grimper au mur. »",
+  "3. « Un incendie assez grand ne subit plus la météo, il fabrique la sienne. »",
+  "4. « Plus tu grandis, plus le temps passe vite. Il y a une vraie raison à ça et il existe même un moyen de le ralentir. »",
+  "5. « La ville de Troie a vraiment existé. Tout le monde la croyait inventée, jusqu'à ce qu'un marchand allemand, obsédé par Homère, creuse en suivant le texte comme une carte et la trouve. »",
+  "6. « La scène où Spider-Man arrête un train est peut-être le moment le plus scientifiquement correct du cinéma de super-héros. »",
+  "7. « Le Cyclope de l'Odyssée a une origine bien réelle. Les Grecs avaient des preuves : de vrais crânes géants percés d'un trou unique. »",
+  "8. « Cette tornade qui vient de frapper la France pourrait être un avant-goût de ce qui nous attend dans les prochaines années. »",
+  "9. « Les personnes qui vivent plus de 110 ans semblent partager une particularité biologique étonnante. Elles se cachent dans leur sang. »",
+  "",
+  "LA MÉCANIQUE COMMUNE, À APPLIQUER TELLE QUELLE :",
+  "• DEUX PHRASES COURTES, pas une. La première pose une AFFIRMATION nette, énoncée comme un fait. La seconde amorce la preuve ou désigne où se cache le mystère. Environ 20 à 30 MOTS au total, soit les 6 à 8 premières secondes.",
+  "• ANCRAGE FAMILIER + RENVERSEMENT : le hook s'appuie TOUJOURS sur une chose que le spectateur connaît déjà — un film, un personnage de mythologie, une expérience personnelle, une actualité — puis lui dit que ce n'est pas ce qu'il croit.",
+  "• LE HOOK PEUT DONNER LA CONCLUSION. « Le Cyclope de l'Odyssée a une origine bien réelle », « La ville de Troie a vraiment existé » : la réponse est annoncée d'emblée. La tension ne porte pas sur QUOI, mais sur COMMENT. On reste pour le mécanisme, pas pour la révélation.",
+  "• TON AFFIRMATIF ET DIRECT. Aucune question rhétorique, aucun « saviez-vous », aucune mise en contexte historique avant l'affirmation. Jamais « Imagine », « Voici », « Selon », jamais une date en ouverture, jamais un nom propre qu'il faudrait expliquer.",
+  "• TUTOIEMENT dès que le sujet touche personnellement le spectateur (« Plus tu grandis, plus le temps passe vite. »).",
+  "• La preuve arrive IMMÉDIATEMENT, dès la deuxième phrase du hook, jamais au cinquième plan.",
+  "",
+  "TU PROPOSES TROIS accroches candidates dans hookOptions, toutes construites sur cette mécanique. Tu NOTES chacune dans hookScores (une ligne par candidate : deux phrases ? 20-30 mots ? ancrage familier ? renversement ? ton affirmatif ? preuve amorcée ?). Tu gardes la meilleure : elle devient le champ hook ET la narration du plan 1, mot pour mot. Tu expliques ton choix en UNE ligne dans hookChoice.",
 ].join("\n");
 
 /**
