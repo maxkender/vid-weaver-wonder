@@ -116,10 +116,22 @@ async function assembleVideoInner(
     height: number;
     music?: Blob | undefined;
     musicVolume?: number | undefined;
+    /** Langue du montage, pour nommer la langue dans les avertissements. */
+    langLabel?: string | undefined;
+    /** Signalé quand un plan doit être ralenti au-delà du plafond. */
+    onStretchWarning?: ((message: string) => void) | undefined;
     onProgress?: (step: string, ratio: number) => void;
   },
 ): Promise<Blob> {
-  const { width, height, music, musicVolume = 0.14, onProgress } = opts;
+  const {
+    width,
+    height,
+    music,
+    musicVolume = 0.22,
+    langLabel,
+    onStretchWarning,
+    onProgress,
+  } = opts;
   const ffmpeg = await getFFmpeg();
   const parts: string[] = [];
 
