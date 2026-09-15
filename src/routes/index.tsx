@@ -1151,6 +1151,9 @@ function Studio() {
               overlay: byIndex.get(s.index)?.overlay ?? s.overlay,
             })),
           };
+          // Mémorise le texte source d'où vient cette traduction : tant qu'il
+          // ne change pas, on ne repaiera jamais la même traduction.
+          translationSourceRef.current[lang] = sig;
           toast.success(`Script traduit — ${languageLabel(lang)}`);
         } catch (e) {
           toast.error(
@@ -1164,6 +1167,9 @@ function Studio() {
       return next;
     } finally {
       setTranslating(false);
+      // L'en-tête ne doit jamais rester sur une étape terminée.
+      setCurrentStep("");
+      setAssembleStep("");
     }
   };
 
