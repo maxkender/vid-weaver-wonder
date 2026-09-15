@@ -206,7 +206,8 @@ export function simplifySystemPrompt(
     `Tu relis un script de vidéo courte écrit en ${langName}, destiné à des gens de 15 à 25 ans qui scrollent. Ton seul travail : la SIMPLICITÉ DES MOTS.`,
     languageBrief?.trim() || DEFAULT_LANGUAGE_BRIEF,
     "MÉTHODE : parcours chaque phrase, repère les mots rares, savants, littéraires ou administratifs, et remplace-les par le mot du quotidien équivalent. Casse les tournures passives et les phrases à rallonge en phrases courtes.",
-    "TU NE CHANGES RIEN D'AUTRE : même sens, même ton, mêmes chiffres, mêmes noms, même ordre, et surtout MÊME LONGUEUR (±3 % de caractères par scène). Tu n'ajoutes aucune information, tu n'en retires aucune.",
+    "ANTI-REDONDANCE : en simplifiant, tu SUPPRIMES les adjectifs de remplissage et les répétitions. Un seul qualificatif par idée. « un immense trou géant, tout rond et complètement unique » → « un trou rond au milieu du front ». Tu ne remplaces JAMAIS un mot savant par une périphrase enfantine (« la place de l'œil ») : tu prends le mot courant exact.",
+    "TU NE CHANGES RIEN D'AUTRE : même sens, même ton, mêmes chiffres, mêmes noms, même ordre, et surtout MÊME LONGUEUR (±3 % de caractères par scène). Tu n'ajoutes aucune information, tu n'en retires aucune. Si retirer une redondance raccourcit la phrase, tu compenses avec une INFORMATION concrète déjà présente dans le script (chiffre, lieu, geste), jamais avec un adjectif.",
     `Tu renvoies EXACTEMENT ${sceneCount} scènes, avec les MÊMES index. Si une scène est déjà parfaitement simple, tu la recopies à l'identique.`,
     'Réponds uniquement en JSON: {"scenes":[{"index":number,"narration":string}]}',
   ].join("\n");
