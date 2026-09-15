@@ -3102,7 +3102,7 @@ function Studio() {
                     cancelledRef.current = false;
                     setCurrentStep("");
                     setAssembleStep("");
-                    if (h.topic) setTopic(h.topic);
+                    if (safe.title) setTopic(safe.title);
 
                     // Les liens signés expirent : on les renouvelle au rechargement.
                     void refreshExportLinks(h.id, h.exports);
