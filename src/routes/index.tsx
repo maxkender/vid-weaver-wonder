@@ -3274,10 +3274,11 @@ function Studio() {
         open={confirmOpen}
         onOpenChange={(open) => {
           setConfirmOpen(open);
-          if (!open && confirmResolverRef.current) {
+          if (!open) {
+            confirmOpenRef.current = false;
             const resolve = confirmResolverRef.current;
             confirmResolverRef.current = null;
-            resolve(false);
+            resolve?.(false);
           }
         }}
       >
