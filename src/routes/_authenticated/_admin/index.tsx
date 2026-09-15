@@ -2170,6 +2170,17 @@ function Studio() {
       }
       item.st = { ...item.st, voices: { ...(item.st.voices ?? {}), [lang]: res } };
     }
+    // DERNIER VERROU AVANT FFMPEG : aucun plan ne part sans voix off. Si l'un
+    // d'eux manque encore, on nomme précisément lesquels plutôt que de monter
+    // une vidéo muette par endroits.
+    const missing = all.filter((x) => !voiceOf(x.st, lang)).map((x) => x.scene.index + 1);
+    if (missing.length) {
+      throw new Error(
+        `Montage annulé (${languageLabel(lang)}) : voix off manquante pour ${
+          missing.length > 1 ? "les plans" : "le plan"
+        } ${missing.join(", ")}. Relance la voix off de ${missing.length > 1 ? "ces plans" : "ce plan"}.`,
+      );
+    }
     const ordered = all;
 
     // Papier découpé : masque carré à coins arrondis, toujours présent.
