@@ -638,6 +638,16 @@ function Studio() {
     [sourceLang, langs, voiceByLang],
   );
 
+  /** Le coût consommé suit le projet : il reste lisible dans l'historique. */
+  useEffect(() => {
+    if (!projectId || !hasUsage(usage)) return;
+    const items = readHistory();
+    if (!items.some((h) => h.id === projectId)) return;
+    const updated = items.map((h) => (h.id === projectId ? { ...h, usage } : h));
+    writeHistory(updated);
+    setHistory(updated);
+  }, [projectId, usage]);
+
   /** Range le lien d'une vidéo exportée avec le projet (survit au rechargement). */
   const saveExportToHistory = useCallback((id: string, lang: string, info: ExportInfo) => {
     const items = readHistory();
