@@ -443,3 +443,24 @@ export function factCheckSystemPrompt(langName: string, languageBrief?: string) 
     'Réponds uniquement en JSON: {"correctedTopic":string,"verdict":"ok"|"revoir","note":string,"facts":string[],"discarded":string[]}',
   ].join("\n");
 }
+
+/**
+ * CONTRÔLE FINAL — le modèle relit son propre script comme un spectateur qui
+ * scrolle : il désigne le plan le plus faible, dit ce qu'on a appris, et
+ * réécrit CE SEUL plan. Une passe, jamais de boucle.
+ */
+export function auditSystemPrompt(
+  langName: string,
+  sceneCount: number,
+  auditBrief?: string,
+  languageBrief?: string,
+) {
+  return [
+    `Tu relis un script de vidéo courte écrit en ${langName}. Il compte ${sceneCount} plans, numérotés à partir de 0.`,
+    auditBrief?.trim() || DEFAULT_AUDIT_BRIEF,
+    `NIVEAU DE LANGUE du plan réécrit (inchangé) :\n${languageBrief?.trim() || DEFAULT_LANGUAGE_BRIEF}`,
+    "TEST DE SUPPRESSION : pour chaque plan, demande-toi ce que le spectateur perdrait si on le coupait. Le plan dont la perte est la plus faible est le plan le plus faible.",
+    "Tu ne renvoies QU'UN SEUL plan réécrit : celui que tu as désigné. Tu gardes son index et sa longueur (±10 % de caractères).",
+    'Réponds uniquement en JSON: {"weakest":number,"reason":string,"learned":string,"narration":string}',
+  ].join("\n");
+}
