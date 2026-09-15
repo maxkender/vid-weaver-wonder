@@ -398,10 +398,9 @@ async function assembleVideoInner(
         // normalize=0 : sans ça, amix divise chaque entrée par 2 et la voix off
         // perd 6 dB dès qu'une musique est présente. Seule la musique est
         // atténuée, par son propre filtre volume.
-        // La musique est elle aussi normalisée (même cible que la voix) AVANT
-        // d'être atténuée : elle est donc posée à un niveau fixe sous la voix,
-        // et non à un pourcentage d'un signal brut au niveau imprévisible.
-        `[1:a]${LOUDNORM},volume=${musicVolume}[bg];[0:a][bg]amix=inputs=2:duration=first:dropout_transition=0:normalize=0[a]`,
+        // Gain du morceau mesuré UNE SEULE FOIS (banque musicale) + atténuation
+        // sous la voix : une simple multiplication, sans rééchantillonnage.
+        `[1:a]volume=${(musicGainDb + linearToDb(musicVolume)).toFixed(2)}dB[bg];[0:a][bg]amix=inputs=2:duration=first:dropout_transition=0:normalize=0[a]`,
         "-map",
         "0:v:0",
         "-map",
@@ -412,6 +411,13 @@ async function assembleVideoInner(
         "aac",
         "-b:a",
         "160k",
+        // Fréquence et canaux imposés : sinon la sortie dépend de ce que le
+        // graphe a négocié (on est déjà sorti en 96 kHz par accident).
+        "-ar",
+        "44100",
+        "-ac",
+        "2",
+
         "-movflags",
         "+faststart",
         "-y",
