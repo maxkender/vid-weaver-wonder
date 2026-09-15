@@ -1,5 +1,6 @@
 import { chatJSON } from "./ai-gateway.server";
 import {
+  auditSystemPrompt,
   scriptSystemPrompt,
   simplifySystemPrompt,
   scriptUserPrompt,
@@ -55,6 +56,10 @@ export type BuildScriptInput = {
   languageBrief?: string | undefined;
   /** Règles de l'accroche (page Paramètres). */
   hookBrief?: string | undefined;
+  /** Structure des plans, information nouvelle et densité (page Paramètres). */
+  structureBrief?: string | undefined;
+  /** Relecture finale « à quelle seconde je scrolle ? » (page Paramètres). */
+  auditBrief?: string | undefined;
 };
 
 /**
@@ -141,6 +146,7 @@ export async function buildScript(data: BuildScriptInput): Promise<Script> {
       },
       data.languageBrief,
       data.hookBrief,
+      data.structureBrief,
     ),
     `${scriptUserPrompt(data.kind, data.topic)}\nÉcris tout le script en ${langName}.`,
   );
@@ -160,6 +166,7 @@ export async function buildScript(data: BuildScriptInput): Promise<Script> {
     }
   }
   script.hookOptions = (script.hookOptions ?? []).map((h) => String(h).trim()).filter(Boolean);
+  script.hookScores = (script.hookScores ?? []).map((h) => String(h).trim()).filter(Boolean);
   script.hookChoice = (script.hookChoice ?? "").trim();
 
 
@@ -263,6 +270,46 @@ export async function buildScript(data: BuildScriptInput): Promise<Script> {
   } catch {
     // relecture best-effort
   }
+
+  // CONTRÔLE FINAL — le modèle relit son script comme un spectateur qui scrolle,
+  // nomme le plan le plus faible, dit ce qu'on a appris, et réécrit CE SEUL
+  // plan. UNE seule passe, jamais de boucle, et jamais sur l'accroche à la
+  // dérobée : la longueur du plan est bornée pour ne pas défaire le calage.
+  try {
+    const audit = await chatJSON<{
+      weakest: number;
+      reason: string;
+      learned: string;
+      narration: string;
+    }>(
+      "google/gemini-3.7-flash",
+      auditSystemPrompt(langName, script.scenes.length, data.auditBrief, data.languageBrief),
+      `Scènes (JSON) : ${JSON.stringify(
+        script.scenes.map((s) => ({ index: s.index, narration: s.narration })),
+      )}`,
+      0.3,
+    );
+    const weakest = Number(audit?.weakest);
+    const target = script.scenes[weakest];
+    const rewritten = (audit?.narration ?? "").trim();
+    script.audit = {
+      weakest: Number.isFinite(weakest) ? weakest : -1,
+      reason: (audit?.reason ?? "").trim(),
+      learned: (audit?.learned ?? "").trim(),
+    };
+    if (target && rewritten) {
+      const before = (target.narration ?? "").length;
+      // Le plan réécrit garde sa longueur : sinon toute la durée se décale.
+      if (before === 0 || Math.abs(rewritten.length - before) / before <= 0.2) {
+        target.narration = rewritten;
+        if (weakest === 0) script.hook = rewritten;
+      }
+    }
+  } catch {
+    // contrôle final best-effort : un échec ne bloque jamais la production
+  }
+
+
 
 
   // « Sophia » n'est prononcé qu'une seule fois, dans le CTA final — et jamais

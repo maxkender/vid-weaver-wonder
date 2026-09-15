@@ -1,6 +1,8 @@
 import {
+  DEFAULT_AUDIT_BRIEF,
   DEFAULT_HOOK_BRIEF,
   DEFAULT_LANGUAGE_BRIEF,
+  DEFAULT_STRUCTURE_BRIEF,
   DEFAULT_MOTION,
   DEFAULT_QUALITY,
   DEFAULT_STYLE_BRIEF,
@@ -38,6 +40,13 @@ export type Script = {
   hookOptions?: string[];
   /** Justification en une ligne du choix d'accroche, affichée dans le studio. */
   hookChoice?: string;
+  /** Note des trois accroches sur les six conditions, une ligne par candidate. */
+  hookScores?: string[];
+  /**
+   * Relecture finale « spectateur qui scrolle » : plan le plus faible désigné,
+   * ce qu'on a appris, et la raison. Le plan désigné est réécrit une fois.
+   */
+  audit?: { weakest: number; reason: string; learned: string };
   scenes: Scene[];
   /** Message clair quand la longueur reste hors cible après les 3 passes. */
   lengthNote?: string;
@@ -99,6 +108,8 @@ export function scriptSystemPrompt(
   languageBrief?: string,
   /** Règles propres à l'accroche (modifiables depuis la page Paramètres). */
   hookBrief?: string,
+  /** Fonction de chaque plan, information nouvelle et densité (Paramètres). */
+  structureBrief?: string,
 ) {
   // Fourchette resserrée : la borne basse ne doit jamais autoriser un plan de 3 s.
   const lo = Math.max(14, Math.round(wordsPerScene - 2));
@@ -124,6 +135,9 @@ export function scriptSystemPrompt(
     "Le champ hook reprend exactement la ou les phrases de la scène 1.",
 
     "",
+    `RÈGLE N°1 TER — STRUCTURE, INFORMATION ET DENSITÉ (aussi importante que l'accroche) :\n${structureBrief?.trim() || DEFAULT_STRUCTURE_BRIEF}`,
+
+    "",
     `RÈGLE N°1 BIS — NIVEAU DE LANGUE (règle éliminatoire, elle prime sur le style) :\n${languageBrief?.trim() || DEFAULT_LANGUAGE_BRIEF}`,
 
     "",
@@ -135,7 +149,7 @@ export function scriptSystemPrompt(
 
     "",
     "RÈGLE N°3 — ÉCRITURE : phrases très courtes. Les phrases nominales et les fragments sont encouragés (« Un système d'alerte de proximité câblé dans 8 pattes. », « Le Cyclope était né. », « Une araignée de 70 kilos, non. »). Une idée par phrase. Tutoiement. Ton oral, direct, jamais publicitaire. Vocabulaire du quotidien, écrit pour quelqu'un de 15 ans.",
-    "CHIFFRES : au moins TROIS chiffres précis et vérifiables par script (proportions, dates, distances, tailles, pourcentages). Ils sont le cœur de la crédibilité. Ils sont interdits uniquement dans l'accroche.",
+    "CHIFFRES : DEUX À QUATRE chiffres précis et vérifiables dans toute la vidéo, jamais plus — au-delà on fait un cours. Chacun est comparé à quelque chose de familier. Ils sont le cœur de la crédibilité, et ils sont interdits dans l'accroche sauf s'ils y créent la contradiction (« Il mesurait un mètre. »).",
     "MOT TECHNIQUE : tu as le droit à UN seul terme technique précis par script (trichobothries, pyrocumulonimbus, lymphocytes T), une seule fois, et immédiatement expliqué en mots du quotidien juste après.",
     "RELANCES : des micro-questions très courtes à l'intérieur du texte pour relancer l'attention (« Comment c'est possible ? », « Le remède ? », « Un insecte qui approche ? »). Jamais en ouverture, jamais plus de deux par script.",
     "CHUTE : la dernière phrase recadre tout d'un coup ; elle est courte et frappante. Jamais une morale, jamais un appel à l'action, jamais un résumé. Bonnes formes : « Le monstre le plus célèbre de la mythologie est une erreur de paléontologie commise 2 500 ans avant son invention. » / « À ce stade, ce n'est plus un incendie qu'on combat. C'est un système météo. »",
@@ -187,8 +201,8 @@ export function scriptSystemPrompt(
     includeCta
       ? "UN SEUL CTA : le CTA Sophia est écrit UNIQUEMENT dans le champ cta (texte prêt à être lu à voix haute), adapté au sujet. Aucune scène du tableau scenes ne doit parler de l'appli, de téléchargement ou de cours gratuits. Le mot « Sophia » n'apparaît qu'une seule fois dans TOUT le script."
       : "AUCUNE PUBLICITÉ : le champ cta doit rester une chaîne VIDE. Le script ne mentionne JAMAIS Sophia, une application, un téléchargement, un abonnement ou un appel à l'action. Il se termine sur sa phrase de chute.",
-    "hookOptions contient TROIS accroches différentes (douze mots maximum chacune). hook contient celle que tu retiens, recopiée telle quelle dans la narration de la scène 1. hookChoice explique ton choix en UNE ligne.",
-    'Réponds uniquement en JSON: {"title":string,"hook":string,"hookOptions":string[],"hookChoice":string,"characters":[{"name":string,"description":string}],"palette":string,"scenes":[{"index":number,"narration":string,"overlay":string,"imagePrompt":string,"videoPrompt":string}],"cta":string,"hashtags":string[]}',
+    "hookOptions contient TROIS accroches candidates (douze mots maximum chacune). hookScores contient TROIS lignes, une par candidate, qui la notent sur les six conditions (conditions remplies / conditions manquées). hook contient celle que tu retiens, recopiée telle quelle dans la narration de la scène 1. hookChoice explique ton choix en UNE ligne.",
+    'Réponds uniquement en JSON: {"title":string,"hook":string,"hookOptions":string[],"hookScores":string[],"hookChoice":string,"characters":[{"name":string,"description":string}],"palette":string,"scenes":[{"index":number,"narration":string,"overlay":string,"imagePrompt":string,"videoPrompt":string}],"cta":string,"hashtags":string[]}',
   ].join("\n");
 }
 
@@ -427,5 +441,26 @@ export function factCheckSystemPrompt(langName: string, languageBrief?: string) 
     "verdict : « ok » si l'affirmation CENTRALE du sujet tient ; « revoir » si elle est fausse ou invérifiable — dans ce cas, explique pourquoi dans note et ne cherche pas à sauver le sujet.",
     "note : une phrase en clair sur ce qui a été rectifié.",
     'Réponds uniquement en JSON: {"correctedTopic":string,"verdict":"ok"|"revoir","note":string,"facts":string[],"discarded":string[]}',
+  ].join("\n");
+}
+
+/**
+ * CONTRÔLE FINAL — le modèle relit son propre script comme un spectateur qui
+ * scrolle : il désigne le plan le plus faible, dit ce qu'on a appris, et
+ * réécrit CE SEUL plan. Une passe, jamais de boucle.
+ */
+export function auditSystemPrompt(
+  langName: string,
+  sceneCount: number,
+  auditBrief?: string,
+  languageBrief?: string,
+) {
+  return [
+    `Tu relis un script de vidéo courte écrit en ${langName}. Il compte ${sceneCount} plans, numérotés à partir de 0.`,
+    auditBrief?.trim() || DEFAULT_AUDIT_BRIEF,
+    `NIVEAU DE LANGUE du plan réécrit (inchangé) :\n${languageBrief?.trim() || DEFAULT_LANGUAGE_BRIEF}`,
+    "TEST DE SUPPRESSION : pour chaque plan, demande-toi ce que le spectateur perdrait si on le coupait. Le plan dont la perte est la plus faible est le plan le plus faible.",
+    "Tu ne renvoies QU'UN SEUL plan réécrit : celui que tu as désigné. Tu gardes son index et sa longueur (±10 % de caractères).",
+    'Réponds uniquement en JSON: {"weakest":number,"reason":string,"learned":string,"narration":string}',
   ].join("\n");
 }

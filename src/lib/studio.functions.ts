@@ -61,6 +61,10 @@ export const generateScript = createServerFn({ method: "POST" })
         languageBrief: z.string().max(4000).optional(),
         /** Règles de l'accroche (page Paramètres). */
         hookBrief: z.string().max(4000).optional(),
+        /** Structure des plans, information nouvelle et densité (Paramètres). */
+        structureBrief: z.string().max(8000).optional(),
+        /** Relecture finale du plan le plus faible (Paramètres). */
+        auditBrief: z.string().max(4000).optional(),
       })
       .parse(input),
   )

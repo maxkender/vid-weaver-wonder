@@ -252,6 +252,12 @@ type Scene = {
 type Script = {
   title: string;
   hook: string;
+  /** Les trois accroches candidates, leur note et la raison du choix. */
+  hookOptions?: string[];
+  hookScores?: string[];
+  hookChoice?: string;
+  /** Relecture finale : plan le plus faible, pourquoi, et ce qu'on apprend. */
+  audit?: { weakest: number; reason: string; learned: string };
   scenes: Scene[];
   cta: string;
   hashtags: string[];
@@ -1135,6 +1141,8 @@ function Studio() {
           // Niveau de langue et règles d'accroche (page Paramètres).
           languageBrief: settings.guides.language,
           hookBrief: settings.guides.hook,
+          structureBrief: settings.guides.structure,
+          auditBrief: settings.guides.audit,
         },
       })) as Script;
       setScript(result);
@@ -3235,6 +3243,55 @@ function Studio() {
             <div className="surface-card p-4">
               <h2 className="text-lg font-semibold">{script.title}</h2>
               <p className="mt-1 text-sm text-muted-foreground">{script.hook}</p>
+
+              {/* ACCROCHE — les trois candidates, leur note sur les six
+                  conditions et la raison du choix, pour pouvoir juger. */}
+              {(script.hookOptions ?? []).length > 1 && (
+                <div className="mt-3 rounded-[10px] border border-border p-3">
+                  <span className="label-x">Accroches proposées</span>
+                  <ul className="mt-1.5 space-y-1.5 text-sm">
+                    {(script.hookOptions ?? []).map((h, i) => {
+                      const kept = h.trim() === (script.hook ?? "").trim();
+                      return (
+                        <li key={`${h}-${i}`} className={kept ? "" : "text-muted-foreground"}>
+                          <span className="mr-1.5 text-xs uppercase">
+                            {kept ? "retenue" : "écartée"}
+                          </span>
+                          {h}
+                          {(script.hookScores ?? [])[i] && (
+                            <span className="block text-xs text-muted-foreground">
+                              {(script.hookScores ?? [])[i]}
+                            </span>
+                          )}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                  {script.hookChoice && (
+                    <p className="mt-2 text-xs text-muted-foreground">{script.hookChoice}</p>
+                  )}
+                </div>
+              )}
+
+              {/* CONTRÔLE FINAL — « à quelle seconde je scrolle ? ». */}
+              {script.audit && (script.audit.reason || script.audit.learned) && (
+                <div className="mt-3 rounded-[10px] border border-border p-3 text-sm">
+                  <span className="label-x">Relecture « spectateur qui scrolle »</span>
+                  {script.audit.reason && (
+                    <p className="mt-1.5">
+                      Plan le plus faible
+                      {script.audit.weakest >= 0 ? ` (plan ${script.audit.weakest + 1})` : ""} —{" "}
+                      {script.audit.reason} Il a été réécrit une fois.
+                    </p>
+                  )}
+                  {script.audit.learned && (
+                    <p className="mt-1 text-muted-foreground">
+                      Ce qu'on apprend : {script.audit.learned}
+                    </p>
+                  )}
+                </div>
+              )}
+
 
               <div className="mt-4 rounded-[10px] border border-border p-3">
                 <span className="label-x">Outro Sophia (fixe sur toutes les vidéos)</span>

@@ -92,12 +92,49 @@ export const DEFAULT_LANGUAGE_BRIEF = [
 
 /** ACCROCHE — le plan 1 a ses propres règles, ce sont les plus importantes. */
 export const DEFAULT_HOOK_BRIEF = [
-  "L'ACCROCHE (plan 1) : c'est la phrase la plus importante des soixante secondes, elle décide si la personne arrête de scroller.",
-  "DOUZE MOTS MAXIMUM. On attaque DIRECTEMENT par la chose étrange. Jamais de mise en contexte, jamais « saviez-vous que », jamais une date, jamais un lieu en ouverture.",
-  "Elle crée un MANQUE : le spectateur doit sentir qu'il lui manque une information et vouloir la suite. On AFFIRME d'abord, on explique après.",
+  "L'ACCROCHE (plan 1) : c'est la seule phrase qui décide du sort de la vidéo. Elle doit remplir SIX CONDITIONS, toutes vérifiables une par une.",
+  "1. ELLE SE DIT D'UN SOUFFLE : douze mots maximum.",
+  "2. ELLE CONTIENT AU MOINS UN NOM CONCRET QU'ON POURRAIT PHOTOGRAPHIER : un crâne, une porte, une main, un os, une pièce de monnaie. INTERDIT : « mythe », « hypothèse », « phénomène », « civilisation », « légende », « théorie » et toute autre abstraction.",
+  "3. ELLE SONNE FAUX MAIS ELLE EST VRAIE : elle énonce une chose qui paraît impossible, ou révèle qu'une chose familière n'est pas ce qu'on croit. Le spectateur doit penser « attends, quoi ? ».",
+  "4. ELLE NE DONNE PAS LA RÉPONSE : le hook pose, la vidéo paie. Si l'explication est déjà dans le hook, la vidéo n'a plus de raison d'exister — c'est l'erreur la plus fréquente.",
+  "5. ELLE SE COMPREND SANS L'IMAGE, et l'image la renforce sans la répéter.",
+  "6. ELLE NE COMMENCE JAMAIS PAR UNE MISE EN CONTEXTE. Interdits en ouverture : « Saviez-vous que », « Il y a X ans », « Dans la Grèce antique », « Imagine », « Voici », « Selon », toute date, tout nom propre qui aurait besoin d'être expliqué.",
+  "ÉCART DE NIVEAU À COMPRENDRE (exemple du Cyclope) — TIÈDE, à rejeter : « Le monstre à un œil de l'Odyssée dort sous la terre en Sicile. » (abstrait, aucune contradiction). BON : « Des bergers grecs ont déterré un crâne avec un seul œil au milieu du front. » BON : « Le cyclope a vraiment existé. Il mesurait un mètre. »",
   "On s'adresse à la personne, avec « tu », dès que le sujet le permet.",
-  "Elle se comprend SANS l'image ; l'image la renforce sans la répéter.",
-  "TU PROPOSES TROIS accroches différentes dans hookOptions, puis tu choisis la meilleure selon ces critères : elle devient le champ hook ET la narration du plan 1, mot pour mot. Tu justifies ton choix en UNE ligne dans hookChoice.",
+  "TU PROPOSES TROIS accroches candidates dans hookOptions. Tu NOTES chacune sur les six conditions dans hookScores (une ligne par candidate : le texte, les conditions remplies, celles qui manquent). Tu gardes la meilleure : elle devient le champ hook ET la narration du plan 1, mot pour mot. Tu expliques ton choix en UNE ligne dans hookChoice.",
+].join("\n");
+
+/**
+ * STRUCTURE DES HUIT PLANS + règle d'information et de densité. Chaque plan a
+ * une fonction ; aucun n'est décoratif. C'est cette règle qui règle aussi la
+ * durée : un plan trop court manque de matière, pas de mots.
+ */
+export const DEFAULT_STRUCTURE_BRIEF = [
+  "STRUCTURE — CHAQUE PLAN A UNE FONCTION, AUCUN N'EST DÉCORATIF (adapte les proportions si le nombre de plans diffère de huit, mais garde l'ordre) :",
+  "• Plan 1 : LE HOOK.",
+  "• Plans 2-3 : LA SCÈNE. Où, qui, quand, avec un détail sensoriel concret et UN chiffre. On plante l'image.",
+  "• Plans 4-5 : L'ESCALADE. À chaque plan, un détail qui rend la chose PLUS étrange que le plan précédent. C'est ici qu'on retient le spectateur.",
+  "• Plan 6 : LE RETOURNEMENT. « Sauf que… » : le moment où ce qu'on croyait bascule.",
+  "• Plan 7 : L'EXPLICATION VRAIE, dite simplement, sans jargon.",
+  "• Plan 8 : LA CHUTE. Une dernière phrase qui recontextualise et qu'on a envie de répéter à quelqu'un. Jamais une morale, jamais « comme quoi… », jamais « le saviez-vous ? ».",
+  "",
+  "RÈGLE D'INFORMATION (celle qui règle tout) : chaque plan apporte UNE information NOUVELLE, absente des plans précédents. TEST À APPLIQUER AVANT DE RÉPONDRE : supprime mentalement chaque plan ; si le spectateur n'a rien perdu, ce plan est du remplissage et tu le réécris.",
+  "DEUX PLANS QUI SE SUIVENT NE PEUVENT PAS RÉPÉTER LE MÊME MOT-CLÉ. Exemple de faute réelle : « d'énormes crânes » au plan 2 puis « ces énormes têtes » au plan 3.",
+  "POUR ALLONGER UN PLAN, on ajoute une INFORMATION concrète — un chiffre, un lieu, un geste, une conséquence — JAMAIS un adjectif.",
+  "",
+  "DENSITÉ : DEUX À QUATRE chiffres précis dans toute la vidéo, jamais plus — au-delà c'est un cours. Chaque chiffre est comparé à quelque chose de familier (« deux fois la taille d'un crâne humain », « haut d'un mètre, comme un gros chien »). Aucun nom propre difficile. Aucune date isolée sans repère.",
+].join("\n");
+
+/**
+ * CONTRÔLE FINAL : le modèle relit son script comme un spectateur qui scrolle,
+ * désigne le plan le plus faible et le réécrit UNE seule fois.
+ */
+export const DEFAULT_AUDIT_BRIEF = [
+  "Tu relis ce script comme un spectateur de 17 ans qui scrolle à une vidéo par seconde, pas comme son auteur. Tu es sévère.",
+  "Tu réponds à DEUX questions :",
+  "• « À quelle seconde est-ce que je scrolle ? » → tu nommes LE plan le plus faible (son index) et tu dis en une phrase pourquoi : pas d'information nouvelle, répétition du plan précédent, phrase molle, ou détail inutile.",
+  "• « Qu'est-ce que j'ai appris que je ne savais pas ? » → tu le dis en UNE phrase.",
+  "Puis tu RÉÉCRIS ce seul plan : même fonction dans la structure, même longueur en caractères (±10 %), mais une information concrète de plus et zéro répétition du plan voisin. Tu ne touches à AUCUN autre plan.",
 ].join("\n");
 
 /**
@@ -188,7 +225,7 @@ export type StudioSettings = {
    * Consignes éditoriales communes : niveau de langue, accroche, rotation des
    * types de plan. Elles s'appliquent à l'écriture, à la traduction et aux images.
    */
-  guides: { language: string; hook: string; shots: string };
+  guides: { language: string; hook: string; structure: string; audit: string; shots: string };
   /** Cohérence visuelle : réutiliser la 1ʳᵉ image comme référence des suivantes. */
   useReferenceImage: boolean;
   /** Volume de la musique de fond dans l'export. */
@@ -236,7 +273,8 @@ export function visualPath(id: VisualStyleId, key: "brief" | "quality" | "motion
 export function openingPath(key: "motion" | "image"): FieldPath {
   return `opening.first.${key}`;
 }
-export function guidePath(key: "language" | "hook" | "shots"): FieldPath {
+export type GuideKey = "language" | "hook" | "structure" | "audit" | "shots";
+export function guidePath(key: GuideKey): FieldPath {
   return `guides.first.${key}`;
 }
 
@@ -249,7 +287,11 @@ export function defaultFieldValue(path: FieldPath): string {
       ? DEFAULT_LANGUAGE_BRIEF
       : key === "hook"
         ? DEFAULT_HOOK_BRIEF
-        : DEFAULT_SHOT_BRIEF;
+        : key === "structure"
+          ? DEFAULT_STRUCTURE_BRIEF
+          : key === "audit"
+            ? DEFAULT_AUDIT_BRIEF
+            : DEFAULT_SHOT_BRIEF;
   if (group === "opening")
     return key === "motion" ? DEFAULT_OPENING_MOTION : DEFAULT_OPENING_IMAGE;
   if (key === "brief") return DEFAULT_VISUAL_BRIEF[id as VisualStyleId] ?? "";
@@ -262,7 +304,7 @@ function readField(settings: StudioSettings, path: FieldPath): string {
   const [group, id, key] = path.split(".");
   if (group === "narration") return settings.narration[id as NarrationStyleId]?.brief ?? "";
   if (group === "guides")
-    return settings.guides?.[key as "language" | "hook" | "shots"] ?? "";
+    return settings.guides?.[key as GuideKey] ?? "";
   if (group === "opening") return settings.opening?.[key as "motion" | "image"] ?? "";
   const v = settings.visual[id as VisualStyleId];
   return (v?.[key as "brief" | "quality" | "motion"] as string) ?? "";
@@ -355,6 +397,8 @@ export function defaultSettings(): StudioSettings {
     guides: {
       language: DEFAULT_LANGUAGE_BRIEF,
       hook: DEFAULT_HOOK_BRIEF,
+      structure: DEFAULT_STRUCTURE_BRIEF,
+      audit: DEFAULT_AUDIT_BRIEF,
       shots: DEFAULT_SHOT_BRIEF,
     },
     useReferenceImage: true,
@@ -386,7 +430,7 @@ export function allFieldPaths(): FieldPath[] {
       (["brief", "quality", "motion"] as const).map((k) => visualPath(id, k)),
     ),
     ...(["motion", "image"] as const).map((k) => openingPath(k)),
-    ...(["language", "hook", "shots"] as const).map((k) => guidePath(k)),
+    ...(["language", "hook", "structure", "audit", "shots"] as const).map((k) => guidePath(k)),
   ];
 }
 
