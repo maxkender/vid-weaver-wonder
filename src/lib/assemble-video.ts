@@ -13,12 +13,12 @@ export const OUTPUT_FPS = 30;
  */
 const MAX_STRETCH = 1.2;
 /**
- * Normalisation de sonie (EBU R128), une passe. Voix ET musique passent par la
- * même cible : la musique est ensuite posée à un niveau FIXE sous la voix,
- * au lieu d'un pourcentage d'un signal dont le niveau varie selon le narrateur.
+ * PAS de `loudnorm` ici : en passe unique il bascule en mode dynamique, ce qui
+ * force tout le graphe audio à 192 kHz et multipliait par trois la durée du
+ * montage. Le niveau est mesuré dans le navigateur (src/lib/audio-gain.ts) et
+ * appliqué comme un simple gain statique, plan par plan.
  */
-const LOUDNORM = "loudnorm=I=-16:TP=-1.5:LRA=11";
-const VOICE_LOUDNORM = LOUDNORM;
+
 /** Au-delà de cet étirement, on accélère d'abord un peu la voix. */
 const STRETCH_BEFORE_TEMPO = 1.25;
 /** Accélération maximale de la voix (inaudible à ce niveau). */
