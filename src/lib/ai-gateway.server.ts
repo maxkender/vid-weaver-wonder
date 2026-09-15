@@ -95,29 +95,31 @@ export async function chatJSON<T>(
   /** Réceptacle facultatif : la consommation rapportée par la passerelle. */
   usageOut?: { usage?: TokenUsage | undefined },
 ): Promise<T> {
-  const res = await fetch(`${GATEWAY}/chat/completions`, {
-    method: "POST",
-    headers: gatewayHeaders(),
-    body: JSON.stringify({
-      model,
-      response_format: { type: "json_object" },
-      ...(temperature === undefined ? {} : { temperature }),
-      messages: [
-        { role: "system", content: system },
-        { role: "user", content: user },
-      ],
-    }),
-  });
+  return withRetry("texte", async () => {
+    const res = await fetch(`${GATEWAY}/chat/completions`, {
+      method: "POST",
+      headers: gatewayHeaders(),
+      body: JSON.stringify({
+        model,
+        response_format: { type: "json_object" },
+        ...(temperature === undefined ? {} : { temperature }),
+        messages: [
+          { role: "system", content: system },
+          { role: "user", content: user },
+        ],
+      }),
+    });
 
-  if (!res.ok) throw new Error(await readError(res));
-  const data = (await res.json()) as { choices: { message: { content: string } }[] };
-  if (usageOut) usageOut.usage = readUsage(data);
-  const raw = data.choices?.[0]?.message?.content ?? "{}";
-  const cleaned = raw
-    .trim()
-    .replace(/^```(?:json)?/i, "")
-    .replace(/```$/, "");
-  return JSON.parse(cleaned) as T;
+    if (!res.ok) throw await gatewayError(res);
+    const data = (await res.json()) as { choices: { message: { content: string } }[] };
+    if (usageOut) usageOut.usage = readUsage(data);
+    const raw = data.choices?.[0]?.message?.content ?? "{}";
+    const cleaned = raw
+      .trim()
+      .replace(/^```(?:json)?/i, "")
+      .replace(/```$/, "");
+    return JSON.parse(cleaned) as T;
+  });
 }
 
 /** Génère une image (Nano Banana) et renvoie une data URL. */
