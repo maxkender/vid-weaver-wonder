@@ -345,13 +345,13 @@ export const resetPosterPassword = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     const actor = await requireAdmin(context);
     const db = await adminDb();
-    const password = generatePlatformPassword();
+    const conv = await conventions();
+    const password = platformPassword(conv);
     const res = await db.auth.admin.updateUserById(data.id, { password });
     if (res.error) throw new Error(res.error.message);
     await audit(actor, "poster.password_reset", "profiles", data.id);
 
     const profile = await db.from("profiles").select("email, full_name").eq("id", data.id).maybeSingle();
-    const conv = await conventions();
     const values = {
       prenom: (profile.data?.full_name ?? "").split(" ")[0] ?? "",
       lien: PLATFORM_URL,
