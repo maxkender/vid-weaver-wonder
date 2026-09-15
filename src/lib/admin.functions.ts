@@ -245,6 +245,14 @@ export const listPosters = createServerFn({ method: "POST" })
     return { posters };
   });
 
+/**
+ * Création d'un accès posteur.
+ *
+ * Le mot de passe de la plateforme est GÉNÉRÉ, différent pour chaque posteur :
+ * l'espace posteur affiche désormais le mot de passe des comptes sociaux, un
+ * mot de passe commun devinable ouvrirait ces comptes à n'importe qui.
+ * Un compte Instagram est créé du même coup, avec sa langue et son code pays.
+ */
 export const createPoster = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) =>
@@ -252,7 +260,7 @@ export const createPoster = createServerFn({ method: "POST" })
       .object({
         firstName: z.string().min(1).max(80),
         lastName: z.string().min(1).max(80),
-        country: z.string().max(4).default(""),
+        countryCode: z.string().max(4).optional(),
         language: z.enum(["fr", "en", "es", "de", "it"]).default("fr"),
       })
       .parse(d),
@@ -262,10 +270,12 @@ export const createPoster = createServerFn({ method: "POST" })
     const db = await adminDb();
     const email = await freeLogin(data.firstName, data.lastName);
     const fullName = `${data.firstName.trim()} ${data.lastName.trim()}`.trim();
+    const country = normalizeCountry(data.countryCode || defaultCountryFor(data.language));
+    const password = generatePlatformPassword();
 
     const created = await db.auth.admin.createUser({
       email,
-      password: INITIAL_PASSWORD,
+      password,
       email_confirm: true,
       user_metadata: { full_name: fullName },
     });
@@ -278,7 +288,7 @@ export const createPoster = createServerFn({ method: "POST" })
       id,
       email,
       full_name: fullName,
-      country: data.country.trim().toUpperCase() || null,
+      country: country.toUpperCase(),
       language: data.language,
       role: "poster",
       status: "active",
@@ -288,20 +298,68 @@ export const createPoster = createServerFn({ method: "POST" })
       throw new Error(error.message);
     }
 
-    await audit(actor, "poster.created", "profiles", id, { email, language: data.language });
-    return { id, email, password: INITIAL_PASSWORD };
+    const conv = await conventions();
+    const handle = conventionHandle(conv, country);
+    const gmail = conventionGmail(conv, country);
+    await db.from("poster_accounts").insert({
+      poster_id: id,
+      platform: "instagram",
+      language: data.language,
+      country_code: country,
+      handle,
+      gmail_address: gmail,
+      status: "pending",
+    });
+
+    const values = {
+      prenom: data.firstName.trim(),
+      lien: PLATFORM_URL,
+      identifiant: email,
+      motdepasse: password,
+    };
+
+    await audit(actor, "poster.created", "profiles", id, {
+      email,
+      language: data.language,
+      country,
+    });
+    return {
+      id,
+      email,
+      password,
+      handle,
+      gmail,
+      country,
+      messageFr: fillUpworkMessage(conv.upwork_message_fr, values),
+      messageEn: fillUpworkMessage(conv.upwork_message_en, values),
+    };
   });
 
+/** Régénère le mot de passe de la plateforme (jamais celui des comptes sociaux). */
 export const resetPosterPassword = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ context, data }) => {
     const actor = await requireAdmin(context);
     const db = await adminDb();
-    const res = await db.auth.admin.updateUserById(data.id, { password: INITIAL_PASSWORD });
+    const password = generatePlatformPassword();
+    const res = await db.auth.admin.updateUserById(data.id, { password });
     if (res.error) throw new Error(res.error.message);
     await audit(actor, "poster.password_reset", "profiles", data.id);
-    return { password: INITIAL_PASSWORD };
+
+    const profile = await db.from("profiles").select("email, full_name").eq("id", data.id).maybeSingle();
+    const conv = await conventions();
+    const values = {
+      prenom: (profile.data?.full_name ?? "").split(" ")[0] ?? "",
+      lien: PLATFORM_URL,
+      identifiant: profile.data?.email ?? "",
+      motdepasse: password,
+    };
+    return {
+      password,
+      messageFr: fillUpworkMessage(conv.upwork_message_fr, values),
+      messageEn: fillUpworkMessage(conv.upwork_message_en, values),
+    };
   });
 
 export const setPosterStatus = createServerFn({ method: "POST" })
