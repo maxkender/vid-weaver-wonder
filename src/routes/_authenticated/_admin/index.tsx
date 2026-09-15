@@ -1122,6 +1122,9 @@ function Studio() {
           includeCta: settings.sophiaCta !== false,
           styleBrief: settings.narration[style].brief,
           wordsBias: settings.narration[style].wordsBias,
+          // Longueur du script SOURCE calculée sur le débit mesuré de sa voix.
+          sourceCharsPerSecond: cpsFor(language),
+          voiceSpeed: baseVoiceSpeed,
         },
       })) as Script;
       setScript(result);
