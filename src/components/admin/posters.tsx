@@ -186,7 +186,7 @@ export function AdminPosters() {
           </div>
           <button
             onClick={onCreate}
-            disabled={busy || firstName.trim().length < 2 || lastName.trim().length < 1}
+            disabled={busy || firstName.trim().length < 2}
             className="btn-base btn-primary text-xs"
           >
             {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null} Créer l'accès
