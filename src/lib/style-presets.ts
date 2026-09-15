@@ -59,7 +59,7 @@ export const DEFAULT_QUALITY: Record<VisualStyleId, string> = {
 
 export const DEFAULT_MOTION: Record<VisualStyleId, string> = {
   papercraft:
-    "Stop-motion paper animation: the paper cut-outs move in small discrete steps, slight handmade jitter, layers sliding over each other, static or very slow push-in camera.",
+    "Smooth continuous paper animation: the paper layers glide over each other in one steady, perfectly fluid motion, gentle parallax between the depth planes, slow constant camera push, motion rendered at full frame rate with natural motion blur. Absolutely no stop-motion, no frame-by-frame stepping, no discrete jumps, no jitter, no shaking, no strobing: the paper moves as if pushed by one slow, steady hand.",
   cinematique: "Slow cinematic camera movement, subtle parallax.",
   documentaire: "Handheld documentary camera, very subtle movement.",
   retro: "Gentle vintage camera drift, slight handheld sway.",
