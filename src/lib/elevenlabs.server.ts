@@ -263,8 +263,12 @@ export const VOICE_MAX_ATTEMPTS = 3;
 /**
  * Une prise au débit anormal est un ALÉA du fournisseur, pas un défaut de
  * configuration : on relance jusqu'à trois fois, une seconde entre chaque
- * tentative. Si une prise revient correcte, rien n'est signalé. Après trois
- * échecs, l'erreur d'origine remonte, plan et langue nommés.
+ * tentative. Si une prise revient correcte, rien n'est signalé.
+ *
+ * Après trois refus, on NE BLOQUE PLUS : on garde la meilleure des trois
+ * prises (débit le plus proche de la plage) et on remonte un simple
+ * avertissement dans `rateWarning`. Un plan un peu rapide vaut mieux que pas
+ * de vidéo du tout.
  */
 export async function generateElevenSpeechWithTimings(
   text: string,
@@ -273,7 +277,7 @@ export async function generateElevenSpeechWithTimings(
   context?: string,
   speed = DEFAULT_VOICE_SPEED,
 ): Promise<SpeechResult> {
-  let last: unknown;
+  let best: AbnormalRateError | null = null;
   for (let attempt = 1; attempt <= VOICE_MAX_ATTEMPTS; attempt++) {
     try {
       return await speechAttempt(text, voiceId, language, context, speed);
@@ -281,13 +285,15 @@ export async function generateElevenSpeechWithTimings(
       // Seul le débit anormal se relance : une erreur de plan, de voix ou de
       // texte tronqué se reproduirait à l'identique et coûterait pour rien.
       if (!(e instanceof AbnormalRateError)) throw e;
-      last = e;
+      if (!best || e.gap < best.gap) best = e;
       if (attempt < VOICE_MAX_ATTEMPTS) await new Promise((r) => setTimeout(r, 1000));
     }
   }
-  throw last instanceof Error
-    ? new Error(`${last.message} (${VOICE_MAX_ATTEMPTS} prises consécutives refusées)`)
-    : new Error("Voix off refusée après plusieurs tentatives.");
+  if (!best) throw new Error("Voix off indisponible après plusieurs tentatives.");
+  return {
+    ...best.take,
+    rateWarning: `${best.message} Meilleure des ${VOICE_MAX_ATTEMPTS} prises conservée.`,
+  };
 }
 
 /** Voix FR recommandées, épinglées en tête de liste quand la langue active est le français. */
