@@ -1,4 +1,6 @@
 import {
+  DEFAULT_HOOK_BRIEF,
+  DEFAULT_LANGUAGE_BRIEF,
   DEFAULT_MOTION,
   DEFAULT_QUALITY,
   DEFAULT_STYLE_BRIEF,
@@ -32,6 +34,10 @@ export type CharacterSheet = { name: string; description: string };
 export type Script = {
   title: string;
   hook: string;
+  /** Les trois accroches proposées par l'IA (la retenue devient le plan 1). */
+  hookOptions?: string[];
+  /** Justification en une ligne du choix d'accroche, affichée dans le studio. */
+  hookChoice?: string;
   scenes: Scene[];
   cta: string;
   hashtags: string[];
@@ -87,6 +93,10 @@ export function scriptSystemPrompt(
    * en MOTS : deux unités concurrentes font dériver la durée.
    */
   chars?: { min: number; target: number; max: number; perScene: number },
+  /** Niveau de langue imposé (modifiable depuis la page Paramètres). */
+  languageBrief?: string,
+  /** Règles propres à l'accroche (modifiables depuis la page Paramètres). */
+  hookBrief?: string,
 ) {
   // Fourchette resserrée : la borne basse ne doit jamais autoriser un plan de 3 s.
   const lo = Math.max(14, Math.round(wordsPerScene - 2));
@@ -104,11 +114,15 @@ export function scriptSystemPrompt(
         : "",
 
     "",
-    "RÈGLE N°1 — L'ACCROCHE (scène 1, la partie la plus importante) : une AFFIRMATION FACTUELLE brute et surprenante, en une ou deux phrases courtes, lue en moins de 4 secondes. Jamais une question. Jamais « saviez-vous que ».",
+    `RÈGLE N°1 — L'ACCROCHE (scène 1, la partie la plus importante) :\n${hookBrief?.trim() || DEFAULT_HOOK_BRIEF}`,
+    "L'accroche est une AFFIRMATION FACTUELLE brute et surprenante. Jamais une question.",
     "L'accroche s'appuie sur quelque chose que TOUT LE MONDE connaît déjà : un film, un personnage célèbre, un animal, un objet du quotidien, un mythe. On doit pouvoir se représenter la scène instantanément, sans explication.",
     "TEST DES 2 SECONDES : l'accroche doit être comprise SANS la moindre connaissance préalable. Interdits absolus : un nom propre inconnu du grand public, un lieu obscur, un pronom sans référent (« il », « ce », « cette »), une formule vague (« ce jour-là », « cet objet »). Si on doit attendre la scène 2 pour comprendre de QUOI on parle, l'accroche est ratée : réécris-la.",
     "PREMIÈRE PHRASE — ELLE DÉCRIT UN ÉVÉNEMENT OU UNE IMAGE CONCRÈTE ET FRAPPANTE, quelque chose qui se voit : un geste, un choc, un objet, une scène précise. Jamais une mise en contexte, jamais une présentation de sujet, jamais un cadre général (« à telle époque, en tel lieu, on pensait que… »). Si la première phrase ne peut pas être dessinée telle quelle, réécris-la.",
     "Le champ hook reprend exactement la ou les phrases de la scène 1.",
+
+    "",
+    `RÈGLE N°1 BIS — NIVEAU DE LANGUE (règle éliminatoire, elle prime sur le style) :\n${languageBrief?.trim() || DEFAULT_LANGUAGE_BRIEF}`,
 
     "",
     "RÈGLE N°2 — FORME DU RÉCIT : trois formes sont autorisées, choisis librement celle qui convient au sujet, sans en privilégier aucune.",
@@ -171,7 +185,28 @@ export function scriptSystemPrompt(
     includeCta
       ? "UN SEUL CTA : le CTA Sophia est écrit UNIQUEMENT dans le champ cta (texte prêt à être lu à voix haute), adapté au sujet. Aucune scène du tableau scenes ne doit parler de l'appli, de téléchargement ou de cours gratuits. Le mot « Sophia » n'apparaît qu'une seule fois dans TOUT le script."
       : "AUCUNE PUBLICITÉ : le champ cta doit rester une chaîne VIDE. Le script ne mentionne JAMAIS Sophia, une application, un téléchargement, un abonnement ou un appel à l'action. Il se termine sur sa phrase de chute.",
-    'Réponds uniquement en JSON: {"title":string,"hook":string,"characters":[{"name":string,"description":string}],"palette":string,"scenes":[{"index":number,"narration":string,"overlay":string,"imagePrompt":string,"videoPrompt":string}],"cta":string,"hashtags":string[]}',
+    "hookOptions contient TROIS accroches différentes (douze mots maximum chacune). hook contient celle que tu retiens, recopiée telle quelle dans la narration de la scène 1. hookChoice explique ton choix en UNE ligne.",
+    'Réponds uniquement en JSON: {"title":string,"hook":string,"hookOptions":string[],"hookChoice":string,"characters":[{"name":string,"description":string}],"palette":string,"scenes":[{"index":number,"narration":string,"overlay":string,"imagePrompt":string,"videoPrompt":string}],"cta":string,"hashtags":string[]}',
+  ].join("\n");
+}
+
+/**
+ * PASSE DE RELECTURE : dernière étape de l'écriture. On ne touche ni au sens,
+ * ni à la longueur, ni à l'ordre : on remplace uniquement les mots rares par
+ * des mots du quotidien et on casse les tournures compliquées.
+ */
+export function simplifySystemPrompt(
+  langName: string,
+  sceneCount: number,
+  languageBrief?: string,
+) {
+  return [
+    `Tu relis un script de vidéo courte écrit en ${langName}, destiné à des gens de 15 à 25 ans qui scrollent. Ton seul travail : la SIMPLICITÉ DES MOTS.`,
+    languageBrief?.trim() || DEFAULT_LANGUAGE_BRIEF,
+    "MÉTHODE : parcours chaque phrase, repère les mots rares, savants, littéraires ou administratifs, et remplace-les par le mot du quotidien équivalent. Casse les tournures passives et les phrases à rallonge en phrases courtes.",
+    "TU NE CHANGES RIEN D'AUTRE : même sens, même ton, mêmes chiffres, mêmes noms, même ordre, et surtout MÊME LONGUEUR (±3 % de caractères par scène). Tu n'ajoutes aucune information, tu n'en retires aucune.",
+    `Tu renvoies EXACTEMENT ${sceneCount} scènes, avec les MÊMES index. Si une scène est déjà parfaitement simple, tu la recopies à l'identique.`,
+    'Réponds uniquement en JSON: {"scenes":[{"index":number,"narration":string}]}',
   ].join("\n");
 }
 
@@ -208,6 +243,8 @@ export function translationSystemPrompt(
     /** Sens de la correction : le texte actuel est trop long, trop court, ou bon. */
     mode?: "ok" | "shorten" | "lengthen";
   },
+  /** Niveau de langue imposé : une traduction ne remonte jamais d'un cran. */
+  languageBrief?: string,
 ) {
   return [
     adjust
@@ -217,6 +254,7 @@ export function translationSystemPrompt(
     "Ce n'est PAS du mot à mot : écris comme un natif écrirait, avec le rythme et les tournures naturelles de la langue.",
     "Tous les CHIFFRES, dates, proportions, unités et noms propres sont repris à l'identique.",
     "STYLE CONSERVÉ : phrases très courtes, phrases nominales et fragments autorisés, tutoiement (ou l'équivalent naturel et familier de la langue), ton oral et direct, jamais publicitaire. Aucun emoji, aucun point d'exclamation.",
+    `NIVEAU DE LANGUE — RÈGLE ÉLIMINATOIRE : la traduction ne remonte JAMAIS d'un cran en niveau de langue. Un mot courant dans le texte source reste un mot courant dans la langue cible ; le mot savant, littéraire ou administratif qui « ferait mieux » est interdit. Les mêmes exigences qu'à l'écriture s'appliquent mot pour mot, transposées à ${langName} :\n${languageBrief?.trim() || DEFAULT_LANGUAGE_BRIEF}`,
     // Quand le budget de CARACTÈRES est fourni (débit réel de la voix), il
     // remplace toutes les consignes en MOTS : deux unités concurrentes dans le
     // même prompt, c'est la garantie d'un texte deux fois trop court.
@@ -257,6 +295,11 @@ export type PromptOverrides = {
   bible?: string | undefined;
   /** Contexte narratif : plans précédents et plan suivant. */
   story?: string | undefined;
+  /**
+   * TYPE DE PLAN imposé (échelle et cadrage). Il change à chaque plan, alors
+   * que la direction artistique, elle, ne bouge jamais.
+   */
+  shot?: string | undefined;
 };
 
 function bibleLine(bible?: string) {
@@ -281,7 +324,8 @@ export function coverPrompt(
   const brief = o.visualBrief?.trim() || DEFAULT_VISUAL_BRIEF[visual];
   const quality = o.quality?.trim() || DEFAULT_QUALITY[visual];
   const opening = o.opening?.trim() ? ` ${o.opening.trim()}` : "";
-  return `Vertical 9:16 key frame. ${brief}. ${quality}.${opening}${bibleLine(o.bible)}${storyLine(o.story)} ${
+  const shot = o.shot?.trim() ? ` ${o.shot.trim()}.` : "";
+  return `Vertical 9:16 key frame. ${brief}. ${quality}.${opening}${shot}${bibleLine(o.bible)}${storyLine(o.story)} ${
     square ? SQUARE_FRAME + " " : ""
   }Absolutely no text, no letters, no watermark, no logo. Scene: ${imagePrompt}`;
 }

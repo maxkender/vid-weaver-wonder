@@ -83,7 +83,15 @@ import {
   voicesFor,
   type VoiceEngine,
 } from "@/lib/voices";
-import { defaultSettings, loadSettings, type StudioSettings } from "@/lib/style-presets";
+import {
+  defaultSettings,
+  loadSettings,
+  SHOT_TYPES,
+  type ShotTypeId,
+  type StudioSettings,
+} from "@/lib/style-presets";
+import { alternativeShot, assignShotTypes, shotPrompt } from "@/lib/shot-rotation";
+import { fingerprintSimilarity, imageFingerprint, TOO_SIMILAR } from "@/lib/image-similarity";
 import sophiaLogo from "@/assets/sophia-logo.png.asset.json";
 
 
@@ -1125,6 +1133,9 @@ function Studio() {
           // Longueur du script SOURCE calculée sur le débit mesuré de sa voix.
           sourceCharsPerSecond: cpsFor(language),
           voiceSpeed: baseVoiceSpeed,
+          // Niveau de langue et règles d'accroche (page Paramètres).
+          languageBrief: settings.guides.language,
+          hookBrief: settings.guides.hook,
         },
       })) as Script;
       setScript(result);
@@ -1303,6 +1314,8 @@ function Studio() {
                 charMin: window.min,
                 charMax: window.max,
                 charMode: mode,
+                // Une traduction ne remonte jamais d'un cran en niveau de langue.
+                languageBrief: settings.guides.language,
               },
             }).then((r) => {
               bumpUsage((u) => ({
@@ -1438,7 +1451,24 @@ function Studio() {
     return parts.join(". ").slice(0, 3500);
   };
 
-  const onImage = async (scene: Scene, doc: Script | null = script) => {
+  /**
+   * TYPES DE PLAN de la vidéo : la direction artistique ne bouge pas, mais
+   * l'échelle et le cadrage changent à chaque plan et jamais deux fois de suite.
+   */
+  const shotTypesRef = useRef<ShotTypeId[]>([]);
+  const shotTypeFor = (scene: Scene, doc: Script | null) => {
+    const all = doc?.scenes ?? [];
+    if (shotTypesRef.current.length !== all.length) {
+      shotTypesRef.current = assignShotTypes(all.map((s) => `${s.narration} ${s.imagePrompt}`));
+    }
+    return shotTypesRef.current[scene.index] ?? SHOT_TYPES[0].id;
+  };
+
+  const onImage = async (
+    scene: Scene,
+    doc: Script | null = script,
+    shotOverride?: ShotTypeId,
+  ) => {
     if (cancelledRef.current) return undefined; // appel payant : arrêt demandé
     patch(scene.index, { imageLoading: true });
     try {
@@ -1459,6 +1489,8 @@ function Studio() {
             ? { opening: settings.opening.image.trim() }
             : {}),
           ...(story ? { story } : {}),
+          // Échelle et cadrage imposés : jamais le même type que le plan voisin.
+          shot: `${shotPrompt(shotOverride ?? shotTypeFor(scene, doc))} ${settings.guides.shots}`.trim(),
           ...(ref ? { referenceImage: ref } : {}),
           ...(prev && prev !== ref ? { previousImage: prev } : {}),
         },
@@ -2164,6 +2196,36 @@ function Studio() {
         if (image) previousImage.current = image;
         snapshot[scene.index] = { ...st, ...(image ? { image } : {}) };
       }
+
+      // CONTRÔLE DE RESSEMBLANCE entre plans voisins : deux plans quasi
+      // identiques (même sujet, même cadrage) donnent une vidéo qui tourne en
+      // rond. Le plan fautif est régénéré UNE SEULE FOIS avec un autre type de
+      // plan — jamais de boucle, jamais de seconde tentative.
+      if (!cancelledRef.current) {
+        const prints: (number[] | null)[] = [];
+        for (const scene of doc.scenes) {
+          const img = snapshot[scene.index]?.image;
+          prints[scene.index] = img ? await imageFingerprint(img) : null;
+        }
+        for (const scene of doc.scenes) {
+          if (cancelledRef.current || scene.index === 0) break;
+          const a = prints[scene.index - 1];
+          const b = prints[scene.index];
+          if (!a || !b || fingerprintSimilarity(a, b) < TOO_SIMILAR) continue;
+          const swap = alternativeShot(shotTypeFor(scene, doc), [
+            shotTypesRef.current[scene.index - 1],
+            shotTypesRef.current[scene.index + 1],
+          ]);
+          shotTypesRef.current[scene.index] = swap;
+          setAssembleStep(`Plan ${scene.index + 1} trop proche du précédent — nouveau cadrage…`);
+          const again = await onImage(scene, doc, swap);
+          if (again) {
+            snapshot[scene.index] = { ...(snapshot[scene.index] ?? {}), image: again };
+            prints[scene.index] = await imageFingerprint(again);
+          }
+        }
+      }
+
       if (cancelledRef.current) {
         setAssembleStep("Pipeline arrêté");
         return;

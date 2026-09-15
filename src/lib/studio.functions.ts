@@ -57,6 +57,10 @@ export const generateScript = createServerFn({ method: "POST" })
         sourceCharsPerSecond: z.number().min(3).max(25).optional(),
         /** Vitesse de synthèse prévue pour la voix source. */
         voiceSpeed: z.number().min(0.8).max(1.3).optional(),
+        /** Niveau de langue imposé (page Paramètres). */
+        languageBrief: z.string().max(4000).optional(),
+        /** Règles de l'accroche (page Paramètres). */
+        hookBrief: z.string().max(4000).optional(),
       })
       .parse(input),
   )
@@ -106,6 +110,8 @@ export const translateScript = createServerFn({ method: "POST" })
         charMax: z.number().int().min(80).max(6000).optional(),
         /** Sens de la correction demandée quand le texte est hors fenêtre. */
         charMode: z.enum(["ok", "shorten", "lengthen"]).optional(),
+        /** Niveau de langue imposé : la traduction ne remonte jamais d'un cran. */
+        languageBrief: z.string().max(4000).optional(),
       })
       .parse(input),
   )
@@ -142,6 +148,7 @@ export const translateScript = createServerFn({ method: "POST" })
               ...(data.charMode ? { mode: data.charMode } : {}),
             }
           : undefined,
+        data.languageBrief,
       ),
       JSON.stringify({
         title: data.title,
@@ -191,6 +198,8 @@ export const generateSceneImage = createServerFn({ method: "POST" })
         referenceImage: z.string().startsWith("data:image/").optional(),
         /** Image du plan précédent : continuité immédiate de l'histoire. */
         previousImage: z.string().startsWith("data:image/").optional(),
+        /** Type de plan imposé (échelle + cadrage), différent du plan voisin. */
+        shot: z.string().max(2000).optional(),
       })
       .parse(input),
   )
@@ -201,6 +210,7 @@ export const generateSceneImage = createServerFn({ method: "POST" })
       quality: data.quality,
       opening: data.opening,
       story: data.story,
+      shot: data.shot,
     });
     const refs = [data.referenceImage, data.previousImage].filter(
       (r): r is string => typeof r === "string" && r.length > 0,

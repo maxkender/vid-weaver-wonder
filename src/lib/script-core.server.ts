@@ -1,6 +1,7 @@
 import { chatJSON } from "./ai-gateway.server";
 import {
   scriptSystemPrompt,
+  simplifySystemPrompt,
   scriptUserPrompt,
   SOPHIA_OUTRO,
   type Script,
@@ -41,6 +42,10 @@ export type BuildScriptInput = {
   sourceCharsPerSecond?: number | undefined;
   /** Vitesse de synthèse prévue pour la voix source. */
   voiceSpeed?: number | undefined;
+  /** Niveau de langue imposé (page Paramètres). */
+  languageBrief?: string | undefined;
+  /** Règles de l'accroche (page Paramètres). */
+  hookBrief?: string | undefined;
 };
 
 /**
@@ -120,11 +125,29 @@ export async function buildScript(data: BuildScriptInput): Promise<Script> {
         max: charsWindow.max,
         perScene: Math.max(40, Math.round(charsWindow.target / sceneCount)),
       },
+      data.languageBrief,
+      data.hookBrief,
     ),
     `${scriptUserPrompt(data.kind, data.topic)}\nÉcris tout le script en ${langName}.`,
   );
 
   script.scenes = (script.scenes ?? []).slice(0, sceneCount).map((s, i) => ({ ...s, index: i }));
+
+  // L'ACCROCHE RETENUE DEVIENT LE PLAN 1. L'IA propose trois accroches et
+  // choisit la meilleure : si elle a oublié de la recopier dans la scène 1, on
+  // la remet en tête (la passe de longueur qui suit rattrape les caractères).
+  const hook = (script.hook ?? "").trim();
+  const first = script.scenes[0];
+  if (hook && first) {
+    const flat = (t: string) =>
+      t.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, " ").trim();
+    if (!flat(first.narration ?? "").startsWith(flat(hook).slice(0, 24))) {
+      first.narration = `${hook} ${(first.narration ?? "").trim()}`.trim();
+    }
+  }
+  script.hookOptions = (script.hookOptions ?? []).map((h) => String(h).trim()).filter(Boolean);
+  script.hookChoice = (script.hookChoice ?? "").trim();
+
 
   // UN SEUL plan CTA : on retire les scènes de pub écrites par l'IA.
   const isCta = (t: string) => /\b(sophia|t[ée]l[ée]charge|l'appli|l'application)\b/i.test(t);
@@ -178,6 +201,36 @@ export async function buildScript(data: BuildScriptInput): Promise<Script> {
       break; // ajustement best-effort : on garde le script en l'état
     }
   }
+
+  // PASSE DE RELECTURE : on remplace les mots savants par des mots du
+  // quotidien. Elle vient en dernier, à longueur constante, pour ne pas
+  // défaire le calage des durées. Best-effort : en cas d'échec on garde le texte.
+  try {
+    const simple = await chatJSON<{ scenes: { index: number; narration: string }[] }>(
+      "google/gemini-3.7-flash",
+      simplifySystemPrompt(langName, script.scenes.length, data.languageBrief),
+      `Scènes (JSON) : ${JSON.stringify(
+        script.scenes.map((s) => ({ index: s.index, narration: s.narration })),
+      )}`,
+      0.2,
+    );
+    for (const s of simple.scenes ?? []) {
+      const target = script.scenes[s.index];
+      const text = (s.narration ?? "").trim();
+      // Garde-fou : une relecture ne doit pas raccourcir ou allonger le plan.
+      if (target && text) {
+        const before = (target.narration ?? "").length;
+        if (before === 0 || Math.abs(text.length - before) / before <= 0.15) {
+          target.narration = text;
+        }
+      }
+    }
+    const newHook = script.scenes[0]?.narration?.trim();
+    if (newHook) script.hook = newHook;
+  } catch {
+    // relecture best-effort
+  }
+
 
   // « Sophia » n'est prononcé qu'une seule fois, dans le CTA final — et jamais
   // du tout quand le CTA est désactivé.
