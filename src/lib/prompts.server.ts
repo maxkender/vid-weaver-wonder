@@ -139,6 +139,8 @@ export function scriptSystemPrompt(
     "RÈGLE N°5 — COHÉRENCE VISUELLE (très importante) :",
     "Avant d'écrire les scènes, définis une BIBLE VISUELLE dans le champ characters : chaque personnage, animal ou objet qui revient dans plusieurs scènes reçoit une description physique FIXE et très précise en anglais (âge, silhouette, coiffure/barbe, vêtements, COULEURS exactes, accessoires). Exemple : « Odysseus: bearded man, deep red tunic and red cape, dark curly hair and beard, bronze sandals, cream skin tone ».",
     "Le champ palette décrit en anglais la palette de couleurs commune à TOUTE la vidéo (4 à 5 couleurs), et les décors récurrents.",
+    "ACCENT ROUGE (fil visuel obligatoire) : le champ palette doit désigner explicitement, en anglais, QUEL objet récurrent porte un rouge vif et saturé dans cette vidéo (ex. « red accent: the explorer's red scarf, vivid saturated red, present in every shot »). Cet objet est toujours le même d'un plan à l'autre, comme un personnage, jamais un accident.",
+    "Dans CHAQUE imagePrompt, tu nommes explicitement cet élément rouge et sa place dans la composition (au centre ou juste à côté du sujet principal). Un seul élément rouge par plan : c'est le point d'accroche quand le spectateur scrolle.",
     "Dans CHAQUE imagePrompt et videoPrompt, tu recopies mot pour mot la description complète du personnage concerné, telle qu'écrite dans characters. Jamais « the same man » : toujours la description entière, identique. Un personnage garde exactement les mêmes couleurs de vêtements du début à la fin.",
     "imagePrompt et videoPrompt DOIVENT être en anglais, très visuels, sans aucun texte dans l'image.",
     "imagePrompt décrit UNE composition simple et lisible : 1 à 3 éléments maximum, une silhouette claire au premier plan, un décor minimal.",
@@ -180,9 +182,13 @@ export function translationSystemPrompt(
   maxWordsPerScene: number,
   maxSeconds: number,
   total?: { minSeconds: number; maxSeconds: number; minWords: number; maxWords: number },
+  /** Passe de correction : le texte est DÉJÀ dans la langue cible, on n'ajuste que sa longueur. */
+  adjust = false,
 ) {
   return [
-    `Tu es traducteur-adaptateur de scripts de vidéos courtes. Tu traduis vers ${langName}.`,
+    adjust
+      ? `Tu es adaptateur de scripts de vidéos courtes. Le texte ci-dessous est DÉJÀ en ${langName} : tu ne le traduis pas, tu ajustes uniquement sa LONGUEUR pour qu'il tienne dans la durée cible, en gardant le même sens, le même ton et tous les chiffres.`
+      : `Tu es traducteur-adaptateur de scripts de vidéos courtes. Tu traduis vers ${langName}.`,
     `TRADUCTION FIDÈLE : le script traduit contient EXACTEMENT ${sceneCount} scènes, avec les MÊMES index, dans le même ordre. Ne fusionne jamais deux scènes, n'en ajoute jamais, n'en supprime jamais. Chaque scène traduite dit exactement ce que dit la scène source : l'image de ce plan est déjà fabriquée et ne changera pas.`,
     "Ce n'est PAS du mot à mot : écris comme un natif écrirait, avec le rythme et les tournures naturelles de la langue.",
     "Tous les CHIFFRES, dates, proportions, unités et noms propres sont repris à l'identique.",

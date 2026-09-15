@@ -6,7 +6,11 @@ import {
   type Script,
 } from "./prompts.server";
 import { languageName } from "./languages";
-import { fastestWordsPerSecond, wordsPerSecond as speechRate } from "./duration";
+import {
+  estimateSpeechSeconds,
+  fastestWordsPerSecond,
+  wordsPerSecond as speechRate,
+} from "./duration";
 
 export type BuildScriptInput = {
   topic: string;
@@ -130,6 +134,47 @@ export async function buildScript(data: BuildScriptInput): Promise<Script> {
       }
     } catch {
       // Rallonge best-effort : on garde le script d'origine en cas d'échec.
+    }
+  }
+
+  // CONTRÔLE DU TOTAL (langue source) : le script d'origine doit lui aussi
+  // atterrir dans la fenêtre de durée AVANT toute traduction, sinon toutes les
+  // versions dérivent. Deux passes de correction au maximum.
+  const loSec = narrationSeconds;
+  const hiSec = Math.max(loSec + 2, maxTotalSeconds - (includeCta ? 6 : 0));
+  const estTotal = () =>
+    script.scenes.reduce((n, s) => n + estimateSpeechSeconds(s.narration ?? "", data.language), 0);
+  for (let pass = 0; pass < 2; pass++) {
+    const sec = estTotal();
+    if (sec >= loSec && sec <= hiSec) break;
+    const tooLong = sec > hiSec;
+    try {
+      const fixed = await chatJSON<{ scenes: { index: number; narration: string }[] }>(
+        "google/gemini-3.7-flash",
+        [
+          `Tu ajustes la LONGUEUR des narrations d'un script vidéo en ${langName}. Tu ne changes ni le sens, ni le ton, ni l'ordre.`,
+          `Tu renvoies EXACTEMENT ${script.scenes.length} scènes, avec les MÊMES index. Tu n'ajoutes, ne supprimes et ne fusionnes AUCUNE scène.`,
+          tooLong
+            ? `Le script est trop LONG (${Math.round(sec)} s lues à voix haute). CONDENSE pour atteindre entre ${loSec} et ${hiSec} secondes, soit environ ${Math.round(hiSec * speechRate(data.language))} mots au total : supprime les redondances et les mots de liaison. Tu gardes TOUS les chiffres et toute l'information.`
+            : `Le script est trop COURT (${Math.round(sec)} s lues à voix haute). ÉTOFFE pour atteindre entre ${loSec} et ${hiSec} secondes, soit environ ${Math.round(loSec * speechRate(data.language))} mots au total, avec des détails concrets (lieu, nom, conséquence matérielle). N'invente aucun fait douteux.`,
+          'Réponds uniquement en JSON: {"scenes":[{"index":number,"narration":string}]}',
+        ].join("\n"),
+        `Scènes actuelles (JSON) : ${JSON.stringify(
+          script.scenes.map((s) => ({ index: s.index, narration: s.narration })),
+        )}`,
+      );
+      let changed = false;
+      for (const s of fixed.scenes ?? []) {
+        const target = script.scenes[s.index];
+        const text = (s.narration ?? "").trim();
+        if (target && text) {
+          target.narration = text;
+          changed = true;
+        }
+      }
+      if (!changed) break;
+    } catch {
+      break; // ajustement best-effort : on garde le script en l'état
     }
   }
 

@@ -126,7 +126,7 @@ function StationPage() {
     const track = await randomTrack(task.narrationStyle);
     const blob = await assembleVideo(scenes, {
       ...dims,
-      music: track?.blob,
+      music: track?.blob ?? undefined,
       musicVolume: 0.14,
       onProgress: (s) => setStep(s),
     });

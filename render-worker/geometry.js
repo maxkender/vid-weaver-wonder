@@ -7,7 +7,7 @@
  */
 
 /** Marge latérale de la fenêtre carrée (fraction de la largeur, de chaque côté). */
-export const SQUARE_MARGIN_RATIO = 0.148;
+export const SQUARE_MARGIN_RATIO = 0.0776;
 /** Rayon des coins de la fenêtre carrée (fraction du côté). */
 export const SQUARE_RADIUS_RATIO = 0.07;
 /** Taille de police des sous-titres, relative au CÔTÉ DU CARRÉ. */

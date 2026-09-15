@@ -162,9 +162,9 @@ async function renderPng(
  * Marge latérale de la fenêtre carrée (fraction de la largeur, de chaque côté).
  * SOURCE UNIQUE DE VÉRITÉ : masque du montage, pré-composition avant animation,
  * aperçu de l'interface et sous-titres en dépendent tous.
- * 0.148 → côté = 70,4 % de la largeur (carré 20 % plus petit qu'à 0.06).
+ * 0.0776 → côté = 84,5 % de la largeur (carré 20 % plus grand qu'à 0.148).
  */
-export const SQUARE_MARGIN_RATIO = 0.148;
+export const SQUARE_MARGIN_RATIO = 0.0776;
 /** Rayon des coins de la fenêtre carrée (fraction du côté). */
 export const SQUARE_RADIUS_RATIO = 0.07;
 

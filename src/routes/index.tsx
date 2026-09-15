@@ -852,14 +852,51 @@ function Studio() {
       return next;
     }
     setTranslating(true);
+    const loSec = targetSeconds;
+    const hiSec = Math.round(targetSeconds * 1.1);
+    /** Écart à la fenêtre de durée : 0 quand la langue est dans la cible. */
+    const gap = (sec: number) => (sec < loSec ? loSec - sec : sec > hiSec ? sec - hiSec : 0);
+    const totalSeconds = (scenes: { narration: string }[], lang: string) =>
+      scenes.reduce((sum, s) => sum + estimateSpeechSeconds(s.narration ?? "", lang), 0);
+
     try {
       for (const lang of others) {
         if (cancelledRef.current) break; // arrêt demandé avant une traduction
         setCurrentStep(`Traduction — ${languageLabel(lang)}…`);
         setAssembleStep(`Traduction — ${languageLabel(lang)}…`);
         try {
-          const res = (await runTranslate({
-            data: {
+          type TransRes = {
+            title: string;
+            hook: string;
+            cta: string;
+            scenes: { index: number; narration: string; overlay: string }[];
+          };
+          const callTranslate = (
+            src: { title: string; hook: string; cta: string; scenes: TransRes["scenes"] },
+            adjust: boolean,
+          ) =>
+            runTranslate({
+              data: {
+                title: src.title,
+                hook: src.hook,
+                cta: src.cta,
+                scenes: src.scenes.map((s) => ({
+                  index: s.index,
+                  narration: s.narration,
+                  overlay: s.overlay ?? "",
+                })),
+                language: lang,
+                maxSceneSeconds: 8,
+                // Chaque langue doit tenir dans la même fenêtre de durée que la
+                // source : ni vidéo trop courte, ni secondes de clip payées en trop.
+                minTotalSeconds: loSec,
+                maxTotalSeconds: hiSec,
+                adjust,
+              },
+            }) as Promise<TransRes>;
+
+          let res = await callTranslate(
+            {
               title: doc.title ?? "",
               hook: doc.hook ?? "",
               cta: doc.cta ?? "",
@@ -868,19 +905,29 @@ function Studio() {
                 narration: s.narration,
                 overlay: s.overlay ?? "",
               })),
-              language: lang,
-              maxSceneSeconds: 8,
-              // Chaque langue doit tenir dans la même fenêtre de durée que la
-              // source : ni vidéo trop courte, ni secondes de clip payées en trop.
-              minTotalSeconds: targetSeconds,
-              maxTotalSeconds: Math.round(targetSeconds * 1.1),
             },
-          })) as {
-            title: string;
-            hook: string;
-            cta: string;
-            scenes: { index: number; narration: string; overlay: string }[];
-          };
+            false,
+          );
+          // CONTRÔLE DU TOTAL : deux passes de correction maximum sur CETTE
+          // langue uniquement, puis on garde le résultat le plus proche.
+          let best = res;
+          let bestGap = gap(totalSeconds(res.scenes, lang));
+          for (let pass = 0; pass < 2 && bestGap > 0 && !cancelledRef.current; pass++) {
+            setCurrentStep(`Ajustement de la durée — ${languageLabel(lang)}…`);
+            res = await callTranslate(res, true);
+            const g = gap(totalSeconds(res.scenes, lang));
+            if (g < bestGap) {
+              best = res;
+              bestGap = g;
+            }
+            if (bestGap === 0) break;
+          }
+          res = best;
+          if (bestGap > 0) {
+            toast.warning(
+              `${languageLabel(lang)} : ${Math.round(totalSeconds(res.scenes, lang))} s estimées, hors de la cible ${loSec}-${hiSec} s.`,
+            );
+          }
           // Les prompts visuels sont repris À L'IDENTIQUE : ils ont déjà servi.
           const byIndex = new Map(res.scenes.map((s) => [s.index, s]));
           next[lang] = {
@@ -1387,7 +1434,7 @@ function Studio() {
 
     const blob = await assembleVideo(withDurations, {
       ...dims,
-      music: track?.blob,
+      music: track?.blob ?? undefined,
       musicVolume: settings.musicVolume,
       onProgress: (step) => setAssembleStep(`${languageLabel(lang)} — ${step}`),
     });
@@ -2667,27 +2714,51 @@ function Studio() {
               </div>
             )}
 
-            {langDurations.length > 0 && (
-              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
-                <span className="text-muted-foreground">Durée estimée</span>
-                {langDurations.map(({ lang: l, seconds }) => (
-                  <span
-                    key={l}
-                    className={
-                      seconds < 60 ? "font-medium text-destructive" : "text-muted-foreground"
-                    }
-                    title={seconds < 60 ? "Sous la cible de 60 secondes" : undefined}
-                  >
-                    {l.toUpperCase()} ≈ {Math.round(seconds)} s{seconds < 60 ? " ⚠" : ""}
-                  </span>
-                ))}
-                {langDurations.some((d) => d.seconds < 60) && (
-                  <span className="text-destructive">
-                    Rallonge le script avant d'animer les plans.
-                  </span>
-                )}
-              </div>
-            )}
+            {langDurations.length > 0 &&
+              (() => {
+                const lo = targetSeconds;
+                const hi = Math.round(targetSeconds * 1.1);
+                const off = langDurations.filter((d) => d.seconds < lo || d.seconds > hi);
+                return (
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+                    <span className="text-muted-foreground">
+                      Durée estimée (cible {lo}-{hi} s)
+                    </span>
+                    {langDurations.map(({ lang: l, seconds }) => {
+                      const bad = seconds < lo || seconds > hi;
+                      return (
+                        <span
+                          key={l}
+                          className={
+                            bad ? "font-medium text-destructive" : "text-muted-foreground"
+                          }
+                          title={
+                            bad
+                              ? `Hors de la cible ${lo}-${hi} secondes`
+                              : undefined
+                          }
+                        >
+                          {l.toUpperCase()} ≈ {Math.round(seconds)} s{bad ? " ⚠" : ""}
+                        </span>
+                      );
+                    })}
+                    {off.length > 0 && (
+                      <span className="text-destructive">
+                        Écart restant après correction :{" "}
+                        {off
+                          .map(
+                            (d) =>
+                              `${d.lang.toUpperCase()} ${d.seconds < lo ? "−" : "+"}${Math.round(
+                                d.seconds < lo ? lo - d.seconds : d.seconds - hi,
+                              )} s`,
+                          )
+                          .join(" · ")}
+                        . Ajuste le script avant d'animer les plans.
+                      </span>
+                    )}
+                  </div>
+                );
+              })()}
 
             {langs.length > 1 && (
               <div className="flex flex-wrap items-center gap-2">

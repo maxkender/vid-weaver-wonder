@@ -86,6 +86,8 @@ export const translateScript = createServerFn({ method: "POST" })
         /** Cible de durée TOTALE de la version traduite (secondes). */
         minTotalSeconds: z.number().min(10).max(180).default(60),
         maxTotalSeconds: z.number().min(10).max(180).default(66),
+        /** Passe de correction de durée : le texte est déjà dans la langue cible. */
+        adjust: z.boolean().default(false),
       })
       .parse(input),
   )
@@ -111,6 +113,7 @@ export const translateScript = createServerFn({ method: "POST" })
           minWords: maxWordsForSeconds(data.minTotalSeconds, data.language),
           maxWords: maxWordsForSeconds(data.maxTotalSeconds, data.language),
         },
+        data.adjust,
       ),
       JSON.stringify({
         title: data.title,

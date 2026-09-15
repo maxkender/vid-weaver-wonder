@@ -100,6 +100,36 @@ export type Database = {
           },
         ]
       }
+      music_tracks: {
+        Row: {
+          created_at: string
+          duration_sec: number
+          id: string
+          name: string
+          path: string
+          styles: string[]
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          duration_sec?: number
+          id?: string
+          name: string
+          path: string
+          styles?: string[]
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          duration_sec?: number
+          id?: string
+          name?: string
+          path?: string
+          styles?: string[]
+          updated_at?: string
+        }
+        Relationships: []
+      }
       render_jobs: {
         Row: {
           attempts: number
