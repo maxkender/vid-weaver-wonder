@@ -12,7 +12,7 @@ const WORDS_PER_SECOND: Record<string, number> = {
   en: 3.0,
   es: 2.9,
   de: 2.7,
-  it: 3.0,
+  it: 3.3,
   pt: 3.0,
 };
 
