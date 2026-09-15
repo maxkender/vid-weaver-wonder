@@ -687,11 +687,13 @@ function AccountVideos({
   account,
   videos,
   today,
+  warmDone = true,
   onChange,
 }: {
   account: { id: string; language: string; handle: string };
   videos: DailyVideo[];
   today: string;
+  warmDone?: boolean;
   onChange: () => Promise<void>;
 }) {
   const video = videos.find((v) => v.publish_date === today);
