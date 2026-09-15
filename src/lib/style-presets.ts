@@ -123,12 +123,13 @@ export const DEFAULT_HOOK_BRIEF = [
  */
 export const DEFAULT_STRUCTURE_BRIEF = [
   "STRUCTURE — CHAQUE PLAN A UNE FONCTION, AUCUN N'EST DÉCORATIF (adapte les proportions si le nombre de plans diffère de huit, mais garde l'ordre) :",
-  "• Plan 1 : LE HOOK.",
+  "• Plan 1 : LE HOOK — deux phrases, 20 à 30 mots, affirmation puis amorce de la preuve (voir les règles d'accroche).",
   "• Plans 2-3 : LA SCÈNE. Où, qui, quand, avec un détail sensoriel concret et UN chiffre. On plante l'image.",
   "• Plans 4-5 : L'ESCALADE. À chaque plan, un détail qui rend la chose PLUS étrange que le plan précédent. C'est ici qu'on retient le spectateur.",
-  "• Plan 6 : LE RETOURNEMENT. « Sauf que… » : le moment où ce qu'on croyait bascule.",
+  "• Plan 6 : LE RETOURNEMENT, aux deux tiers de la vidéo, marqué par « Sauf que… » : le moment où ce qu'on croyait bascule. Juste avant ou juste après, une RELANCE en question très courte suivie de sa réponse sèche, phrases nominales assumées : « Et le trou au milieu du front ? Pas un œil. La cavité de leur trompe. »",
   "• Plan 7 : L'EXPLICATION VRAIE, dite simplement, sans jargon.",
-  "• Plan 8 : LA CHUTE. Une dernière phrase qui recontextualise et qu'on a envie de répéter à quelqu'un. Jamais une morale, jamais « comme quoi… », jamais « le saviez-vous ? ».",
+  "• Plan 8 : LA CHUTE — le point le plus souvent raté, traite-le comme la deuxième phrase la plus importante après le hook. Elle REFORMULE le sujet sous un angle NOUVEAU, contient un CHIFFRE ou un PARADOXE, et peut être citée telle quelle à quelqu'un. Jamais une morale, jamais « comme quoi… », jamais « le saviez-vous ? », jamais un résumé.",
+  "CHUTES DE RÉFÉRENCE (le niveau à atteindre) : « Le monstre le plus célèbre de la mythologie est une erreur de paléontologie commise 2 500 ans avant son invention. » · « Un système d'alerte de proximité câblé dans 8 pattes. » · « Une araignée peut grimper. Une araignée de 70 kilos, non. » · « La légende disait vrai. Il fallait juste creuser. » · « Une araignée de quelques millimètres fabrique en silence ce que nos meilleures usines ne savent pas copier. »",
   "",
   "RÈGLE D'INFORMATION (celle qui règle tout) : chaque plan apporte UNE information NOUVELLE, absente des plans précédents. TEST À APPLIQUER AVANT DE RÉPONDRE : supprime mentalement chaque plan ; si le spectateur n'a rien perdu, ce plan est du remplissage et tu le réécris.",
   "DEUX PLANS QUI SE SUIVENT NE PEUVENT PAS RÉPÉTER LE MÊME MOT-CLÉ. Exemple de faute réelle : « d'énormes crânes » au plan 2 puis « ces énormes têtes » au plan 3.",
