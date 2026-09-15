@@ -9,6 +9,7 @@
  */
 
 import { charBudget, predictSeconds } from "./voice-rate";
+import { fallbackCharsPerSecond } from "./duration";
 
 /** Fenêtre de longueur de texte, en caractères espaces compris. */
 export type CharWindow = { min: number; target: number; max: number };
@@ -49,6 +50,37 @@ export function narrationChars(texts: (string | undefined)[]) {
 export function perSceneChars(w: CharWindow, sceneCount: number) {
   return Math.max(40, Math.round(w.target / Math.max(1, sceneCount)));
 }
+
+/**
+ * Source unique du budget d'UN plan traduit, en caractères espaces compris.
+ * Le débit mesuré est prioritaire. Sans mesure, le débit en mots est d'abord
+ * converti en caractères/seconde avec la longueur moyenne d'un mot de la langue.
+ */
+export function targetCharsPerShot(
+  language: string,
+  targetSeconds: number,
+  shotCount: number,
+  measuredCharsPerSecond?: number | null,
+  speed = 1,
+) {
+  const cps =
+    measuredCharsPerSecond && measuredCharsPerSecond >= 3
+      ? measuredCharsPerSecond
+      : fallbackCharsPerSecond(language);
+  return Math.max(40, Math.round((targetSeconds / Math.max(1, shotCount)) * cps * speed));
+}
+
+/** Assertion chargée avec le module : 64 s / 8 plans à 10,9 car/s vaut ~87 car/plan. */
+function assertTranslationBudgetUnits() {
+  for (const language of ["fr", "en", "es", "de", "it"]) {
+    const budget = targetCharsPerShot(language, 64, 8, 10.9);
+    if (budget < 70 || budget > 95) {
+      throw new Error(`Budget de traduction invalide (${language}) : ${budget} caractères/plan`);
+    }
+  }
+}
+
+assertTranslationBudgetUnits();
 
 /**
  * Écart plan par plan au budget : combien de caractères il MANQUE (positif) ou

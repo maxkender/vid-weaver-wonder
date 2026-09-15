@@ -66,7 +66,12 @@ import {
   SQUARE_RADIUS_RATIO,
   voiceWindow,
 } from "@/lib/karaoke-overlay";
-import { calibrationMode, charWindow, narrationChars } from "@/lib/calibration";
+import {
+  calibrationMode,
+  charWindow,
+  narrationChars,
+  targetCharsPerShot,
+} from "@/lib/calibration";
 import {
   charsPerSecond,
   MAX_CONDENSE_PASSES,
@@ -666,15 +671,31 @@ function Studio() {
           }
           return sum + predictSeconds((sc.narration ?? "").trim().length, cps, speed);
         }, 0);
-        return { lang: l, seconds: total, speed, measured };
+        const actualChars = scriptChars(s);
+        const charsPerShot = targetCharsPerShot(l, targetSeconds, s.scenes.length, cps, baseVoiceSpeed);
+        return {
+          lang: l,
+          seconds: total,
+          speed,
+          measured,
+          actualChars,
+          targetChars: charsPerShot * s.scenes.length,
+        };
       })
       .filter(
         (
           x,
-        ): x is { lang: LanguageId; seconds: number; speed: number; measured: boolean } =>
+        ): x is {
+          lang: LanguageId;
+          seconds: number;
+          speed: number;
+          measured: boolean;
+          actualChars: number;
+          targetChars: number;
+        } =>
           x !== null,
       );
-  }, [langs, scriptOf, states, speedByLang, baseVoiceSpeed, cpsFor]);
+  }, [langs, scriptOf, states, speedByLang, baseVoiceSpeed, cpsFor, scriptChars, targetSeconds]);
 
   /**
    * Langues encore hors fenêtre APRÈS condensation et accélération : tant qu'il
@@ -1357,6 +1378,13 @@ function Studio() {
           // cible de 63 s ne laisse pas le même texte qu'à 10,4 c/s.
           const cps = cpsFor(lang);
           const window = charWindow(loSec, hiSec, cps, baseVoiceSpeed);
+          const charsPerShot = targetCharsPerShot(
+            lang,
+            window.target / (cps * baseVoiceSpeed),
+            doc.scenes.length,
+            cps,
+            baseVoiceSpeed,
+          );
           const charsOf = (scenes: { narration: string }[]) =>
             narrationChars(scenes.map((s) => s.narration));
           const predicted = (scenes: { narration: string }[]) =>
@@ -1386,6 +1414,7 @@ function Studio() {
                 charTarget: window.target,
                 charMin: window.min,
                 charMax: window.max,
+                charsPerShot,
                 charMode: mode,
                 // Une traduction ne remonte jamais d'un cran en niveau de langue.
                 languageBrief: settings.guides.language,
@@ -1424,8 +1453,12 @@ function Studio() {
             pass < MAX_CONDENSE_PASSES && bestGap > 0 && !cancelledRef.current;
             pass++
           ) {
+            const planOutsideTolerance = res.scenes.some(
+              (scene) =>
+                Math.abs(scene.narration.trim().length - charsPerShot) / charsPerShot > 0.15,
+            );
             const mode = calibrationMode(charsOf(res.scenes), window);
-            if (mode === "ok") break;
+            if (mode === "ok" && !planOutsideTolerance) break;
             setCurrentStep(
               `${mode === "shorten" ? "Condensation" : "Étoffement"} — ${languageLabel(lang)}…`,
             );
@@ -3614,7 +3647,7 @@ function Studio() {
                       {anyMeasured ? "Durée mesurée" : "Durée prédite (débit réel des voix)"}{" "}
                       (cible {lo}-{hi} s)
                     </span>
-                    {langDurations.map(({ lang: l, seconds, speed }) => {
+                     {langDurations.map(({ lang: l, seconds, speed, actualChars, targetChars }) => {
                       const bad = seconds < lo || seconds > hi;
                       const boosted = speed > baseVoiceSpeed + 0.001;
                       return (
@@ -3631,7 +3664,7 @@ function Studio() {
                                 : undefined
                           }
                         >
-                          {l.toUpperCase()} ≈ {Math.round(seconds)} s
+                           {l.toUpperCase()} ≈ {Math.round(seconds)} s · cible {targetChars.toLocaleString("fr-FR")} car. · obtenu {actualChars.toLocaleString("fr-FR")} car.
                           {boosted ? ` · voix ×${speed.toFixed(2).replace(".", ",")}` : ""}
                           {bad ? " ⚠" : ""}
                         </span>

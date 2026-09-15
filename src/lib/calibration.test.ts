@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { calibrationMode, charWindow } from "./calibration";
+import { calibrationMode, charWindow, targetCharsPerShot } from "./calibration";
 import { MASTER_LANGUAGE_IDS } from "./languages";
 import { DEFAULT_CHARS_PER_SECOND, predictSeconds, charsPerSecond } from "./voice-rate";
 
@@ -12,6 +12,14 @@ const HI = 66;
 const MID = (LO + HI) / 2;
 
 describe("budget de caractères", () => {
+  for (const lang of MASTER_LANGUAGE_IDS) {
+    it(`${lang} : 64 secondes sur 8 plans donnent 70 à 95 caractères par plan`, () => {
+      const budget = targetCharsPerShot(lang, 64, 8, 10.9);
+      expect(budget).toBeGreaterThanOrEqual(70);
+      expect(budget).toBeLessThanOrEqual(95);
+    });
+  }
+
   for (const lang of MASTER_LANGUAGE_IDS) {
     it(`${lang} : la cible tombe à ±5 % de la durée visée`, () => {
       const cps = MEASURED[lang] ?? DEFAULT_CHARS_PER_SECOND[lang]!;

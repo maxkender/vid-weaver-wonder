@@ -18,6 +18,16 @@ const WORDS_PER_SECOND: Record<string, number> = {
 
 const DEFAULT_WPS = 3.0;
 
+/** Longueur moyenne d'un mot, espace compris, utilisée uniquement en repli. */
+export const AVERAGE_CHARS_PER_WORD: Record<string, number> = {
+  fr: 5.5,
+  en: 5.1,
+  es: 5.4,
+  de: 6.2,
+  it: 5.5,
+  pt: 5.5,
+};
+
 /**
  * SOURCE DE VÉRITÉ de la fourchette de durée cible.
  * Un script peut dépasser la durée demandée de 10 % au maximum : au-delà on
@@ -39,6 +49,15 @@ export function durationRange(targetSeconds: number) {
 /** Débit de parole d'une langue (mots par seconde). */
 export function wordsPerSecond(language = "fr") {
   return WORDS_PER_SECOND[language.slice(0, 2).toLowerCase()] ?? DEFAULT_WPS;
+}
+
+/**
+ * Repli en caractères/seconde quand aucune mesure de voix n'existe encore.
+ * La conversion explicite empêche de traiter un débit en mots comme des caractères.
+ */
+export function fallbackCharsPerSecond(language = "fr") {
+  const lang = language.slice(0, 2).toLowerCase();
+  return wordsPerSecond(lang) * (AVERAGE_CHARS_PER_WORD[lang] ?? 5.5);
 }
 
 /**
