@@ -202,34 +202,42 @@ export async function createVideoJob(input: {
 }): Promise<VideoJob> {
   const base = videoJobBody(input);
 
-  // 1er essai : audio désactivé (tarif sans audio).
-  let res = await postVideoJob({ ...base, generateAudio: false });
-  if (!res.ok) {
-    const firstError = await readError(res);
-    // 2e essai avec la variante snake_case, au cas où.
-    res = await postVideoJob({ ...base, generate_audio: false });
+  // Réessai UNIQUEMENT sur erreur transitoire : un 5xx signifie que la
+  // commande n'a pas été enregistrée, donc rien n'est facturé deux fois.
+  return withRetry("clip", async () => {
+    // 1er essai : audio désactivé (tarif sans audio).
+    let res = await postVideoJob({ ...base, generateAudio: false });
     if (!res.ok) {
-      await readError(res); // consomme le corps
-      // 3e essai : sans le paramètre — la génération ne doit jamais échouer
-      // à cause de cette optimisation de coût.
-      res = await postVideoJob(base);
-      if (!res.ok) throw new Error(await readError(res));
-      if (!audioOptOutUnavailableLogged) {
-        audioOptOutUnavailableLogged = true;
-        console.warn(
-          "[video] La passerelle refuse generateAudio=false — audio natif généré et facturé. Première erreur :",
-          firstError,
-        );
+      const first = await gatewayError(res);
+      // Erreur transitoire : inutile de tenter les variantes, on relance tel quel.
+      if (isTransientError(first)) throw first;
+      // 2e essai avec la variante snake_case, au cas où.
+      res = await postVideoJob({ ...base, generate_audio: false });
+      if (!res.ok) {
+        await readError(res); // consomme le corps
+        // 3e essai : sans le paramètre — la génération ne doit jamais échouer
+        // à cause de cette optimisation de coût.
+        res = await postVideoJob(base);
+        if (!res.ok) throw await gatewayError(res);
+        if (!audioOptOutUnavailableLogged) {
+          audioOptOutUnavailableLogged = true;
+          console.warn(
+            "[video] La passerelle refuse generateAudio=false — audio natif généré et facturé. Première erreur :",
+            first.message,
+          );
+        }
       }
     }
-  }
-  return (await res.json()) as VideoJob;
+    return (await res.json()) as VideoJob;
+  });
 }
 
 export async function getVideoJob(id: string): Promise<VideoJob> {
-  const res = await fetch(`${GATEWAY}/videos/${id}`, { headers: gatewayHeaders(false) });
-  if (!res.ok) throw new Error(await readError(res));
-  return (await res.json()) as VideoJob;
+  return withRetry("suivi du clip", async () => {
+    const res = await fetch(`${GATEWAY}/videos/${id}`, { headers: gatewayHeaders(false) });
+    if (!res.ok) throw await gatewayError(res);
+    return (await res.json()) as VideoJob;
+  });
 }
 
 export async function fetchVideoContent(id: string): Promise<Response> {
