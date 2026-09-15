@@ -265,7 +265,7 @@ export const createPoster = createServerFn({ method: "POST" })
     z
       .object({
         firstName: z.string().min(1).max(80),
-        lastName: z.string().min(1).max(80),
+        lastName: z.string().max(80).optional().default(""),
         countryCode: z.string().max(4).optional(),
         language: z.enum(["fr", "en", "es", "de", "it"]).default("fr"),
       })
