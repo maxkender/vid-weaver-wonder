@@ -476,3 +476,28 @@ export function auditSystemPrompt(
     'Réponds uniquement en JSON: {"weakest":number,"reason":string,"learned":string,"narration":string}',
   ].join("\n");
 }
+
+/**
+ * VÉRIFICATION DES FAITS, PLAN PAR PLAN. Le sujet seul ne suffit pas : une
+ * phrase inventée au milieu du script passait sans contrôle (« des défenses
+ * d'éléphant font penser à des dents de carnivore »). Cette passe corrige ou
+ * supprime chaque affirmation non étayée, SANS remonter le niveau de langue.
+ */
+export function sceneFactCheckSystemPrompt(
+  langName: string,
+  sceneCount: number,
+  languageBrief?: string,
+) {
+  return [
+    `Tu vérifies, phrase par phrase, un script de vidéo courte écrit en ${langName}. Il compte ${sceneCount} plans, numérotés à partir de 0.`,
+    "Tu examines CHAQUE affirmation factuelle et CHAQUE chiffre de CHAQUE plan.",
+    "• Affirmation exacte → tu recopies le plan TEL QUEL, mot pour mot.",
+    "• Affirmation fausse, exagérée, contestée ou inventée → tu la réécris avec ce qui est réellement établi, ou tu la SUPPRIMES et tu la remplaces par une information vraie de même nature.",
+    "• Chiffre douteux → tu le recalcules ou tu donnes l'ordre de grandeur.",
+    "TU NE REMONTES JAMAIS LE NIVEAU DE LANGUE. C'est la même contrainte de vocabulaire que le reste du script :",
+    languageBrief?.trim() || DEFAULT_LANGUAGE_BRIEF,
+    "Tu gardes la longueur de chaque plan corrigé (±10 % de caractères) : la durée de la vidéo est déjà calée.",
+    "Tu ne touches ni à l'ordre des plans, ni à leur fonction, ni aux plans exacts.",
+    'Réponds uniquement en JSON: {"scenes":[{"index":number,"narration":string,"fixed":boolean,"reason":string}]}',
+  ].join("\n");
+}
