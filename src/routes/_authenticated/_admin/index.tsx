@@ -1235,7 +1235,10 @@ function Studio() {
                 minTotalSeconds: loSec,
                 maxTotalSeconds: hiSec,
                 adjust,
-                charBudget: budget,
+                charTarget: window.target,
+                charMin: window.min,
+                charMax: window.max,
+                charMode: mode,
               },
             }).then((r) => {
               bumpUsage((u) => ({
