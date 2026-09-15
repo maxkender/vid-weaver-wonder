@@ -13,6 +13,7 @@ import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/
 import { Route as ConnexionRouteImport } from './routes/connexion'
 import { Route as StationRouteImport } from './routes/station'
 import { Route as AuthenticatedAdminRouteRouteImport } from './routes/_authenticated/_admin/route'
+import { Route as AuthenticatedEspaceRouteImport } from './routes/_authenticated/espace'
 import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/_admin/index'
 import { Route as AuthenticatedAdminParametresRouteImport } from './routes/_authenticated/_admin/parametres'
 import { Route as AuthenticatedAdminSujetsRouteImport } from './routes/_authenticated/_admin/sujets'
@@ -38,6 +39,11 @@ const StationRoute = StationRouteImport.update({
 } as any)
 const AuthenticatedAdminRouteRoute = AuthenticatedAdminRouteRouteImport.update({
   id: '/_admin',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedEspaceRoute = AuthenticatedEspaceRouteImport.update({
+  id: '/espace',
+  path: '/espace',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedAdminIndexRoute = AuthenticatedAdminIndexRouteImport.update({
@@ -88,6 +94,7 @@ export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedAdminIndexRoute
   '/connexion': typeof ConnexionRoute
   '/station': typeof StationRoute
+  '/espace': typeof AuthenticatedEspaceRoute
   '/parametres': typeof AuthenticatedAdminParametresRoute
   '/sujets': typeof AuthenticatedAdminSujetsRoute
   '/api/public/videos': typeof ApiPublicVideosRouteWithChildren
@@ -100,6 +107,7 @@ export interface FileRoutesByTo {
   '/': typeof AuthenticatedAdminIndexRoute
   '/connexion': typeof ConnexionRoute
   '/station': typeof StationRoute
+  '/espace': typeof AuthenticatedEspaceRoute
   '/parametres': typeof AuthenticatedAdminParametresRoute
   '/sujets': typeof AuthenticatedAdminSujetsRoute
   '/api/public/videos': typeof ApiPublicVideosRouteWithChildren
@@ -114,6 +122,7 @@ export interface FileRoutesById {
   '/connexion': typeof ConnexionRoute
   '/station': typeof StationRoute
   '/_authenticated/_admin': typeof AuthenticatedAdminRouteRouteWithChildren
+  '/_authenticated/espace': typeof AuthenticatedEspaceRoute
   '/_authenticated/_admin/parametres': typeof AuthenticatedAdminParametresRoute
   '/_authenticated/_admin/sujets': typeof AuthenticatedAdminSujetsRoute
   '/api/public/videos': typeof ApiPublicVideosRouteWithChildren
@@ -129,6 +138,7 @@ export interface FileRouteTypes {
     | '/'
     | '/connexion'
     | '/station'
+    | '/espace'
     | '/parametres'
     | '/sujets'
     | '/api/public/videos'
@@ -141,6 +151,7 @@ export interface FileRouteTypes {
     | '/'
     | '/connexion'
     | '/station'
+    | '/espace'
     | '/parametres'
     | '/sujets'
     | '/api/public/videos'
@@ -154,6 +165,7 @@ export interface FileRouteTypes {
     | '/connexion'
     | '/station'
     | '/_authenticated/_admin'
+    | '/_authenticated/espace'
     | '/_authenticated/_admin/parametres'
     | '/_authenticated/_admin/sujets'
     | '/api/public/videos'
@@ -202,6 +214,13 @@ declare module '@tanstack/react-router' {
       path: ''
       fullPath: '/'
       preLoaderRoute: typeof AuthenticatedAdminRouteRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/espace': {
+      id: '/_authenticated/espace'
+      path: '/espace'
+      fullPath: '/espace'
+      preLoaderRoute: typeof AuthenticatedEspaceRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/_admin/': {
@@ -283,10 +302,12 @@ const AuthenticatedAdminRouteRouteWithChildren =
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAdminRouteRoute: typeof AuthenticatedAdminRouteRouteWithChildren
+  AuthenticatedEspaceRoute: typeof AuthenticatedEspaceRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAdminRouteRoute: AuthenticatedAdminRouteRouteWithChildren,
+  AuthenticatedEspaceRoute: AuthenticatedEspaceRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =
