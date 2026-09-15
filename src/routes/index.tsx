@@ -1776,6 +1776,8 @@ function Studio() {
       toast.error(e instanceof Error ? e.message : "Échec de l'assemblage");
     } finally {
       setAssembling(false);
+      setCurrentStep(cancelledRef.current ? "Pipeline arrêté" : "");
+      setAssembleStep(cancelledRef.current ? "Pipeline arrêté" : "");
     }
   };
 
@@ -1854,6 +1856,7 @@ function Studio() {
     } finally {
       setAssembling(false);
       setCurrentStep(cancelledRef.current ? "Pipeline arrêté" : "");
+      setAssembleStep(cancelledRef.current ? "Pipeline arrêté" : "");
     }
   };
 
