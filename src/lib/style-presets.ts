@@ -258,6 +258,8 @@ export function defaultFieldValue(path: FieldPath): string {
 function readField(settings: StudioSettings, path: FieldPath): string {
   const [group, id, key] = path.split(".");
   if (group === "narration") return settings.narration[id as NarrationStyleId]?.brief ?? "";
+  if (group === "guides")
+    return settings.guides?.[key as "language" | "hook" | "shots"] ?? "";
   if (group === "opening") return settings.opening?.[key as "motion" | "image"] ?? "";
   const v = settings.visual[id as VisualStyleId];
   return (v?.[key as "brief" | "quality" | "motion"] as string) ?? "";
