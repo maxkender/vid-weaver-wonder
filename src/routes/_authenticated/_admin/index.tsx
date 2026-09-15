@@ -42,7 +42,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { KaraokeCaption } from "@/components/karaoke-caption";
-import { normalizeScript, normalizeScripts } from "@/lib/script-shape";
+import { asHashtags, normalizeScript, normalizeScripts } from "@/lib/script-shape";
 import { StudioErrorBoundary } from "@/components/studio-error-boundary";
 import { MusicLibrary } from "@/components/music-library";
 import {
@@ -2170,6 +2170,17 @@ function Studio() {
       }
       item.st = { ...item.st, voices: { ...(item.st.voices ?? {}), [lang]: res } };
     }
+    // DERNIER VERROU AVANT FFMPEG : aucun plan ne part sans voix off. Si l'un
+    // d'eux manque encore, on nomme précisément lesquels plutôt que de monter
+    // une vidéo muette par endroits.
+    const missing = all.filter((x) => !voiceOf(x.st, lang)).map((x) => x.scene.index + 1);
+    if (missing.length) {
+      throw new Error(
+        `Montage annulé (${languageLabel(lang)}) : voix off manquante pour ${
+          missing.length > 1 ? "les plans" : "le plan"
+        } ${missing.join(", ")}. Relance la voix off de ${missing.length > 1 ? "ces plans" : "ce plan"}.`,
+      );
+    }
     const ordered = all;
 
     // Papier découpé : masque carré à coins arrondis, toujours présent.
@@ -2917,7 +2928,11 @@ function Studio() {
               <div key={h.id} className="flex flex-wrap items-center justify-between gap-3">
                 <button
                   onClick={async () => {
-                    setScript(h.script);
+                    // Projets enregistrés avant le garde-fou : on remet le
+                    // script en forme À L'OUVERTURE aussi, pas seulement à la
+                    // lecture de l'historique.
+                    const safe = normalizeScript(h.script) as Script;
+                    setScript(safe);
                     setProjectId(h.id);
                     setFinalUrl(null);
                     setFinalUrls({});
@@ -2929,7 +2944,10 @@ function Studio() {
                     )
                       ? (h.sourceLang as LanguageId)
                       : sourceLang;
-                    const saved = { ...(h.scripts ?? {}), [src]: h.script };
+                    const saved = {
+                      ...(normalizeScripts(h.scripts) as Record<string, Script>),
+                      [src]: safe,
+                    };
                     setScripts(saved);
                     scriptsRef.current = saved;
                     setShowHistory(false);
@@ -3507,7 +3525,7 @@ function Studio() {
               </div>
 
               <div className="mt-3 flex flex-wrap gap-1.5">
-                {(script.hashtags ?? []).map((h) => (
+                {asHashtags(script.hashtags).map((h) => (
                   <span
                     key={h}
                     className="rounded-md border border-border px-2 py-0.5 text-xs text-muted-foreground"
