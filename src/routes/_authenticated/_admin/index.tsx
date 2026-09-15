@@ -1492,6 +1492,17 @@ function Studio() {
             if (bestGap === 0 && !hasPlanOutsideTolerance(best.scenes)) break;
           }
           res = best;
+          const finalPlanErrors = res.scenes.filter(
+            (scene) =>
+              Math.abs(scene.narration.trim().length - charsPerShot) / charsPerShot > 0.15,
+          );
+          if (finalPlanErrors.length) {
+            toast.warning(
+              `${languageLabel(lang)} : budget ${charsPerShot} caractères par plan non atteint après ${MAX_CONDENSE_PASSES} passes (${finalPlanErrors
+                .map((scene) => `plan ${scene.index + 1} : ${scene.narration.trim().length}`)
+                .join(" · ")}).`,
+            );
+          }
           if (bestGap > 0) {
             // Second levier : la vitesse de synthèse de CETTE langue (≤ 1,15).
             const speed = plannedSpeed(predicted(res.scenes), hiSec);
