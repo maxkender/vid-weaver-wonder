@@ -8,10 +8,11 @@ import {
 import { languageName } from "./languages";
 import {
   durationRange,
-  estimateSpeechSeconds,
   fastestWordsPerSecond,
   wordsPerSecond as speechRate,
 } from "./duration";
+import { calibrationMode, charWindow, narrationChars } from "./calibration";
+import { defaultCharsPerSecond, predictSeconds } from "./voice-rate";
 
 export type BuildScriptInput = {
   topic: string;
