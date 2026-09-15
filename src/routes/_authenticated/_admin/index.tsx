@@ -1489,6 +1489,8 @@ function Studio() {
             ? { opening: settings.opening.image.trim() }
             : {}),
           ...(story ? { story } : {}),
+          // Échelle et cadrage imposés : jamais le même type que le plan voisin.
+          shot: `${shotPrompt(shotOverride ?? shotTypeFor(scene, doc))} ${settings.guides.shots}`.trim(),
           ...(ref ? { referenceImage: ref } : {}),
           ...(prev && prev !== ref ? { previousImage: prev } : {}),
         },
