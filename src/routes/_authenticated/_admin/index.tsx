@@ -83,7 +83,15 @@ import {
   voicesFor,
   type VoiceEngine,
 } from "@/lib/voices";
-import { defaultSettings, loadSettings, type StudioSettings } from "@/lib/style-presets";
+import {
+  defaultSettings,
+  loadSettings,
+  SHOT_TYPES,
+  type ShotTypeId,
+  type StudioSettings,
+} from "@/lib/style-presets";
+import { alternativeShot, assignShotTypes, shotPrompt } from "@/lib/shot-rotation";
+import { fingerprintSimilarity, imageFingerprint, TOO_SIMILAR } from "@/lib/image-similarity";
 import sophiaLogo from "@/assets/sophia-logo.png.asset.json";
 
 
