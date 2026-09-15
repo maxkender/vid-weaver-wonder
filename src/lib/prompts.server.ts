@@ -411,11 +411,10 @@ export const TOPIC_INTRIGUE = [
 
 
 /**
- * LEVIERS VIRAUX : les 9 vidéos de référence qui marchent ont toutes de la
- * matière à DÉROULER (mécanisme ou enquête) et activent au moins un de ces
- * leviers. Un sujet qui n'en active aucun, ou qui tient entier dans sa phrase
- * d'accroche, est rejeté.
+ * MATIÈRE À DÉROULER + LES TROIS FAMILLES VALIDÉES. Un sujet hors de ces trois
+ * familles, ou dont le fait tient entier dans sa phrase d'accroche, est rejeté.
  */
+
 export const TOPIC_VIRAL = [
   "RÈGLE ABSOLUE — IL FAUT DE LA MATIÈRE À DÉROULER (critère éliminatoire, à vérifier AVANT tout le reste) : le sujet doit contenir quelque chose qui se DÉROULE sur soixante secondes, c'est-à-dire soit un MÉCANISME qui s'explique en plusieurs étapes, soit une ENQUÊTE dont la vérité se découvre progressivement.",
   "TEST DE REJET : si le fait est entièrement dit dans la phrase d'accroche et qu'il ne reste plus qu'à le répéter ou à broder autour, le sujet est REFUSÉ. C'est une anecdote, pas une histoire. Exemples refusés : « il existe plus de flamants roses en plastique que de vrais », « il y a cent Lego par humain », « Oxford est plus vieille que l'empire aztèque » — le fait tient entier dans la première phrase, il ne reste rien à raconter.",
