@@ -1510,7 +1510,7 @@ function Studio() {
           const byIndex = new Map(res.scenes.map((s) => [s.index, s]));
           // Même garde-fou que pour le script source : une traduction mal
           // formée ne doit jamais entrer telle quelle dans l'application.
-          next[lang] = normalizeScript({
+          const translated = normalizeScript({
             ...doc,
             title: res.title || doc.title,
             hook: res.hook || doc.hook,
@@ -1521,13 +1521,14 @@ function Studio() {
               overlay: byIndex.get(s.index)?.overlay ?? s.overlay,
             })),
           }) as Script;
+          next[lang] = translated;
           // Une ancienne voix ne doit jamais survivre à un changement de texte :
           // la nouvelle traduction finale sera synthétisée une seule fois ensuite.
           const previous = scriptsRef.current[lang];
-          if (previous && sourceSignature(previous) !== sourceSignature(next[lang])) {
+          if (previous && sourceSignature(previous) !== sourceSignature(translated)) {
             setStates((current) => {
               const cleaned = { ...current };
-              for (const scene of next[lang].scenes) {
+              for (const scene of translated.scenes) {
                 const state = cleaned[scene.index];
                 if (!state?.voices?.[lang]) continue;
                 const voices = { ...state.voices };
