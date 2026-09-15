@@ -44,6 +44,16 @@ import {
 import { KaraokeCaption } from "@/components/karaoke-caption";
 import { MusicLibrary } from "@/components/music-library";
 import { audioDuration, estimateSpeechSeconds } from "@/lib/duration";
+import {
+  addTokens,
+  emptyUsage,
+  formatEuros,
+  hasUsage,
+  moneyTotal,
+  totalVoiceChars,
+  type TokenUsage,
+  type UsageReport,
+} from "@/lib/usage";
 import { SQUARE_MARGIN_RATIO, SQUARE_RADIUS_RATIO } from "@/lib/karaoke-overlay";
 import {
   
