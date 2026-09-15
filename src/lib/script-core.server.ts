@@ -10,6 +10,7 @@ import {
   type Script,
 } from "./prompts.server";
 import { languageName } from "./languages";
+import { normalizeScript } from "./script-shape";
 import {
   durationRange,
   fastestWordsPerSecond,
@@ -128,7 +129,10 @@ export async function buildScript(data: BuildScriptInput): Promise<Script> {
     Math.max(minWords, Math.round(totalWords / sceneCount) + wordsBias),
   );
 
-  const script = await chatJSON<Script>(
+  // Le modèle peut renvoyer un champ sous une forme inattendue (hashtags en
+  // chaîne, scenes absent…) : on ramène la réponse à une forme sûre.
+  const script = normalizeScript(
+    await chatJSON<Script>(
     "google/gemini-3.7-flash",
     scriptSystemPrompt(
       data.kind,
@@ -151,7 +155,9 @@ export async function buildScript(data: BuildScriptInput): Promise<Script> {
       data.structureBrief,
     ),
     `${scriptUserPrompt(data.kind, data.topic)}\nÉcris tout le script en ${langName}.`,
-  );
+    ),
+  ) as Script;
+
 
   script.scenes = (script.scenes ?? []).slice(0, sceneCount).map((s, i) => ({ ...s, index: i }));
 

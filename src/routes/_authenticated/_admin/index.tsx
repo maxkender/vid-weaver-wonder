@@ -42,6 +42,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { KaraokeCaption } from "@/components/karaoke-caption";
+import { normalizeScript, normalizeScripts } from "@/lib/script-shape";
+import { StudioErrorBoundary } from "@/components/studio-error-boundary";
 import { MusicLibrary } from "@/components/music-library";
 import {
   audioDuration,
@@ -209,8 +211,17 @@ export const Route = createFileRoute("/_authenticated/_admin/")({
       { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
-  component: Studio,
+  component: StudioPage,
 });
+
+/** La page complète, protégée par une frontière d'erreur. */
+function StudioPage() {
+  return (
+    <StudioErrorBoundary>
+      <Studio />
+    </StudioErrorBoundary>
+  );
+}
 
 /** Phrase d'exemple pour l'aperçu de voix, dans la langue de l'onglet actif. */
 const VOICE_SAMPLE_TEXT: Record<string, string> = {
@@ -346,7 +357,18 @@ const HISTORY_KEY = "studio-history-v1";
 function readHistory(): HistoryItem[] {
   if (typeof window === "undefined") return [];
   try {
-    return JSON.parse(window.localStorage.getItem(HISTORY_KEY) ?? "[]") as HistoryItem[];
+    const raw = JSON.parse(window.localStorage.getItem(HISTORY_KEY) ?? "[]") as unknown;
+    if (!Array.isArray(raw)) return [];
+    // Les projets enregistrés avant ce garde-fou peuvent contenir un champ mal
+    // formé (hashtags en chaîne…) : on les remet en forme au chargement.
+    return raw.map((item) => {
+      const h = item as HistoryItem;
+      return {
+        ...h,
+        script: normalizeScript(h.script) as Script,
+        scripts: normalizeScripts(h.scripts) as Record<string, Script>,
+      };
+    });
   } catch {
     return [];
   }
@@ -1163,7 +1185,7 @@ function Studio() {
         .catch(() => undefined);
     }
     try {
-      const result = (await runScript({
+      const raw = (await runScript({
         data: {
           topic: checked.correctedTopic || topic,
           facts: checked.facts,
@@ -1185,7 +1207,10 @@ function Studio() {
           structureBrief: settings.guides.structure,
           auditBrief: settings.guides.audit,
         },
-      })) as Script;
+      })) as unknown;
+      // Le modèle peut renvoyer un champ mal formé (hashtags en chaîne…) :
+      // on remet le script en forme AVANT qu'il n'entre dans l'application.
+      const result = normalizeScript(raw) as Script;
       setScript(result);
       // Nouveau script = nouvelle vidéo : le compteur de coût repart de zéro,
       // en conservant la vérification des faits déjà payée pour ce sujet.
@@ -1429,7 +1454,9 @@ function Studio() {
           }
           // Les prompts visuels sont repris À L'IDENTIQUE : ils ont déjà servi.
           const byIndex = new Map(res.scenes.map((s) => [s.index, s]));
-          next[lang] = {
+          // Même garde-fou que pour le script source : une traduction mal
+          // formée ne doit jamais entrer telle quelle dans l'application.
+          next[lang] = normalizeScript({
             ...doc,
             title: res.title || doc.title,
             hook: res.hook || doc.hook,
@@ -1439,7 +1466,7 @@ function Studio() {
               narration: byIndex.get(s.index)?.narration ?? s.narration,
               overlay: byIndex.get(s.index)?.overlay ?? s.overlay,
             })),
-          };
+          }) as Script;
           // Mémorise le texte source d'où vient cette traduction : tant qu'il
           // ne change pas, on ne repaiera jamais la même traduction.
           translationSourceRef.current[lang] = sig;
