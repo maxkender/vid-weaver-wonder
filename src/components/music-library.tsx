@@ -1,7 +1,13 @@
 import { useCallback, useEffect, useState } from "react";
 import { Music, Trash2, Upload } from "lucide-react";
 import { toast } from "sonner";
-import { addTracks, deleteTrack, listTracks, type MusicTrack } from "@/lib/music-store";
+import {
+  addTracks,
+  deleteTrack,
+  listTracks,
+  migrateLocalTracks,
+  type MusicTrack,
+} from "@/lib/music-store";
 
 export function MusicLibrary({
   styles,
@@ -20,7 +26,14 @@ export function MusicLibrary({
   }, []);
 
   useEffect(() => {
-    refresh();
+    // Migration : les MP3 encore dans l'ancienne banque locale du navigateur
+    // sont envoyés vers le stockage partagé, puis effacés en local.
+    migrateLocalTracks()
+      .then((n) => {
+        if (n > 0) toast.success(`${n} musique(s) transférée(s) vers le stockage partagé`);
+      })
+      .catch(() => undefined)
+      .finally(refresh);
   }, [refresh]);
 
   const onUpload = async (styleId: string, files: FileList | null) => {
@@ -34,7 +47,7 @@ export function MusicLibrary({
     }
   };
 
-  const activeCount = tracks.filter((t) => t.style === activeStyle).length;
+  const activeCount = tracks.filter((t) => t.styles.includes(activeStyle)).length;
 
   return (
     <div className="rounded-[10px] border border-border p-3">
@@ -54,10 +67,11 @@ export function MusicLibrary({
         <div className="mt-4 space-y-4">
           <p className="text-xs text-muted-foreground">
             Une musique est piochée au hasard dans la banque du style de narration choisi lors de
-            l'assemblage final.
+            l'assemblage final. Les fichiers sont stockés avec le projet : ils sont visibles depuis
+            n'importe quel navigateur et utilisables par la génération automatique de nuit.
           </p>
           {styles.map((s) => {
-            const list = tracks.filter((t) => t.style === s.id);
+            const list = tracks.filter((t) => t.styles.includes(s.id));
             return (
               <div key={s.id} className="rounded-[10px] border border-border p-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
