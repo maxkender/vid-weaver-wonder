@@ -477,6 +477,10 @@ export const generateSceneVoice = createServerFn({ method: "POST" })
     z
       .object({
         text: z.string().min(2).max(4000),
+        /** Narration attendue du plan : doit être IDENTIQUE au texte envoyé. */
+        expected: z.string().max(4000).optional(),
+        /** Repère lisible du plan, pour nommer l'erreur. */
+        label: z.string().max(120).optional(),
         voice: z.string().min(2).max(60).default("ballad"),
         engine: z.enum(["lovable", "elevenlabs"]).default("lovable"),
         language: z.enum(LANGUAGE_IDS).default("fr"),
@@ -486,13 +490,23 @@ export const generateSceneVoice = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data }) => {
+    const where = `${data.label ? `${data.label} — ` : ""}langue « ${data.language} »`;
+    // GARDE-FOU : on ne synthétise QUE la narration complète du plan. Un texte
+    // raccourci (titre, extrait, aperçu) est refusé — un demi-plan payé est
+    // pire qu'une erreur visible.
+    if (data.expected !== undefined && data.expected.trim() !== data.text.trim()) {
+      throw new Error(
+        `Texte de synthèse différent de la narration du plan (${where}) : ` +
+          `${data.text.trim().length} caractères envoyés pour ${data.expected.trim().length} attendus. Voix off annulée.`,
+      );
+    }
     if (data.engine === "elevenlabs") {
       const { generateElevenSpeechWithTimings } = await import("./elevenlabs.server");
       return await generateElevenSpeechWithTimings(
         data.text,
         data.voice,
         data.language,
-        undefined,
+        data.label,
         data.speed,
       );
     }
@@ -505,6 +519,7 @@ export const generateSceneVoice = createServerFn({ method: "POST" })
       audioDataUrl,
       words: [] as { word: string; start: number; end: number }[],
       characters: data.text.length,
+      textChars: data.text.trim().length,
     };
   });
 

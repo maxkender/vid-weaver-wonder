@@ -176,11 +176,21 @@ function UsageRecap({
       </div>
       {Object.keys(usage.voiceChars).length > 0 && (
         <div className="flex flex-wrap gap-2 text-muted-foreground">
-          {Object.entries(usage.voiceChars).map(([l, n]) => (
-            <span key={l}>
-              {l.toUpperCase()} {n.toLocaleString("fr-FR")} car.
-            </span>
-          ))}
+          {Object.entries(usage.voiceChars).map(([l, n]) => {
+            const sent = usage.voiceTextChars?.[l] ?? 0;
+            // ÉCART FACTURÉ / ENVOYÉ : au-delà de 5 %, une partie du texte n'a
+            // pas été synthétisée (ou pas facturée) — on le dit en clair.
+            const gap = sent > 0 ? Math.abs(n - sent) / sent : 0;
+            return (
+              <span key={l} className={gap > 0.05 ? "font-medium text-destructive" : undefined}>
+                {l.toUpperCase()} {n.toLocaleString("fr-FR")} car. facturés
+                {sent > 0 ? ` / ${sent.toLocaleString("fr-FR")} envoyés` : ""}
+                {gap > 0.05
+                  ? ` ⚠ écart ${Math.round(gap * 100)} % — vérifie qu'aucun plan n'est tronqué`
+                  : ""}
+              </span>
+            );
+          })}
         </div>
       )}
       {usage.tokens && (
@@ -669,15 +679,22 @@ function Studio() {
         const speed = speedByLang[l] ?? baseVoiceSpeed;
         const cps = cpsFor(l);
         let measured = false;
+        // SOURCE UNIQUE : on somme plan par plan. `estimated` est toujours la
+        // somme des estimations de texte, `total` la somme des durées réelles
+        // quand elles existent. Les deux sont affichés côte à côte : un écart
+        // signale immédiatement un plan tronqué.
+        let estimated = 0;
         const total = (s.scenes ?? []).reduce((sum, sc) => {
           const take = states[sc.index]?.voices?.[l];
           const matchesText = take?.text === (sc.narration ?? "").trim();
           const real = take?.speaking ?? take?.duration ?? 0;
+          const guess = predictSeconds((sc.narration ?? "").trim().length, cps, speed);
+          estimated += guess;
           if (real > 0 && matchesText) {
             measured = true;
             return sum + real;
           }
-          return sum + predictSeconds((sc.narration ?? "").trim().length, cps, speed);
+          return sum + guess;
         }, 0);
         const actualChars = scriptChars(s);
         const charsPerShot = targetCharsPerShot(
@@ -690,6 +707,7 @@ function Studio() {
         return {
           lang: l,
           seconds: total,
+          estimatedSeconds: estimated,
           speed,
           measured,
           actualChars,
@@ -702,6 +720,7 @@ function Studio() {
         ): x is {
           lang: LanguageId;
           seconds: number;
+          estimatedSeconds: number;
           speed: number;
           measured: boolean;
           actualChars: number;
@@ -1317,6 +1336,10 @@ function Studio() {
             ...u.voiceChars,
             [lang]: (u.voiceChars[lang] ?? 0) + (characters ?? sample.length),
           },
+          voiceTextChars: {
+            ...(u.voiceTextChars ?? {}),
+            [lang]: (u.voiceTextChars?.[lang] ?? 0) + sample.trim().length,
+          },
         }));
         const duration = await audioDuration(audioDataUrl);
         const win = voiceWindow(words ?? [], duration);
@@ -1826,9 +1849,13 @@ function Studio() {
     const text = doc?.scenes.find((s) => s.index === scene.index)?.narration ?? scene.narration;
     patch(scene.index, { audioLoading: true });
     try {
-      const { audioDataUrl, words, characters } = (await runVoice({
+      const { audioDataUrl, words, characters, textChars } = (await runVoice({
         data: {
           text,
+          // La synthèse reçoit EXACTEMENT la narration du plan : le serveur
+          // refuse tout texte différent plutôt que de payer un demi-plan.
+          expected: text,
+          label: `plan ${scene.index + 1}`,
           voice: voiceForLang(lang),
           engine,
           language: lang as LanguageId,
@@ -1836,12 +1863,22 @@ function Studio() {
           // synthèse, donc les repères mot à mot restent calés sur l'audio réel.
           speed: speedFor(lang),
         },
-      })) as { audioDataUrl: string; words?: WordTiming[]; characters?: number };
+      })) as {
+        audioDataUrl: string;
+        words?: WordTiming[];
+        characters?: number;
+        textChars?: number;
+      };
+      const sent = textChars ?? text.trim().length;
       bumpUsage((u) => ({
         ...u,
         voiceChars: {
           ...u.voiceChars,
-          [lang]: (u.voiceChars[lang] ?? 0) + (characters ?? text.length),
+          [lang]: (u.voiceChars[lang] ?? 0) + (characters ?? sent),
+        },
+        voiceTextChars: {
+          ...(u.voiceTextChars ?? {}),
+          [lang]: (u.voiceTextChars?.[lang] ?? 0) + sent,
         },
       }));
       const duration = await audioDuration(audioDataUrl);
@@ -3716,7 +3753,7 @@ function Studio() {
                       {anyMeasured ? "Durée mesurée" : "Durée prédite (débit réel des voix)"}{" "}
                       (cible {lo}-{hi} s)
                     </span>
-                     {langDurations.map(({ lang: l, seconds, speed, actualChars, targetChars }) => {
+                     {langDurations.map(({ lang: l, seconds, estimatedSeconds, measured, speed, actualChars, targetChars }) => {
                       const bad = seconds < lo || seconds > hi;
                       const boosted = speed > baseVoiceSpeed + 0.001;
                       return (
@@ -3733,7 +3770,10 @@ function Studio() {
                                 : undefined
                           }
                         >
-                           {l.toUpperCase()} ≈ {Math.round(seconds)} s · cible {targetChars.toLocaleString("fr-FR")} car. · obtenu {actualChars.toLocaleString("fr-FR")} car.
+                           {l.toUpperCase()} ≈ {Math.round(seconds)} s
+                          {measured ? ` (texte ≈ ${Math.round(estimatedSeconds)} s)` : ""} · cible{" "}
+                          {targetChars.toLocaleString("fr-FR")} car. · obtenu{" "}
+                          {actualChars.toLocaleString("fr-FR")} car.
                           {boosted ? ` · voix ×${speed.toFixed(2).replace(".", ",")}` : ""}
                           {bad ? " ⚠" : ""}
                         </span>

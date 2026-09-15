@@ -17,8 +17,10 @@ export type UsageReport = {
   clips: { count: number; seconds: number };
   /** Images générées (plans + reprises). */
   images: number;
-  /** Caractères envoyés à ElevenLabs, par langue (1 crédit par caractère). */
+  /** Caractères FACTURÉS par ElevenLabs, par langue (1 crédit par caractère). */
   voiceChars: Record<string, number>;
+  /** Caractères RÉELLEMENT ENVOYÉS à la synthèse, par langue. */
+  voiceTextChars: Record<string, number>;
   /** Appels de texte : écriture du script, vérification des faits, traductions. */
   textCalls: { script: number; factCheck: number; translation: number };
   /** Jetons rapportés par la passerelle, quand elle les renvoie. */
@@ -30,6 +32,7 @@ export function emptyUsage(): UsageReport {
     clips: { count: 0, seconds: 0 },
     images: 0,
     voiceChars: {},
+    voiceTextChars: {},
     textCalls: { script: 0, factCheck: 0, translation: 0 },
     tokens: {},
   };
