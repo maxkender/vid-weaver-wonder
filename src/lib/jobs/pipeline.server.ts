@@ -154,6 +154,8 @@ async function stepImages(job: RenderJob, t0: number) {
       bible,
       visualBrief: DEFAULT_VISUAL_BRIEF[visual],
       quality: DEFAULT_QUALITY[visual],
+      // Plan 1 : composition d'accroche (affiche, sujet unique, énorme).
+      ...(i === 0 ? { opening: DEFAULT_OPENING_IMAGE } : {}),
       story: storyOf(scenes, i),
     });
     const prompt = refs.length
@@ -241,6 +243,8 @@ async function stepClips(job: RenderJob, t0: number) {
           visualBrief: DEFAULT_VISUAL_BRIEF[visual],
           quality: DEFAULT_QUALITY[visual],
           motion: DEFAULT_MOTION[visual],
+          // Plan 1 : événement visuel dès la première image.
+          ...(i === 0 ? { opening: DEFAULT_OPENING_MOTION } : {}),
           story: storyOf(scenes, i),
         }),
         seconds,
