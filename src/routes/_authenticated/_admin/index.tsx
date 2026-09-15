@@ -2165,28 +2165,23 @@ function Studio() {
       .filter((x) => Boolean(x.st.videoUrl || x.st.image));
     if (!all.length) throw new Error("Aucune scène à assembler.");
 
-    // Un plan sans voix off produirait un blanc silencieux : on refabrique la
-    // voix manquante de CETTE langue avant d'assembler.
+    // Un plan sans voix off produirait un blanc silencieux : on tente de
+    // refabriquer la voix manquante de CETTE langue avant d'assembler.
     for (const item of all) {
       if (voiceOf(item.st, lang)) continue;
       setAssembleStep(`Voix off manquante — ${languageLabel(lang)}, scène ${item.scene.index + 1}…`);
-      const res = await onVoice(item.scene, lang);
-      if (!res) {
-        throw new Error(
-          `La voix off de la scène ${item.scene.index + 1} (${languageLabel(lang)}) n'a pas pu être générée : relance l'export.`,
-        );
-      }
+      const res = await onVoice(item.scene, lang).catch(() => null);
+      if (!res) continue;
       item.st = { ...item.st, voices: { ...(item.st.voices ?? {}), [lang]: res } };
     }
-    // DERNIER VERROU AVANT FFMPEG : aucun plan ne part sans voix off. Si l'un
-    // d'eux manque encore, on nomme précisément lesquels plutôt que de monter
-    // une vidéo muette par endroits.
+    // AVERTISSEMENT, PAS DE VETO : un plan sans voix est signalé mais la vidéo
+    // sort quand même — le contenu existe, on ne bloque pas le livrable.
     const missing = all.filter((x) => !voiceOf(x.st, lang)).map((x) => x.scene.index + 1);
     if (missing.length) {
-      throw new Error(
-        `Montage annulé (${languageLabel(lang)}) : voix off manquante pour ${
+      toast.warning(
+        `${languageLabel(lang)} : voix off manquante pour ${
           missing.length > 1 ? "les plans" : "le plan"
-        } ${missing.join(", ")}. Relance la voix off de ${missing.length > 1 ? "ces plans" : "ce plan"}.`,
+        } ${missing.join(", ")}. Ces plans sont montés sans voix.`,
       );
     }
     const ordered = all;
