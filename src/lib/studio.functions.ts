@@ -95,6 +95,7 @@ export const translateScript = createServerFn({ method: "POST" })
     const { translationSystemPrompt } = await import("./prompts.server");
     const { maxWordsForSeconds } = await import("./duration");
     const maxWords = maxWordsForSeconds(data.maxSceneSeconds, data.language);
+    const usageOut: { usage?: import("./usage").TokenUsage | undefined } = {};
     const res = await chatJSON<{
       title?: string;
       hook?: string;
@@ -122,6 +123,7 @@ export const translateScript = createServerFn({ method: "POST" })
         scenes: data.scenes,
       }),
       0.4,
+      usageOut,
     );
     // Sécurité : on réaligne sur les index source, jamais sur l'ordre du modèle.
     const byIndex = new Map((res.scenes ?? []).map((s) => [s.index, s]));
@@ -138,6 +140,7 @@ export const translateScript = createServerFn({ method: "POST" })
       hook: res.hook?.trim() || data.hook,
       cta: data.cta ? (res.cta?.trim() || data.cta) : "",
       scenes,
+      usage: usageOut.usage ?? null,
     };
   });
 
