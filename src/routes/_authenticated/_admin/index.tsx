@@ -287,6 +287,8 @@ type WordTiming = { word: string; start: number; end: number };
 type VoiceTake = {
   audio: string;
   words: WordTiming[];
+  /** Texte exact synthétisé : empêche de réutiliser une ancienne voix après retraduction. */
+  text?: string;
   /** Durée BRUTE du fichier audio (silences compris) : base du montage. */
   duration: number;
   /** Durée RÉELLEMENT parlée, silences de tête et de queue retirés. */
@@ -666,8 +668,9 @@ function Studio() {
         let measured = false;
         const total = (s.scenes ?? []).reduce((sum, sc) => {
           const take = states[sc.index]?.voices?.[l];
+          const matchesText = take?.text === undefined || take.text === (sc.narration ?? "").trim();
           const real = take?.speaking ?? take?.duration ?? 0;
-          if (real > 0) {
+          if (real > 0 && matchesText) {
             measured = true;
             return sum + real;
           }
@@ -1844,7 +1847,13 @@ function Studio() {
       // par prise, c'est huit secondes de trop sur la vidéo.
       const win = voiceWindow(words ?? [], duration);
       const speaking = Math.max(0.3, win ? win.end - win.start : duration);
-      const take: VoiceTake = { audio: audioDataUrl, words: words ?? [], duration, speaking };
+      const take: VoiceTake = {
+        audio: audioDataUrl,
+        words: words ?? [],
+        duration,
+        speaking,
+        text: text.trim(),
+      };
       setStates((prev) => ({
         ...prev,
         [scene.index]: {
@@ -1891,9 +1900,14 @@ function Studio() {
   ): Promise<Record<number, SceneState>> => {
     const out: Record<number, SceneState> = { ...snapshot };
     for (const lang of langs) {
+      const translatedDoc = scriptFor(lang, doc);
       for (const scene of doc.scenes) {
         if (cancelledRef.current) return out; // arrêt vérifié avant CHAQUE voix
-        if (out[scene.index]?.voices?.[lang]) continue;
+        const expectedText =
+          translatedDoc?.scenes.find((item) => item.index === scene.index)?.narration?.trim() ??
+          scene.narration.trim();
+        const existing = out[scene.index]?.voices?.[lang];
+        if (existing?.text === expectedText) continue;
         setCurrentStep(`Voix off ${languageLabel(lang)} — plan ${scene.index + 1}…`);
         setAssembleStep(`Voix off ${languageLabel(lang)} — plan ${scene.index + 1}…`);
         const take = await onVoice(scene, lang);
@@ -1940,10 +1954,13 @@ function Studio() {
       const speed = plannedSpeed(predictedTotal, hi);
       const total = s.scenes.reduce((sum, sc) => {
         const take = snapshot[sc.index]?.voices?.[l];
+        const matchesText = take?.text === (sc.narration ?? "").trim();
         const real = take?.speaking ?? take?.duration ?? 0;
         return (
           sum +
-          (real > 0 ? real : predictSeconds((sc.narration ?? "").trim().length, cps, speed))
+          (real > 0 && matchesText
+            ? real
+            : predictSeconds((sc.narration ?? "").trim().length, cps, speed))
         );
       }, 0);
       // SYMÉTRIQUE : une version trop COURTE est un échec au même titre qu'une
