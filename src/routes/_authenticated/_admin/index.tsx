@@ -3238,6 +3238,55 @@ function Studio() {
               <h2 className="text-lg font-semibold">{script.title}</h2>
               <p className="mt-1 text-sm text-muted-foreground">{script.hook}</p>
 
+              {/* ACCROCHE — les trois candidates, leur note sur les six
+                  conditions et la raison du choix, pour pouvoir juger. */}
+              {(script.hookOptions ?? []).length > 1 && (
+                <div className="mt-3 rounded-[10px] border border-border p-3">
+                  <span className="label-x">Accroches proposées</span>
+                  <ul className="mt-1.5 space-y-1.5 text-sm">
+                    {(script.hookOptions ?? []).map((h, i) => {
+                      const kept = h.trim() === (script.hook ?? "").trim();
+                      return (
+                        <li key={`${h}-${i}`} className={kept ? "" : "text-muted-foreground"}>
+                          <span className="mr-1.5 text-xs uppercase">
+                            {kept ? "retenue" : "écartée"}
+                          </span>
+                          {h}
+                          {(script.hookScores ?? [])[i] && (
+                            <span className="block text-xs text-muted-foreground">
+                              {(script.hookScores ?? [])[i]}
+                            </span>
+                          )}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                  {script.hookChoice && (
+                    <p className="mt-2 text-xs text-muted-foreground">{script.hookChoice}</p>
+                  )}
+                </div>
+              )}
+
+              {/* CONTRÔLE FINAL — « à quelle seconde je scrolle ? ». */}
+              {script.audit && (script.audit.reason || script.audit.learned) && (
+                <div className="mt-3 rounded-[10px] border border-border p-3 text-sm">
+                  <span className="label-x">Relecture « spectateur qui scrolle »</span>
+                  {script.audit.reason && (
+                    <p className="mt-1.5">
+                      Plan le plus faible
+                      {script.audit.weakest >= 0 ? ` (plan ${script.audit.weakest + 1})` : ""} —{" "}
+                      {script.audit.reason} Il a été réécrit une fois.
+                    </p>
+                  )}
+                  {script.audit.learned && (
+                    <p className="mt-1 text-muted-foreground">
+                      Ce qu'on apprend : {script.audit.learned}
+                    </p>
+                  )}
+                </div>
+              )}
+
+
               <div className="mt-4 rounded-[10px] border border-border p-3">
                 <span className="label-x">Outro Sophia (fixe sur toutes les vidéos)</span>
                 <p className="mt-1.5 text-sm">{script.cta}</p>
