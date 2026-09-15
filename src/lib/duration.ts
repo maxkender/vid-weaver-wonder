@@ -45,7 +45,10 @@ export const MAX_VOICE_SPEED = 1.15;
 
 /** Fourchette acceptée pour une durée demandée, en secondes. */
 export function durationRange(targetSeconds: number) {
-  return { lo: targetSeconds, hi: Math.round(targetSeconds * DURATION_TOLERANCE) };
+  return {
+    lo: Math.round(targetSeconds * DURATION_FLOOR),
+    hi: Math.round(targetSeconds * DURATION_TOLERANCE),
+  };
 }
 
 /** Débit de parole d'une langue (mots par seconde). */
