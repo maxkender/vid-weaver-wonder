@@ -252,7 +252,8 @@ export function coverPrompt(
 ) {
   const brief = o.visualBrief?.trim() || DEFAULT_VISUAL_BRIEF[visual];
   const quality = o.quality?.trim() || DEFAULT_QUALITY[visual];
-  return `Vertical 9:16 key frame. ${brief}. ${quality}.${bibleLine(o.bible)}${storyLine(o.story)} ${
+  const opening = o.opening?.trim() ? ` ${o.opening.trim()}` : "";
+  return `Vertical 9:16 key frame. ${brief}. ${quality}.${opening}${bibleLine(o.bible)}${storyLine(o.story)} ${
     square ? SQUARE_FRAME + " " : ""
   }Absolutely no text, no letters, no watermark, no logo. Scene: ${imagePrompt}`;
 }
@@ -265,7 +266,8 @@ export function motionPrompt(
 ) {
   const brief = o.visualBrief?.trim() || DEFAULT_VISUAL_BRIEF[visual];
   const quality = o.quality?.trim() || DEFAULT_QUALITY[visual];
-  const motion = o.motion?.trim() || DEFAULT_MOTION[visual];
+  // Plan 1 : consigne de mouvement propre, qui remplace celle des autres plans.
+  const motion = o.opening?.trim() || o.motion?.trim() || DEFAULT_MOTION[visual];
   return `${videoPrompt}. Vertical short-form video. ${brief}. ${quality}.${bibleLine(o.bible)}${storyLine(o.story)} ${
     square
       ? SQUARE_FRAME +
