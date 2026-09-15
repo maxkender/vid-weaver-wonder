@@ -349,6 +349,11 @@ export function defaultSettings(): StudioSettings {
     narration,
     visual,
     opening: { motion: DEFAULT_OPENING_MOTION, image: DEFAULT_OPENING_IMAGE },
+    guides: {
+      language: DEFAULT_LANGUAGE_BRIEF,
+      hook: DEFAULT_HOOK_BRIEF,
+      shots: DEFAULT_SHOT_BRIEF,
+    },
     useReferenceImage: true,
     musicVolume: 0.22,
     sophiaLogo: true,
