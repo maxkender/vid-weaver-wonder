@@ -184,6 +184,12 @@ export function translationSystemPrompt(
   total?: { minSeconds: number; maxSeconds: number; minWords: number; maxWords: number },
   /** Passe de correction : le texte est DÉJÀ dans la langue cible, on n'ajuste que sa longueur. */
   adjust = false,
+  /**
+   * BUDGET DE CARACTÈRES mesuré sur la voix réelle de cette langue : c'est la
+   * contrainte la plus fiable, car le débit d'une voix ne se déduit pas du
+   * nombre de mots (à caractères égaux, l'espagnol met 6 s de plus que l'allemand).
+   */
+  chars?: { total: number; perScene: number },
 ) {
   return [
     adjust
@@ -194,6 +200,9 @@ export function translationSystemPrompt(
     "Tous les CHIFFRES, dates, proportions, unités et noms propres sont repris à l'identique.",
     "STYLE CONSERVÉ : phrases très courtes, phrases nominales et fragments autorisés, tutoiement (ou l'équivalent naturel et familier de la langue), ton oral et direct, jamais publicitaire. Aucun emoji, aucun point d'exclamation.",
     `CONTRAINTE DE DURÉE PAR PLAN : chaque narration traduite doit pouvoir être lue à voix haute en moins de ${maxSeconds} secondes, soit ${maxWordsPerScene} MOTS MAXIMUM par scène. Compte les mots. Si la traduction naturelle dépasse, CONDENSE : supprime les redondances et les mots de liaison, garde TOUS les chiffres et toute l'information.`,
+    chars
+      ? `BUDGET DE CARACTÈRES — CONTRAINTE PRIORITAIRE, mesurée sur la voix réelle de cette langue : le script complet (somme de toutes les narrations, hook et cta inclus s'ils existent) doit tenir en ${chars.total} CARACTÈRES AU MAXIMUM, soit environ ${chars.perScene} caractères par scène. Compte les caractères, espaces compris, avant de répondre. Une traduction n'est pas un calque : si tu dépasses, coupe les redondances, les adverbes, les reformulations et les mots de liaison. Garde le sens, le ton, tous les chiffres et toute l'information. Ne descends pas sous 80 % de ce budget.`
+      : "",
     total
       ? `CIBLE DE DURÉE TOTALE (aussi importante que le plafond par plan) : lue à voix haute en ${langName}, la somme de toutes les narrations doit durer entre ${total.minSeconds} et ${total.maxSeconds} secondes, soit entre ${total.minWords} et ${total.maxWords} mots au total. Compte les mots de l'ensemble avant de répondre. Si tu es en dessous, ÉTOFFE légèrement les scènes (précisions concrètes déjà présentes dans le sens du texte) ; si tu es au-dessus, CONDENSE. Dans les deux cas : même nombre de scènes, mêmes index, tous les chiffres conservés.`
       : "",
