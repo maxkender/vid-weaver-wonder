@@ -808,6 +808,10 @@ function Studio() {
       const res = (await runVerifyFacts({
         data: { topic: current, angle, language },
       })) as FactCheck;
+      bumpUsage((u) => ({
+        ...u,
+        textCalls: { ...u.textCalls, factCheck: u.textCalls.factCheck + 1 },
+      }));
       setFactCheck(res);
       const corrected = res.correctedTopic.trim() || current;
       factCheckRef.current = { topic: corrected, data: res };
@@ -865,6 +869,14 @@ function Studio() {
         },
       })) as Script;
       setScript(result);
+      // Nouveau script = nouvelle vidéo : le compteur de coût repart de zéro,
+      // en conservant la vérification des faits déjà payée pour ce sujet.
+      const alreadyChecked = usageRef.current.textCalls.factCheck;
+      usageRef.current = {
+        ...emptyUsage(),
+        textCalls: { script: 1, factCheck: alreadyChecked, translation: 0 },
+      };
+      setUsage(usageRef.current);
       setStates({});
       setScripts({ [sourceLang]: result });
       scriptsRef.current = { [sourceLang]: result };
@@ -950,6 +962,12 @@ function Studio() {
                 maxTotalSeconds: hiSec,
                 adjust,
               },
+            }).then((r) => {
+              bumpUsage((u) => ({
+                ...u,
+                textCalls: { ...u.textCalls, translation: u.textCalls.translation + 1 },
+              }));
+              return r;
             }) as Promise<TransRes>;
 
           let res = await callTranslate(
