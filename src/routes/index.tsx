@@ -1220,7 +1220,9 @@ function Studio() {
           voice: voiceForLang(lang),
           engine,
           language: lang as LanguageId,
-          speed: settings.voiceSpeed ?? 1.05,
+          // Vitesse propre à cette langue : rattrapage de durée appliqué à la
+          // synthèse, donc les repères mot à mot restent calés sur l'audio réel.
+          speed: speedFor(lang),
         },
       })) as { audioDataUrl: string; words?: WordTiming[] };
       const duration = await audioDuration(audioDataUrl);
@@ -1332,7 +1334,7 @@ function Studio() {
   const onPreviewVoice = async () => {
     setPreviewVoice(true);
     try {
-      const sampleKey = `${engine}:${voice}:${voiceLangTab}`;
+      const sampleKey = `${engine}:${voice}:${voiceLangTab}:${speedFor(voiceLangTab)}`;
       let src = voiceSamples.current[sampleKey];
       if (!src) {
         const { audioDataUrl } = (await runVoice({
@@ -1341,7 +1343,7 @@ function Studio() {
             voice,
             engine,
             language: voiceLangTab,
-            speed: settings.voiceSpeed ?? 1.05,
+            speed: speedFor(voiceLangTab),
           },
         })) as { audioDataUrl: string };
         src = audioDataUrl;
