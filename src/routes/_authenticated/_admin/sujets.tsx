@@ -17,7 +17,7 @@ import {
   type QueuedTopic,
 } from "@/lib/topics.functions";
 
-export const Route = createFileRoute("/_authenticated/sujets")({
+export const Route = createFileRoute("/_authenticated/_admin/sujets")({
   head: () => ({
     meta: [
       { title: "File de sujets — valider les idées avant de produire" },

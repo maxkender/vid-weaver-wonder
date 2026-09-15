@@ -10,9 +10,9 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as StationRouteImport } from './routes/station'
-import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
-import { Route as AuthenticatedParametresRouteImport } from './routes/_authenticated/parametres'
-import { Route as AuthenticatedSujetsRouteImport } from './routes/_authenticated/sujets'
+import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/_admin/index'
+import { Route as AuthenticatedAdminParametresRouteImport } from './routes/_authenticated/_admin/parametres'
+import { Route as AuthenticatedAdminSujetsRouteImport } from './routes/_authenticated/_admin/sujets'
 import { Route as ApiPublicVideosRouteImport } from './routes/api/public/videos'
 import { Route as ApiVideoContentIdRouteImport } from './routes/api/video-content.$id'
 import { Route as ApiPublicJobsRenderCallbackRouteImport } from './routes/api/public/jobs/render-callback'
@@ -24,21 +24,23 @@ const StationRoute = StationRouteImport.update({
   path: '/station',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AuthenticatedIndexRoute = AuthenticatedIndexRouteImport.update({
-  id: '/_authenticated/',
+const AuthenticatedAdminIndexRoute = AuthenticatedAdminIndexRouteImport.update({
+  id: '/_authenticated/_admin/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AuthenticatedParametresRoute = AuthenticatedParametresRouteImport.update({
-  id: '/_authenticated/parametres',
-  path: '/parametres',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AuthenticatedSujetsRoute = AuthenticatedSujetsRouteImport.update({
-  id: '/_authenticated/sujets',
-  path: '/sujets',
-  getParentRoute: () => rootRouteImport,
-} as any)
+const AuthenticatedAdminParametresRoute =
+  AuthenticatedAdminParametresRouteImport.update({
+    id: '/_authenticated/_admin/parametres',
+    path: '/parametres',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const AuthenticatedAdminSujetsRoute =
+  AuthenticatedAdminSujetsRouteImport.update({
+    id: '/_authenticated/_admin/sujets',
+    path: '/sujets',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicVideosRoute = ApiPublicVideosRouteImport.update({
   id: '/api/public/videos',
   path: '/api/public/videos',
@@ -68,22 +70,22 @@ const ApiPublicVideosIdRoute = ApiPublicVideosIdRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/station': typeof StationRoute
-  '/parametres': typeof AuthenticatedParametresRoute
-  '/sujets': typeof AuthenticatedSujetsRoute
-  '/': typeof AuthenticatedIndexRoute
+  '/parametres': typeof AuthenticatedAdminParametresRoute
+  '/sujets': typeof AuthenticatedAdminSujetsRoute
   '/api/public/videos': typeof ApiPublicVideosRouteWithChildren
   '/api/video-content/$id': typeof ApiVideoContentIdRoute
+  '/': typeof AuthenticatedAdminIndexRoute
   '/api/public/jobs/render-callback': typeof ApiPublicJobsRenderCallbackRoute
   '/api/public/jobs/tick': typeof ApiPublicJobsTickRoute
   '/api/public/videos/$id': typeof ApiPublicVideosIdRoute
 }
 export interface FileRoutesByTo {
   '/station': typeof StationRoute
-  '/parametres': typeof AuthenticatedParametresRoute
-  '/sujets': typeof AuthenticatedSujetsRoute
-  '/': typeof AuthenticatedIndexRoute
+  '/parametres': typeof AuthenticatedAdminParametresRoute
+  '/sujets': typeof AuthenticatedAdminSujetsRoute
   '/api/public/videos': typeof ApiPublicVideosRouteWithChildren
   '/api/video-content/$id': typeof ApiVideoContentIdRoute
+  '/': typeof AuthenticatedAdminIndexRoute
   '/api/public/jobs/render-callback': typeof ApiPublicJobsRenderCallbackRoute
   '/api/public/jobs/tick': typeof ApiPublicJobsTickRoute
   '/api/public/videos/$id': typeof ApiPublicVideosIdRoute
@@ -91,11 +93,11 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/station': typeof StationRoute
-  '/_authenticated/parametres': typeof AuthenticatedParametresRoute
-  '/_authenticated/sujets': typeof AuthenticatedSujetsRoute
-  '/_authenticated/': typeof AuthenticatedIndexRoute
+  '/_authenticated/_admin/parametres': typeof AuthenticatedAdminParametresRoute
+  '/_authenticated/_admin/sujets': typeof AuthenticatedAdminSujetsRoute
   '/api/public/videos': typeof ApiPublicVideosRouteWithChildren
   '/api/video-content/$id': typeof ApiVideoContentIdRoute
+  '/_authenticated/_admin/': typeof AuthenticatedAdminIndexRoute
   '/api/public/jobs/render-callback': typeof ApiPublicJobsRenderCallbackRoute
   '/api/public/jobs/tick': typeof ApiPublicJobsTickRoute
   '/api/public/videos/$id': typeof ApiPublicVideosIdRoute
@@ -106,9 +108,9 @@ export interface FileRouteTypes {
     | '/station'
     | '/parametres'
     | '/sujets'
-    | '/'
     | '/api/public/videos'
     | '/api/video-content/$id'
+    | '/'
     | '/api/public/jobs/render-callback'
     | '/api/public/jobs/tick'
     | '/api/public/videos/$id'
@@ -117,20 +119,20 @@ export interface FileRouteTypes {
     | '/station'
     | '/parametres'
     | '/sujets'
-    | '/'
     | '/api/public/videos'
     | '/api/video-content/$id'
+    | '/'
     | '/api/public/jobs/render-callback'
     | '/api/public/jobs/tick'
     | '/api/public/videos/$id'
   id:
     | '__root__'
     | '/station'
-    | '/_authenticated/parametres'
-    | '/_authenticated/sujets'
-    | '/_authenticated/'
+    | '/_authenticated/_admin/parametres'
+    | '/_authenticated/_admin/sujets'
     | '/api/public/videos'
     | '/api/video-content/$id'
+    | '/_authenticated/_admin/'
     | '/api/public/jobs/render-callback'
     | '/api/public/jobs/tick'
     | '/api/public/videos/$id'
@@ -138,11 +140,11 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   StationRoute: typeof StationRoute
-  AuthenticatedParametresRoute: typeof AuthenticatedParametresRoute
-  AuthenticatedSujetsRoute: typeof AuthenticatedSujetsRoute
-  AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
+  AuthenticatedAdminParametresRoute: typeof AuthenticatedAdminParametresRoute
+  AuthenticatedAdminSujetsRoute: typeof AuthenticatedAdminSujetsRoute
   ApiPublicVideosRoute: typeof ApiPublicVideosRouteWithChildren
   ApiVideoContentIdRoute: typeof ApiVideoContentIdRoute
+  AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
   ApiPublicJobsRenderCallbackRoute: typeof ApiPublicJobsRenderCallbackRoute
   ApiPublicJobsTickRoute: typeof ApiPublicJobsTickRoute
 }
@@ -156,25 +158,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof StationRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_authenticated/': {
-      id: '/_authenticated/'
+    '/_authenticated/_admin/': {
+      id: '/_authenticated/_admin/'
       path: '/'
       fullPath: '/'
-      preLoaderRoute: typeof AuthenticatedIndexRouteImport
+      preLoaderRoute: typeof AuthenticatedAdminIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_authenticated/parametres': {
-      id: '/_authenticated/parametres'
+    '/_authenticated/_admin/parametres': {
+      id: '/_authenticated/_admin/parametres'
       path: '/parametres'
       fullPath: '/parametres'
-      preLoaderRoute: typeof AuthenticatedParametresRouteImport
+      preLoaderRoute: typeof AuthenticatedAdminParametresRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_authenticated/sujets': {
-      id: '/_authenticated/sujets'
+    '/_authenticated/_admin/sujets': {
+      id: '/_authenticated/_admin/sujets'
       path: '/sujets'
       fullPath: '/sujets'
-      preLoaderRoute: typeof AuthenticatedSujetsRouteImport
+      preLoaderRoute: typeof AuthenticatedAdminSujetsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/videos': {
@@ -229,11 +231,11 @@ const ApiPublicVideosRouteWithChildren = ApiPublicVideosRoute._addFileChildren(
 
 const rootRouteChildren: RootRouteChildren = {
   StationRoute: StationRoute,
-  AuthenticatedParametresRoute: AuthenticatedParametresRoute,
-  AuthenticatedSujetsRoute: AuthenticatedSujetsRoute,
-  AuthenticatedIndexRoute: AuthenticatedIndexRoute,
+  AuthenticatedAdminParametresRoute: AuthenticatedAdminParametresRoute,
+  AuthenticatedAdminSujetsRoute: AuthenticatedAdminSujetsRoute,
   ApiPublicVideosRoute: ApiPublicVideosRouteWithChildren,
   ApiVideoContentIdRoute: ApiVideoContentIdRoute,
+  AuthenticatedAdminIndexRoute: AuthenticatedAdminIndexRoute,
   ApiPublicJobsRenderCallbackRoute: ApiPublicJobsRenderCallbackRoute,
   ApiPublicJobsTickRoute: ApiPublicJobsTickRoute,
 }
