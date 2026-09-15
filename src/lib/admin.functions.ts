@@ -16,7 +16,7 @@ import {
   conventionHandle,
   defaultCountryFor,
   fillUpworkMessage,
-  generatePlatformPassword,
+  platformPassword,
   normalizeCountry,
   type ConventionRow,
 } from "@/lib/conventions";
