@@ -110,6 +110,8 @@ export const translateScript = createServerFn({ method: "POST" })
         charMax: z.number().int().min(80).max(6000).optional(),
         /** Sens de la correction demandée quand le texte est hors fenêtre. */
         charMode: z.enum(["ok", "shorten", "lengthen"]).optional(),
+        /** Niveau de langue imposé : la traduction ne remonte jamais d'un cran. */
+        languageBrief: z.string().max(4000).optional(),
       })
       .parse(input),
   )
