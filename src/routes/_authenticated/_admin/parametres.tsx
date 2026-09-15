@@ -410,7 +410,7 @@ function SettingsPage() {
 
           <div>
             <label className="label-x" htmlFor="voice-speed">
-              Rythme de la voix ({(settings.voiceSpeed ?? 1.05).toFixed(2)}×)
+              Rythme de la voix ({(settings.voiceSpeed ?? 1).toFixed(2)}×)
             </label>
             <input
               id="voice-speed"
@@ -418,9 +418,9 @@ function SettingsPage() {
               min={0.9}
               max={1.15}
               step={0.05}
-              value={settings.voiceSpeed ?? 1.05}
+              value={settings.voiceSpeed ?? 1}
               onChange={(e) =>
-                persist({ ...settings, voiceSpeed: Number(e.target.value) || 1.05 })
+                persist({ ...settings, voiceSpeed: Number(e.target.value) || 1 })
               }
               className="field mt-1 w-full"
             />

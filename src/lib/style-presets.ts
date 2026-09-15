@@ -436,7 +436,9 @@ export function defaultSettings(): StudioSettings {
     sophiaCta: false,
     draft720: false,
     spendCapSeconds: 72,
-    voiceSpeed: 1.05,
+    // 1,0 par défaut : la longueur du texte est déjà calée sur le budget, la
+    // vitesse n'a plus rien à rattraper. Les deux leviers ne se cumulent pas.
+    voiceSpeed: 1,
     // Aucun prix inventé : tant que l'utilisateur n'a pas saisi ses tarifs,
     // le récapitulatif n'affiche que des quantités.
     priceVideoSecond: null,
@@ -483,6 +485,12 @@ export function loadSettings(): StudioSettings {
       LEGACY_MUSIC_VOLUMES.some((v) => Math.abs(saved.musicVolume! - v) < 1e-6)
     ) {
       merged = { ...merged, musicVolume: base.musicVolume };
+    }
+
+    // Migration silencieuse du rythme de voix : l'ancien défaut livré (1,05)
+    // s'ajoutait au calage de longueur et faisait s'emballer la voix.
+    if (typeof saved.voiceSpeed === "number" && Math.abs(saved.voiceSpeed - 1.05) < 1e-6) {
+      merged = { ...merged, voiceSpeed: base.voiceSpeed };
     }
 
     const migrating = !Array.isArray(saved.customFields);
