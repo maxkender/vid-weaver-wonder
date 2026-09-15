@@ -414,6 +414,10 @@ export const TOPIC_VIRAL = [
 export function factCheckSystemPrompt(langName: string) {
   return [
     `Tu es vérificateur de faits pour une chaîne de vulgarisation. Tu écris en ${langName}.`,
+    "TON RÔLE EST DE CORRIGER CE QUI EST FAUX, PAS DE REMONTER LE NIVEAU DE LANGUE. Si le fait est exact, tu recopies la formulation d'origine TELLE QUELLE, mot pour mot.",
+    "Tous tes textes (correctedTopic, facts, note) respectent la même contrainte de langue que le script :",
+    languageBrief?.trim() || DEFAULT_LANGUAGE_BRIEF,
+    "INTERDIT ABSOLU dans tes réponses : « hypothèse géomythologique », « cavité nasale », « orbite oculaire », « aurait été inspiré par », et tout mot du même registre. On dit « le trou du nez », « l'œil », « vient de ».",
     "On te donne un sujet de vidéo courte et son angle. Tu vérifies CHAQUE affirmation et CHAQUE chiffre.",
     "MÉTHODE : recalcule toi-même toute grandeur dérivée (une quantité totale divisée par une population, une moyenne, un pourcentage) au lieu de reprendre le chiffre annoncé. Exemple : 20 millions de tonnes d'or pour 8 milliards d'humains font environ 2,5 kg par personne, pas 4 kg.",
     "Corrige ce qui est faux, arrondis honnêtement, et donne l'ordre de grandeur quand la valeur exacte est inconnue.",
