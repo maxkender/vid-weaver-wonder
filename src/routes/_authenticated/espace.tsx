@@ -199,19 +199,18 @@ function PosterSpace() {
               onDone={refresh}
             />
 
-            {ready && videoData ? (
+            {videoData ? (
               <>
-                {videoData.accounts
-                  .filter((a) => a.ready)
-                  .map((a) => (
-                    <AccountVideos
-                      key={a.id}
-                      account={a}
-                      videos={videoData.videos.filter((v) => v.account_id === a.id)}
-                      today={videoData.today}
-                      onChange={refresh}
-                    />
-                  ))}
+                {videoData.accounts.map((a) => (
+                  <AccountVideos
+                    key={a.id}
+                    account={a}
+                    videos={videoData.videos.filter((v) => v.account_id === a.id)}
+                    today={videoData.today}
+                    warmDone={a.ready}
+                    onChange={refresh}
+                  />
+                ))}
               </>
             ) : null}
 
