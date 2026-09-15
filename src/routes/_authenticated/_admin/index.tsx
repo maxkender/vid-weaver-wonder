@@ -3614,7 +3614,9 @@ function Studio() {
             )}
 
             <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-              {(scriptFor(viewLang, script) ?? script).scenes.map((scene) => {
+              {/* On lit l'ÉTAT (et non la référence) : sans cela, une phrase
+                  modifiée ne réapparaissait jamais dans la carte du plan. */}
+              {(scripts[viewLang] ?? script).scenes.map((scene) => {
                 const st = states[scene.index] ?? {};
                 const take = voiceOf(st, viewLang);
                 const isSource = viewLang === sourceLang;
