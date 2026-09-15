@@ -197,7 +197,6 @@ async function stepImages(job: RenderJob, t0: number) {
 async function languageSetting(language: string) {
   try {
     const { admin } = await import("./store.server");
-    const { admin } = await import("./store.server");
     const db = await admin();
     const { data } = await db
       .from("language_settings")
