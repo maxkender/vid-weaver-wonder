@@ -1454,7 +1454,9 @@ function Studio() {
           }
           // Les prompts visuels sont repris À L'IDENTIQUE : ils ont déjà servi.
           const byIndex = new Map(res.scenes.map((s) => [s.index, s]));
-          next[lang] = {
+          // Même garde-fou que pour le script source : une traduction mal
+          // formée ne doit jamais entrer telle quelle dans l'application.
+          next[lang] = normalizeScript({
             ...doc,
             title: res.title || doc.title,
             hook: res.hook || doc.hook,
@@ -1464,7 +1466,7 @@ function Studio() {
               narration: byIndex.get(s.index)?.narration ?? s.narration,
               overlay: byIndex.get(s.index)?.overlay ?? s.overlay,
             })),
-          };
+          }) as Script;
           // Mémorise le texte source d'où vient cette traduction : tant qu'il
           // ne change pas, on ne repaiera jamais la même traduction.
           translationSourceRef.current[lang] = sig;
