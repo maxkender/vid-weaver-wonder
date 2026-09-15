@@ -110,7 +110,7 @@ function UsageRecap({
   compact?: boolean;
 }) {
   const chars = totalVoiceChars(usage);
-  const money = moneyTotal(usage, priceVideoSecond, priceImage);
+  const money = moneyTotal(usage, { perVideoSecond: priceVideoSecond, perImage: priceImage });
   const calls =
     usage.textCalls.script + usage.textCalls.factCheck + usage.textCalls.translation;
   if (compact) {
