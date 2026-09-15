@@ -2003,14 +2003,33 @@ function Studio() {
     if (readyScenes.length === 0) return;
     setAssembling(true);
     setAssembleStep("Préparation…");
+    const failedLangs: string[] = [];
     try {
       for (const lang of langs) {
         if (cancelledRef.current) break; // arrêt vérifié entre chaque langue
-        await buildFinalVideo(states, false, undefined, lang);
+        // Une langue en échec est signalée, les suivantes continuent.
+        try {
+          await buildFinalVideo(states, false, undefined, lang);
+        } catch (e) {
+          console.error(e);
+          failedLangs.push(languageLabel(lang));
+          toast.error(
+            `Montage ${languageLabel(lang)} échoué : ${e instanceof Error ? e.message : String(e)}`,
+          );
+        }
+        try {
+          (await loadAssembler()).assemble.resetFFmpeg();
+        } catch {
+          /* sans gravité */
+        }
+      }
+      if (failedLangs.length) {
+        toast.warning(`Langues non montées : ${failedLangs.join(", ")}`);
       }
     } catch (e) {
       console.error(e);
       toast.error(e instanceof Error ? e.message : "Échec de l'assemblage");
+
     } finally {
       setAssembling(false);
       setCurrentStep(cancelledRef.current ? "Pipeline arrêté" : "");
