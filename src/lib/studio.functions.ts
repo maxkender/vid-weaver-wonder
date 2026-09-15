@@ -158,7 +158,10 @@ export const translateScript = createServerFn({ method: "POST" })
                 chars: scene.narration.trim().length,
                 target:
                   data.charsPerShot ??
-                  Math.max(40, Math.round(data.charTarget / Math.max(1, data.scenes.length))),
+                  Math.max(
+                    40,
+                    Math.round((data.charTarget ?? 0) / Math.max(1, data.scenes.length)),
+                  ),
               })),
               ...(data.charMode ? { mode: data.charMode } : {}),
             }

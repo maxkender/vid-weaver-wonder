@@ -1448,17 +1448,20 @@ function Studio() {
           // garde le résultat le plus proche de la fenêtre.
           let best = res;
           let bestGap = gap(predicted(res.scenes));
-          for (
-            let pass = 0;
-            pass < MAX_CONDENSE_PASSES && bestGap > 0 && !cancelledRef.current;
-            pass++
-          ) {
-            const planOutsideTolerance = res.scenes.some(
+          const hasPlanOutsideTolerance = (scenes: TransRes["scenes"]) =>
+            scenes.some(
               (scene) =>
                 Math.abs(scene.narration.trim().length - charsPerShot) / charsPerShot > 0.15,
             );
+          for (
+            let pass = 0;
+            pass < MAX_CONDENSE_PASSES &&
+            (bestGap > 0 || hasPlanOutsideTolerance(res.scenes)) &&
+            !cancelledRef.current;
+            pass++
+          ) {
             const mode = calibrationMode(charsOf(res.scenes), window);
-            if (mode === "ok" && !planOutsideTolerance) break;
+            if (mode === "ok" && !hasPlanOutsideTolerance(res.scenes)) break;
             setCurrentStep(
               `${mode === "shorten" ? "Condensation" : "Étoffement"} — ${languageLabel(lang)}…`,
             );
