@@ -3453,7 +3453,52 @@ function Studio() {
                 >
                   Copier la voix off complète
                 </button>
+                <button
+                  onClick={() => {
+                    setPasteOpen((o) => !o);
+                    if (!pasteOpen)
+                      setPasteDraft(
+                        (scripts[sourceLang] ?? script).scenes
+                          .map((s) => s.narration)
+                          .join("\n"),
+                      );
+                  }}
+                  className="btn-base btn-ghost text-xs"
+                >
+                  {pasteOpen ? "Fermer le collage" : "Coller un script entier"}
+                </button>
               </div>
+
+              {pasteOpen && (
+                <div className="mt-3 space-y-2">
+                  <p className="text-xs text-muted-foreground">
+                    Une ligne par plan ({script.scenes.length} plans). Les numéros en début de
+                    ligne sont ignorés.
+                  </p>
+                  <textarea
+                    value={pasteDraft}
+                    onChange={(e) => setPasteDraft(e.target.value)}
+                    rows={10}
+                    className="field font-mono text-xs"
+                    aria-label="Coller le script complet, une ligne par plan"
+                  />
+                  <button
+                    onClick={() => {
+                      const n = replaceScriptFromText(pasteDraft);
+                      if (!n) {
+                        toast.error("Aucune ligne exploitable");
+                        return;
+                      }
+                      toast.success(`${n} plan(s) remplacé(s)`);
+                      setPasteOpen(false);
+                    }}
+                    className="btn-base btn-primary text-xs"
+                  >
+                    Remplacer tout le script
+                  </button>
+                </div>
+              )}
+
             </div>
 
             {/* Une vidéo par langue : mêmes clips, voix et sous-titres différents.
