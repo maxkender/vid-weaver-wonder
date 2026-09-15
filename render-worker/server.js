@@ -100,4 +100,8 @@ app.get("/files/:name", (req, res) => {
   res.send(bytes);
 });
 
-app.listen(PORT, () => console.log(`Service de rendu Sophia sur ${PORT}`));
+app.listen(PORT, () => {
+  // Masque de la fenêtre carrée calculé une seule fois, au démarrage.
+  buildMaskPng(1080, 1920);
+  console.log(`Service de rendu Sophia sur ${PORT}`);
+});
