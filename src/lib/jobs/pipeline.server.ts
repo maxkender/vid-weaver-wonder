@@ -321,6 +321,14 @@ async function stepClips(job: RenderJob, t0: number) {
     if (!scene.clipPath && !scene.clipFailed) return false; // budget épuisé, on reprendra
   }
 
+  // PARTAGE DES VISUELS : les langues supplémentaires sont créées ICI, une fois
+  // les clips payés, en recopiant les mêmes fichiers. Elles ne referont que la
+  // voix off et le montage.
+  if (!job.master_id) {
+    const { fanOutLanguages } = await import("./master.server");
+    await fanOutLanguages(job);
+  }
+
   await patchJob(job.id, { status: "rendering", step: "rendering", progress: 0.9 });
   await logEvent(job.id, "clips", "Tous les plans sont prêts");
   return true;
