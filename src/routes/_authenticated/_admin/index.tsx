@@ -479,6 +479,10 @@ function Studio() {
       .then((r) => setVoiceRates(((r as { rates?: Record<string, VoiceRate> }).rates) ?? {}))
       .catch(() => undefined);
   }, [runListRates]);
+  const voiceRatesRef = useRef<Record<string, VoiceRate>>({});
+  useEffect(() => {
+    voiceRatesRef.current = voiceRates;
+  }, [voiceRates]);
   /** Caractères par seconde (à la vitesse 1,0) de la voix de cette langue. */
   const cpsFor = useCallback(
     (l: string) => charsPerSecond(l, voiceRates[rateKey(voiceForLang(l), l)]),
