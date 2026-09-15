@@ -2761,8 +2761,9 @@ function Studio() {
                     <span className="text-muted-foreground">
                       Durée estimée (cible {lo}-{hi} s)
                     </span>
-                    {langDurations.map(({ lang: l, seconds }) => {
+                    {langDurations.map(({ lang: l, seconds, speed }) => {
                       const bad = seconds < lo || seconds > hi;
+                      const boosted = speed > baseVoiceSpeed + 0.001;
                       return (
                         <span
                           key={l}
@@ -2772,10 +2773,14 @@ function Studio() {
                           title={
                             bad
                               ? `Hors de la cible ${lo}-${hi} secondes`
-                              : undefined
+                              : boosted
+                                ? "Voix accélérée pour tenir dans la durée cible"
+                                : undefined
                           }
                         >
-                          {l.toUpperCase()} ≈ {Math.round(seconds)} s{bad ? " ⚠" : ""}
+                          {l.toUpperCase()} ≈ {Math.round(seconds)} s
+                          {boosted ? ` · voix ×${speed.toFixed(2).replace(".", ",")}` : ""}
+                          {bad ? " ⚠" : ""}
                         </span>
                       );
                     })}
