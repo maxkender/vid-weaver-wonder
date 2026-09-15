@@ -49,6 +49,14 @@ export const generateScript = createServerFn({ method: "POST" })
         includeCta: z.boolean().default(true),
         /** Faits établis par la vérification : seule source autorisée. */
         facts: z.array(z.string().max(600)).max(20).default([]),
+        /**
+         * Débit MESURÉ de la voix de la langue source (caractères par seconde à
+         * la vitesse 1,0). C'est lui qui fixe la longueur du script, pas une
+         * estimation en mots.
+         */
+        sourceCharsPerSecond: z.number().min(3).max(25).optional(),
+        /** Vitesse de synthèse prévue pour la voix source. */
+        voiceSpeed: z.number().min(0.8).max(1.3).optional(),
       })
       .parse(input),
   )
