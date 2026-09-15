@@ -4,16 +4,19 @@
  * off n'a été synthétisée. Dès qu'une voix réelle existe, c'est sa durée
  * mesurée (audioDuration / alignement ElevenLabs) qui fait foi.
  */
+// Valeurs recalées sur un test réel à quatre langues (même script :
+// fr 59,5 s, en 73,1 s, es 81,7 s) : l'anglais et l'espagnol étaient largement
+// surestimés, ce qui faisait dériver la durée des versions traduites.
 const WORDS_PER_SECOND: Record<string, number> = {
   fr: 3.2,
-  en: 3.4,
-  es: 3.3,
+  en: 3.0,
+  es: 2.9,
   de: 2.7,
-  it: 3.3,
-  pt: 3.3,
+  it: 3.0,
+  pt: 3.0,
 };
 
-const DEFAULT_WPS = 3.2;
+const DEFAULT_WPS = 3.0;
 
 /** Débit de parole d'une langue (mots par seconde). */
 export function wordsPerSecond(language = "fr") {
