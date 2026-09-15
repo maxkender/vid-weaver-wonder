@@ -324,7 +324,8 @@ export function coverPrompt(
   const brief = o.visualBrief?.trim() || DEFAULT_VISUAL_BRIEF[visual];
   const quality = o.quality?.trim() || DEFAULT_QUALITY[visual];
   const opening = o.opening?.trim() ? ` ${o.opening.trim()}` : "";
-  return `Vertical 9:16 key frame. ${brief}. ${quality}.${opening}${bibleLine(o.bible)}${storyLine(o.story)} ${
+  const shot = o.shot?.trim() ? ` ${o.shot.trim()}.` : "";
+  return `Vertical 9:16 key frame. ${brief}. ${quality}.${opening}${shot}${bibleLine(o.bible)}${storyLine(o.story)} ${
     square ? SQUARE_FRAME + " " : ""
   }Absolutely no text, no letters, no watermark, no logo. Scene: ${imagePrompt}`;
 }
