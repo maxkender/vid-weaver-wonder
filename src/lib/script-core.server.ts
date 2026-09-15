@@ -271,6 +271,46 @@ export async function buildScript(data: BuildScriptInput): Promise<Script> {
     // relecture best-effort
   }
 
+  // CONTRÔLE FINAL — le modèle relit son script comme un spectateur qui scrolle,
+  // nomme le plan le plus faible, dit ce qu'on a appris, et réécrit CE SEUL
+  // plan. UNE seule passe, jamais de boucle, et jamais sur l'accroche à la
+  // dérobée : la longueur du plan est bornée pour ne pas défaire le calage.
+  try {
+    const audit = await chatJSON<{
+      weakest: number;
+      reason: string;
+      learned: string;
+      narration: string;
+    }>(
+      "google/gemini-3.7-flash",
+      auditSystemPrompt(langName, script.scenes.length, data.auditBrief, data.languageBrief),
+      `Scènes (JSON) : ${JSON.stringify(
+        script.scenes.map((s) => ({ index: s.index, narration: s.narration })),
+      )}`,
+      0.3,
+    );
+    const weakest = Number(audit?.weakest);
+    const target = script.scenes[weakest];
+    const rewritten = (audit?.narration ?? "").trim();
+    script.audit = {
+      weakest: Number.isFinite(weakest) ? weakest : -1,
+      reason: (audit?.reason ?? "").trim(),
+      learned: (audit?.learned ?? "").trim(),
+    };
+    if (target && rewritten) {
+      const before = (target.narration ?? "").length;
+      // Le plan réécrit garde sa longueur : sinon toute la durée se décale.
+      if (before === 0 || Math.abs(rewritten.length - before) / before <= 0.2) {
+        target.narration = rewritten;
+        if (weakest === 0) script.hook = rewritten;
+      }
+    }
+  } catch {
+    // contrôle final best-effort : un échec ne bloque jamais la production
+  }
+
+
+
 
   // « Sophia » n'est prononcé qu'une seule fois, dans le CTA final — et jamais
   // du tout quand le CTA est désactivé.
