@@ -6,11 +6,11 @@ const GATEWAY = "https://ai.gateway.lovable.dev/v1";
 function readUsage(body: unknown): TokenUsage | undefined {
   const u = (body as { usage?: Record<string, number> } | null)?.usage;
   if (!u) return undefined;
-  return {
-    promptTokens: u["prompt_tokens"],
-    completionTokens: u["completion_tokens"],
-    totalTokens: u["total_tokens"],
-  };
+  const out: TokenUsage = {};
+  if (typeof u["prompt_tokens"] === "number") out.promptTokens = u["prompt_tokens"];
+  if (typeof u["completion_tokens"] === "number") out.completionTokens = u["completion_tokens"];
+  if (typeof u["total_tokens"] === "number") out.totalTokens = u["total_tokens"];
+  return out;
 }
 
 function key() {
@@ -39,7 +39,7 @@ export async function chatJSON<T>(
   user: string,
   temperature?: number,
   /** Réceptacle facultatif : la consommation rapportée par la passerelle. */
-  usageOut?: { usage?: TokenUsage },
+  usageOut?: { usage?: TokenUsage | undefined },
 ): Promise<T> {
   const res = await fetch(`${GATEWAY}/chat/completions`, {
     method: "POST",
@@ -70,7 +70,7 @@ export async function chatJSON<T>(
 export async function generateImageDataUrl(
   prompt: string,
   referenceImages: string[] = [],
-  usageOut?: { usage?: TokenUsage },
+  usageOut?: { usage?: TokenUsage | undefined },
 ): Promise<string> {
   const content = referenceImages.length
     ? [
