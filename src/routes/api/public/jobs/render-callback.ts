@@ -2,7 +2,13 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 
-import { getJob, patchJob, logEvent, uploadBytes } from "@/lib/jobs/store.server";
+import {
+  getJob,
+  patchJob,
+  patchJobIfStatus,
+  logEvent,
+  uploadBytes,
+} from "@/lib/jobs/store.server";
 import { verifySignedBody } from "@/lib/jobs/signing.server";
 
 const schema = z.object({
