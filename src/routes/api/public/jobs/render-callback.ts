@@ -38,6 +38,12 @@ export const Route = createFileRoute("/api/public/jobs/render-callback")({
         const job = await getJob(body.jobId);
         if (!job) return Response.json({ error: "not found" }, { status: 404 });
 
+        // RAPPEL IDEMPOTENT : un travail déjà terminé n'est jamais réécrit, et
+        // la vidéo du jour n'est pas retouchée par un rappel en double.
+        if (job.status === "done" || job.status === "cancelled") {
+          return Response.json({ ok: true, ignored: job.status });
+        }
+
         if (body.status === "failed" || !body.videoUrl) {
           await patchJob(job.id, {
             status: "failed",
