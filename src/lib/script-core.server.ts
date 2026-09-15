@@ -128,7 +128,10 @@ export async function buildScript(data: BuildScriptInput): Promise<Script> {
     Math.max(minWords, Math.round(totalWords / sceneCount) + wordsBias),
   );
 
-  const script = await chatJSON<Script>(
+  // Le modèle peut renvoyer un champ sous une forme inattendue (hashtags en
+  // chaîne, scenes absent…) : on ramène la réponse à une forme sûre.
+  const script = normalizeScript(
+    await chatJSON<Script>(
     "google/gemini-3.7-flash",
     scriptSystemPrompt(
       data.kind,
