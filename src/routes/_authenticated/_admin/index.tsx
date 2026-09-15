@@ -1317,6 +1317,10 @@ function Studio() {
             ...u.voiceChars,
             [lang]: (u.voiceChars[lang] ?? 0) + (characters ?? sample.length),
           },
+          voiceTextChars: {
+            ...(u.voiceTextChars ?? {}),
+            [lang]: (u.voiceTextChars?.[lang] ?? 0) + sample.trim().length,
+          },
         }));
         const duration = await audioDuration(audioDataUrl);
         const win = voiceWindow(words ?? [], duration);
@@ -1826,9 +1830,13 @@ function Studio() {
     const text = doc?.scenes.find((s) => s.index === scene.index)?.narration ?? scene.narration;
     patch(scene.index, { audioLoading: true });
     try {
-      const { audioDataUrl, words, characters } = (await runVoice({
+      const { audioDataUrl, words, characters, textChars } = (await runVoice({
         data: {
           text,
+          // La synthèse reçoit EXACTEMENT la narration du plan : le serveur
+          // refuse tout texte différent plutôt que de payer un demi-plan.
+          expected: text,
+          label: `plan ${scene.index + 1}`,
           voice: voiceForLang(lang),
           engine,
           language: lang as LanguageId,
@@ -1836,12 +1844,22 @@ function Studio() {
           // synthèse, donc les repères mot à mot restent calés sur l'audio réel.
           speed: speedFor(lang),
         },
-      })) as { audioDataUrl: string; words?: WordTiming[]; characters?: number };
+      })) as {
+        audioDataUrl: string;
+        words?: WordTiming[];
+        characters?: number;
+        textChars?: number;
+      };
+      const sent = textChars ?? text.trim().length;
       bumpUsage((u) => ({
         ...u,
         voiceChars: {
           ...u.voiceChars,
-          [lang]: (u.voiceChars[lang] ?? 0) + (characters ?? text.length),
+          [lang]: (u.voiceChars[lang] ?? 0) + (characters ?? sent),
+        },
+        voiceTextChars: {
+          ...(u.voiceTextChars ?? {}),
+          [lang]: (u.voiceTextChars?.[lang] ?? 0) + sent,
         },
       }));
       const duration = await audioDuration(audioDataUrl);
