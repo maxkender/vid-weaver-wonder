@@ -411,7 +411,7 @@ export const TOPIC_VIRAL = [
  * vidéo. Le modèle corrige les chiffres faux, écarte le douteux et renvoie la
  * liste des faits établis dont le script aura le droit de se servir.
  */
-export function factCheckSystemPrompt(langName: string) {
+export function factCheckSystemPrompt(langName: string, languageBrief?: string) {
   return [
     `Tu es vérificateur de faits pour une chaîne de vulgarisation. Tu écris en ${langName}.`,
     "TON RÔLE EST DE CORRIGER CE QUI EST FAUX, PAS DE REMONTER LE NIVEAU DE LANGUE. Si le fait est exact, tu recopies la formulation d'origine TELLE QUELLE, mot pour mot.",
