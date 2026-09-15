@@ -3076,7 +3076,8 @@ function Studio() {
               <div className="mt-3 flex flex-wrap items-center gap-2">
                 <button
                   onClick={onGenerateAll}
-                  disabled={generatingAll || !imagesValidated}
+                  disabled={generatingAll || !imagesValidated || durationOverflow.length > 0}
+                  title={durationOverflow.length ? durationBlockMessage : undefined}
                   className="btn-base btn-ghost"
                 >
                   {generatingAll ? (
@@ -3229,10 +3230,12 @@ function Studio() {
                 const lo = targetSeconds;
                 const hi = durationRange(targetSeconds).hi;
                 const off = langDurations.filter((d) => d.seconds < lo || d.seconds > hi);
+                const anyMeasured = langDurations.some((d) => d.measured);
                 return (
                   <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
                     <span className="text-muted-foreground">
-                      Durée estimée (cible {lo}-{hi} s)
+                      {anyMeasured ? "Durée mesurée" : "Durée prédite (débit réel des voix)"}{" "}
+                      (cible {lo}-{hi} s)
                     </span>
                     {langDurations.map(({ lang: l, seconds, speed }) => {
                       const bad = seconds < lo || seconds > hi;
@@ -3470,12 +3473,17 @@ function Studio() {
                         <button
                           onClick={() => onVideo(scene, undefined, script, clipSecondsFor(st))}
                           disabled={
-                            st.videoLoading || !imagesValidated || !hasAllVoices(st)
+                            st.videoLoading ||
+                            !imagesValidated ||
+                            !hasAllVoices(st) ||
+                            durationOverflow.length > 0
                           }
                           title={
-                            hasAllVoices(st)
-                              ? undefined
-                              : "Génère d'abord les voix off de toutes les langues : la longueur du plan s'y cale."
+                            durationOverflow.length
+                              ? durationBlockMessage
+                              : hasAllVoices(st)
+                                ? undefined
+                                : "Génère d'abord les voix off de toutes les langues : la longueur du plan s'y cale."
                           }
                           className="btn-base btn-ghost px-2.5 py-1.5 text-xs"
                         >
