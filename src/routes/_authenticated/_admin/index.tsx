@@ -2944,7 +2944,10 @@ function Studio() {
                     )
                       ? (h.sourceLang as LanguageId)
                       : sourceLang;
-                    const saved = { ...(h.scripts ?? {}), [src]: h.script };
+                    const saved = {
+                      ...(normalizeScripts(h.scripts) as Record<string, Script>),
+                      [src]: safe,
+                    };
                     setScripts(saved);
                     scriptsRef.current = saved;
                     setShowHistory(false);
