@@ -87,6 +87,10 @@ export function scriptSystemPrompt(
    * en MOTS : deux unités concurrentes font dériver la durée.
    */
   chars?: { min: number; target: number; max: number; perScene: number },
+  /** Niveau de langue imposé (modifiable depuis la page Paramètres). */
+  languageBrief?: string,
+  /** Règles propres à l'accroche (modifiables depuis la page Paramètres). */
+  hookBrief?: string,
 ) {
   // Fourchette resserrée : la borne basse ne doit jamais autoriser un plan de 3 s.
   const lo = Math.max(14, Math.round(wordsPerScene - 2));
