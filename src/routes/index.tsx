@@ -43,7 +43,12 @@ import {
 } from "@/components/ui/alert-dialog";
 import { KaraokeCaption } from "@/components/karaoke-caption";
 import { MusicLibrary } from "@/components/music-library";
-import { audioDuration, durationRange, estimateSpeechSeconds } from "@/lib/duration";
+import {
+  audioDuration,
+  durationRange,
+  estimateSpeechSeconds,
+  MAX_VOICE_SPEED,
+} from "@/lib/duration";
 import {
   addTokens,
   emptyUsage,
@@ -515,7 +520,7 @@ function Studio() {
         0,
       );
       const needed = est > hi ? (baseVoiceSpeed * est) / hi : baseVoiceSpeed;
-      out[l] = Math.min(1.15, Math.round(needed * 100) / 100);
+      out[l] = Math.min(MAX_VOICE_SPEED, Math.round(needed * 100) / 100);
     }
     return out;
   }, [langs, scripts, script, sourceLang, targetSeconds, baseVoiceSpeed]);

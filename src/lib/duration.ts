@@ -25,6 +25,12 @@ const DEFAULT_WPS = 3.0;
  */
 export const DURATION_TOLERANCE = 1.1;
 
+/**
+ * Plafond d'accélération de la voix off à la synthèse. Au-delà, la diction
+ * se dégrade nettement. SOURCE DE VÉRITÉ (studio + page Paramètres).
+ */
+export const MAX_VOICE_SPEED = 1.15;
+
 /** Fourchette acceptée pour une durée demandée, en secondes. */
 export function durationRange(targetSeconds: number) {
   return { lo: targetSeconds, hi: Math.round(targetSeconds * DURATION_TOLERANCE) };
