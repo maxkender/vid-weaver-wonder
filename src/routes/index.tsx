@@ -1434,7 +1434,7 @@ function Studio() {
 
     const blob = await assembleVideo(withDurations, {
       ...dims,
-      music: track?.blob,
+      music: track?.blob ?? undefined,
       musicVolume: settings.musicVolume,
       onProgress: (step) => setAssembleStep(`${languageLabel(lang)} — ${step}`),
     });
