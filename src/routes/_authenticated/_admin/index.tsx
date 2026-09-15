@@ -719,6 +719,10 @@ function Studio() {
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [showHistory, setShowHistory] = useState(false);
   const [editing, setEditing] = useState<Record<number, boolean>>({});
+  /** Zone pour coller un script entier, une ligne par plan. */
+  const [pasteOpen, setPasteOpen] = useState(false);
+  const [pasteDraft, setPasteDraft] = useState("");
+
 
   /** Fenêtre de confirmation modale remplaçant window.confirm. */
   type LaunchCost = {
