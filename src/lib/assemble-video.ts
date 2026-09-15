@@ -75,11 +75,12 @@ async function getFFmpeg() {
   return ffmpeg;
 }
 
-function lastErrors() {
+/** Lignes du log qui ressemblent vraiment à une erreur, sinon null. */
+function lastErrors(): string | null {
   const errs = logLines.filter((l) =>
     /error|invalid|no such|failed|unable|abort|memory|exit code/i.test(l),
   );
-  return (errs.length ? errs : logLines).slice(-8).join(" | ");
+  return errs.length ? errs.slice(-6).join(" | ") : null;
 }
 
 /** Repart d'une instance propre : une instance en échec (mémoire saturée) reste inutilisable. */
@@ -92,18 +93,27 @@ export function resetFFmpeg() {
   ffmpegInstance = null;
 }
 
+function failure(label: string, detail: string | null) {
+  return new Error(
+    detail
+      ? `${label} : ${detail}`
+      : `${label} : ffmpeg s'est arrêté sans message — probablement un manque de mémoire.`,
+  );
+}
+
 async function run(ffmpeg: FFmpeg, args: string[], label: string) {
   logLines.length = 0;
   let code: number;
   try {
     code = await ffmpeg.exec(args);
   } catch (e) {
-    throw new Error(`${label} : ${lastErrors() || (e as Error)?.message || "échec ffmpeg"}`);
+    throw failure(label, lastErrors() ?? (e as Error)?.message ?? null);
   }
   if (code !== 0) {
-    throw new Error(`${label} : ${lastErrors() || `ffmpeg code ${code}`}`);
+    throw failure(label, lastErrors());
   }
 }
+
 
 /**
  * Assemble every scene (video + optional voiceover) into a single MP4,
