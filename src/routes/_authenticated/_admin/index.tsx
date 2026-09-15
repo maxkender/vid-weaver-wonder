@@ -46,7 +46,6 @@ import { MusicLibrary } from "@/components/music-library";
 import {
   audioDuration,
   durationRange,
-  estimateSpeechSeconds,
   MAX_VOICE_SPEED,
 } from "@/lib/duration";
 import {
