@@ -7,6 +7,8 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+
 import { TOPIC_CATEGORY_IDS } from "./topic-categories";
 
 export type TopicStatus = "propose" | "valide" | "rejete" | "utilise" | "revoir";
@@ -26,13 +28,23 @@ export type QueuedTopic = {
 
 const styleEnum = z.enum(["question", "revelation", "storytelling", "listicle", "mecanique"]);
 
+/** Garde-fou : la file de sujets est réservée à l'administrateur. */
+async function requireAdmin(context: unknown) {
+  const ctx = context as { supabase: any; userId: string };
+  const { data } = await ctx.supabase.rpc("has_role", { _user_id: ctx.userId, _role: "admin" });
+  if (data !== true) throw new Error("Accès réservé à l'administrateur.");
+}
+
 async function db() {
   const { admin } = await import("./jobs/store.server");
   return await admin();
 }
 
 /** Tous les sujets, triés par statut puis position. */
-export const listTopics = createServerFn({ method: "POST" }).handler(async () => {
+export const listTopics = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+  await requireAdmin(context);
   const client = await db();
   const { data, error } = await client
     .from("topic_queue")
@@ -46,6 +58,7 @@ export const listTopics = createServerFn({ method: "POST" }).handler(async () =>
 
 /** Ajoute un sujet à la main (statut « validé » : c'est un choix humain). */
 export const addTopic = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) =>
     z
       .object({
@@ -57,7 +70,8 @@ export const addTopic = createServerFn({ method: "POST" })
       })
       .parse(input),
   )
-  .handler(async ({ data }) => {
+  .handler(async ({ data, context }) => {
+    await requireAdmin(context);
     const client = await db();
     const { data: last } = await client
       .from("topic_queue")
@@ -83,6 +97,7 @@ export const addTopic = createServerFn({ method: "POST" })
 
 /** Valider / rejeter un sujet proposé. */
 export const setTopicStatus = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) =>
     z
       .object({
@@ -91,7 +106,8 @@ export const setTopicStatus = createServerFn({ method: "POST" })
       })
       .parse(input),
   )
-  .handler(async ({ data }) => {
+  .handler(async ({ data, context }) => {
+    await requireAdmin(context);
     const client = await db();
     const patch: Record<string, unknown> = { status: data.status };
     if (data.status === "utilise") patch['used_at'] = new Date().toISOString();
@@ -101,8 +117,10 @@ export const setTopicStatus = createServerFn({ method: "POST" })
   });
 
 export const deleteTopic = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => z.object({ id: z.string().uuid() }).parse(input))
-  .handler(async ({ data }) => {
+  .handler(async ({ data, context }) => {
+    await requireAdmin(context);
     const client = await db();
     const { error } = await client.from("topic_queue").delete().eq("id", data.id);
     if (error) throw new Error(error.message);
@@ -111,10 +129,12 @@ export const deleteTopic = createServerFn({ method: "POST" })
 
 /** Réordonne un sujet validé : échange sa position avec son voisin. */
 export const moveTopic = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) =>
     z.object({ id: z.string().uuid(), direction: z.enum(["up", "down"]) }).parse(input),
   )
-  .handler(async ({ data }) => {
+  .handler(async ({ data, context }) => {
+    await requireAdmin(context);
     const client = await db();
     const { data: rows, error } = await client
       .from("topic_queue")
@@ -137,7 +157,10 @@ export const moveTopic = createServerFn({ method: "POST" })
  * Prend le premier sujet VALIDÉ de la file (sans le consommer).
  * Le sujet n'est marqué « utilisé » qu'au lancement réel de la vidéo.
  */
-export const nextValidatedTopic = createServerFn({ method: "POST" }).handler(async () => {
+export const nextValidatedTopic = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+  await requireAdmin(context);
   const client = await db();
   const { data, error } = await client
     .from("topic_queue")
@@ -151,12 +174,14 @@ export const nextValidatedTopic = createServerFn({ method: "POST" }).handler(asy
 
 /** Marque un sujet comme utilisé et le relie à la vidéo produite. */
 export const markTopicUsed = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) =>
     z
       .object({ id: z.string().uuid(), videoJobId: z.string().max(200).default("") })
       .parse(input),
   )
-  .handler(async ({ data }) => {
+  .handler(async ({ data, context }) => {
+    await requireAdmin(context);
     const client = await db();
     const { error } = await client
       .from("topic_queue")
@@ -175,6 +200,7 @@ export const markTopicUsed = createServerFn({ method: "POST" })
  * Les sujets déjà en file ou déjà utilisés sont passés en interdits.
  */
 export const proposeTopicBatch = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) =>
     z
       .object({
@@ -183,7 +209,8 @@ export const proposeTopicBatch = createServerFn({ method: "POST" })
       })
       .parse(input ?? {}),
   )
-  .handler(async ({ data }) => {
+  .handler(async ({ data, context }) => {
+    await requireAdmin(context);
     const { chatJSON } = await import("./ai-gateway.server");
     const { TOPIC_BRIEF, TOPIC_INTRIGUE, TOPIC_VIRAL } = await import("./prompts.server");
     const client = await db();

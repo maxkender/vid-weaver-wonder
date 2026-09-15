@@ -190,6 +190,45 @@ export type Database = {
         }
         Relationships: []
       }
+      distribution_settings: {
+        Row: {
+          auto_enabled: boolean
+          created_at: string
+          id: number
+          languages: string[]
+          last_run_at: string | null
+          last_run_result: string | null
+          on_failure: string
+          run_hour: number
+          timezone: string
+          updated_at: string
+        }
+        Insert: {
+          auto_enabled?: boolean
+          created_at?: string
+          id?: number
+          languages?: string[]
+          last_run_at?: string | null
+          last_run_result?: string | null
+          on_failure?: string
+          run_hour?: number
+          timezone?: string
+          updated_at?: string
+        }
+        Update: {
+          auto_enabled?: boolean
+          created_at?: string
+          id?: number
+          languages?: string[]
+          last_run_at?: string | null
+          last_run_result?: string | null
+          on_failure?: string
+          run_hour?: number
+          timezone?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       job_control: {
         Row: {
           id: number
