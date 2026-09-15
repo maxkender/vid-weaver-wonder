@@ -154,18 +154,23 @@ function alignmentToWords(alignment: Alignment | undefined): WordTiming[] {
  * calés sur une estimation et la vidéo sortirait désynchronisée. On remonte
  * donc une erreur explicite (scène + langue) plutôt que de monter du faux.
  */
-export async function generateElevenSpeechWithTimings(
+type SpeechResult = {
+  audioDataUrl: string;
+  words: WordTiming[];
+  characters: number;
+  textChars: number;
+};
+
+/** Prise refusée pour débit anormal : c'est un aléa, on peut relancer. */
+class AbnormalRateError extends Error {}
+
+async function speechAttempt(
   text: string,
   voiceId: string,
   language = "fr",
   context?: string,
   speed = DEFAULT_VOICE_SPEED,
-): Promise<{
-  audioDataUrl: string;
-  words: WordTiming[];
-  characters: number;
-  textChars: number;
-}> {
+): Promise<SpeechResult> {
   const apiKey = apiKeyOrThrow();
   const where = `${context ? `${context} — ` : ""}langue « ${language} »`;
 
