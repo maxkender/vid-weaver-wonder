@@ -3799,12 +3799,27 @@ function Studio() {
               Object.keys(exportInfos).length > 0 ||
               finalUrl) && (
               <div className="surface-card p-4">
-                <p className="label-x">Vidéos exportées</p>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="label-x">Vidéos exportées</p>
+                  {Object.keys(finalUrls).some((l) => !exportInfos[l]) && (
+                    <button
+                      onClick={() => void retrySaveAllOnline()}
+                      disabled={Boolean(savingOnline)}
+                      className="btn-base btn-ghost px-2.5 py-1.5 text-xs"
+                    >
+                      {savingOnline ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : null}
+                      Tout sauvegarder en ligne
+                    </button>
+                  )}
+                </div>
                 <div className="mt-3 grid gap-3 md:grid-cols-2">
                   {Array.from(
                     new Set([...Object.keys(finalUrls), ...Object.keys(exportInfos)]),
                   ).map((l) => {
                     const info = exportInfos[l];
+                    const failed = exportErrors[l];
                     const playable = finalUrls[l] ?? info?.url;
                     const fileName = `${(script.title || "video")
                       .replace(/[^\p{L}\p{N}]+/gu, "-")
@@ -3816,7 +3831,17 @@ function Studio() {
                             {LANGUAGE_FLAGS[l] ?? ""} {l.toUpperCase()}
                             {info?.duration ? ` · ${Math.round(info.duration)} s` : ""}
                             {info?.size ? ` · ${formatSize(info.size)}` : ""}
-                            {!info && " · non sauvegardée en ligne"}
+                            {info ? (
+                              <span className="ml-1 text-emerald-400">· sauvegardée en ligne ✓</span>
+                            ) : savingOnline === l ? (
+                              <span className="ml-1">· sauvegarde en cours…</span>
+                            ) : failed ? (
+                              <span className="ml-1 text-destructive" title={failed}>
+                                · échec — réessayer
+                              </span>
+                            ) : (
+                              " · non sauvegardée en ligne"
+                            )}
                           </span>
                           <span className="flex flex-wrap items-center gap-2">
                             <a
@@ -3826,6 +3851,18 @@ function Studio() {
                             >
                               <Download className="h-3.5 w-3.5" /> Télécharger
                             </a>
+                            {!info && (
+                              <button
+                                onClick={() => void retrySaveOnline(l)}
+                                disabled={savingOnline === l}
+                                className="btn-base btn-ghost px-2.5 py-1.5 text-xs"
+                              >
+                                {savingOnline === l ? (
+                                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                ) : null}
+                                Sauvegarder en ligne
+                              </button>
+                            )}
                             {info?.url && (
                               <button
                                 onClick={() => {
@@ -3841,6 +3878,7 @@ function Studio() {
                             )}
                           </span>
                         </div>
+
                         {playable && (
                           <video
                             src={playable}
