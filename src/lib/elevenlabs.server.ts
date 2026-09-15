@@ -213,6 +213,18 @@ export async function generateElevenSpeechWithTimings(
         `(${spokenChars} caractères sur ${textChars}). Aucune voix off partielle n'est conservée.`,
     );
   }
+  // GARDE-FOU DE DÉBIT : une narration se lit entre 7 et 16 caractères par
+  // seconde. Au-delà la voix s'emballe (inécoutable), en dessous elle traîne.
+  // Dans les deux cas c'est un défaut, pas une durée à accepter.
+  const spoken = Math.max(0.2, (words.at(-1)?.end ?? 0) - (words[0]?.start ?? 0));
+  const cps = characters / spoken;
+  if (characters >= 40 && (cps > MAX_CHARS_PER_SECOND || cps < MIN_CHARS_PER_SECOND)) {
+    throw new Error(
+      `Débit de voix anormal (${where}) : ${cps.toFixed(1)} caractères par seconde ` +
+        `(${characters} caractères en ${spoken.toFixed(2)} s, vitesse demandée ${clampVoiceSpeed(speed)}). ` +
+        `Le débit doit rester entre ${MIN_CHARS_PER_SECOND} et ${MAX_CHARS_PER_SECOND}. Prise refusée.`,
+    );
+  }
   return {
     audioDataUrl: `data:audio/mpeg;base64,${json.audio_base64}`,
     words,
