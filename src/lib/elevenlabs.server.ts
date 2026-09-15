@@ -11,8 +11,22 @@ export const ELEVEN_VOICES = [
 
 export type WordTiming = { word: string; start: number; end: number };
 
-/** Débit par défaut : soutenu, c'est ce qui retient sur TikTok. */
-export const DEFAULT_VOICE_SPEED = 1.05;
+/**
+ * Débit par défaut : 1,0. La longueur du texte est déjà calée sur le budget,
+ * la vitesse n'a donc plus rien à rattraper. Les deux leviers ne doivent
+ * jamais agir en même temps.
+ */
+export const DEFAULT_VOICE_SPEED = 1;
+
+/** Bornes DURES de la vitesse de synthèse, appliquées à la requête elle-même. */
+export const VOICE_SPEED_MIN = 0.95;
+export const VOICE_SPEED_MAX = 1.15;
+
+/** Dernier verrou : aucune valeur calculée en amont ne peut le contourner. */
+export function clampVoiceSpeed(speed: number | undefined) {
+  const v = Number.isFinite(speed) ? (speed as number) : DEFAULT_VOICE_SPEED;
+  return Math.min(VOICE_SPEED_MAX, Math.max(VOICE_SPEED_MIN, v));
+}
 
 function voiceSettings(speed = DEFAULT_VOICE_SPEED) {
   return {
@@ -20,7 +34,7 @@ function voiceSettings(speed = DEFAULT_VOICE_SPEED) {
     similarity_boost: 0.88,
     style: 0.05,
     use_speaker_boost: true,
-    speed: Math.min(1.15, Math.max(0.9, speed)),
+    speed: clampVoiceSpeed(speed),
   };
 }
 
@@ -156,9 +170,10 @@ export async function generateElevenSpeechWithTimings(
     alignment?: Alignment;
     normalized_alignment?: Alignment;
   };
-  // Coût réel : ElevenLabs facture au CARACTÈRE (1 crédit par caractère) et
-  // renvoie son propre décompte dans un en-tête quand il est disponible.
-  let characters = text.length;
+  // Coût réel : ElevenLabs facture au CARACTÈRE (1 crédit par caractère). On
+  // compte les caractères RÉELLEMENT ENVOYÉS ; l'en-tête du fournisseur a déjà
+  // renvoyé des valeurs partielles qui faisaient croire à une troncature.
+  const characters = text.trim().length;
   try {
     const res = await callEleven(
       `/v1/text-to-speech/${voiceId}/with-timestamps`,
@@ -168,10 +183,6 @@ export async function generateElevenSpeechWithTimings(
       voiceId,
       speed,
     );
-    const reported = Number(
-      res.headers.get("character-cost") ?? res.headers.get("x-character-cost") ?? "",
-    );
-    if (Number.isFinite(reported) && reported > 0) characters = reported;
     json = (await res.json()) as typeof json;
   } catch (e) {
     throw new Error(
