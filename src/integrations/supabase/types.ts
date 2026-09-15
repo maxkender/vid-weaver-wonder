@@ -44,6 +44,152 @@ export type Database = {
         }
         Relationships: []
       }
+      audit_log: {
+        Row: {
+          action: string
+          actor_id: string | null
+          created_at: string
+          id: number
+          payload: Json | null
+          target_id: string | null
+          target_table: string | null
+        }
+        Insert: {
+          action: string
+          actor_id?: string | null
+          created_at?: string
+          id?: number
+          payload?: Json | null
+          target_id?: string | null
+          target_table?: string | null
+        }
+        Update: {
+          action?: string
+          actor_id?: string | null
+          created_at?: string
+          id?: number
+          payload?: Json | null
+          target_id?: string | null
+          target_table?: string | null
+        }
+        Relationships: []
+      }
+      contract_templates: {
+        Row: {
+          body: string
+          created_at: string
+          id: string
+          is_active: boolean
+          title: string
+          updated_at: string
+          version: number
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          title: string
+          updated_at?: string
+          version: number
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          title?: string
+          updated_at?: string
+          version?: number
+        }
+        Relationships: []
+      }
+      contracts: {
+        Row: {
+          body: string
+          id: string
+          poster_id: string
+          signed_at: string
+          signed_full_name: string
+          signed_ip: string | null
+          signed_user_agent: string | null
+          version: number
+        }
+        Insert: {
+          body: string
+          id?: string
+          poster_id: string
+          signed_at?: string
+          signed_full_name: string
+          signed_ip?: string | null
+          signed_user_agent?: string | null
+          version: number
+        }
+        Update: {
+          body?: string
+          id?: string
+          poster_id?: string
+          signed_at?: string
+          signed_full_name?: string
+          signed_ip?: string | null
+          signed_user_agent?: string | null
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contracts_poster_id_fkey"
+            columns: ["poster_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      daily_videos: {
+        Row: {
+          caption: string
+          created_at: string
+          duration_sec: number
+          hashtags: string[]
+          id: string
+          language: string
+          publish_date: string
+          render_id: string | null
+          status: string
+          storage_path: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          caption?: string
+          created_at?: string
+          duration_sec?: number
+          hashtags?: string[]
+          id?: string
+          language: string
+          publish_date: string
+          render_id?: string | null
+          status?: string
+          storage_path?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Update: {
+          caption?: string
+          created_at?: string
+          duration_sec?: number
+          hashtags?: string[]
+          id?: string
+          language?: string
+          publish_date?: string
+          render_id?: string | null
+          status?: string
+          storage_path?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       job_control: {
         Row: {
           id: number
@@ -100,6 +246,39 @@ export type Database = {
           },
         ]
       }
+      language_settings: {
+        Row: {
+          eleven_voice_id: string | null
+          enabled: boolean
+          language: string
+          music_style: string
+          narration_style: string
+          updated_at: string
+          visual_style: string
+          voice_speed: number
+        }
+        Insert: {
+          eleven_voice_id?: string | null
+          enabled?: boolean
+          language: string
+          music_style?: string
+          narration_style?: string
+          updated_at?: string
+          visual_style?: string
+          voice_speed?: number
+        }
+        Update: {
+          eleven_voice_id?: string | null
+          enabled?: boolean
+          language?: string
+          music_style?: string
+          narration_style?: string
+          updated_at?: string
+          visual_style?: string
+          voice_speed?: number
+        }
+        Relationships: []
+      }
       music_tracks: {
         Row: {
           created_at: string
@@ -126,6 +305,92 @@ export type Database = {
           name?: string
           path?: string
           styles?: string[]
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      poster_accounts: {
+        Row: {
+          created_at: string
+          followers: number
+          gmail_address: string | null
+          handle: string
+          id: string
+          notes: string | null
+          platform: string
+          poster_id: string
+          profile_url: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          followers?: number
+          gmail_address?: string | null
+          handle: string
+          id?: string
+          notes?: string | null
+          platform: string
+          poster_id: string
+          profile_url?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          followers?: number
+          gmail_address?: string | null
+          handle?: string
+          id?: string
+          notes?: string | null
+          platform?: string
+          poster_id?: string
+          profile_url?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "poster_accounts_poster_id_fkey"
+            columns: ["poster_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          country: string | null
+          created_at: string
+          email: string
+          full_name: string
+          id: string
+          language: string
+          role: Database["public"]["Enums"]["app_role"]
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          country?: string | null
+          created_at?: string
+          email?: string
+          full_name?: string
+          id: string
+          language?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          country?: string | null
+          created_at?: string
+          email?: string
+          full_name?: string
+          id?: string
+          language?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          status?: string
           updated_at?: string
         }
         Relationships: []
@@ -258,6 +523,48 @@ export type Database = {
         }
         Relationships: []
       }
+      video_downloads: {
+        Row: {
+          daily_video_id: string
+          downloaded_at: string
+          id: string
+          posted_at: string | null
+          posted_url: string | null
+          poster_id: string
+        }
+        Insert: {
+          daily_video_id: string
+          downloaded_at?: string
+          id?: string
+          posted_at?: string | null
+          posted_url?: string | null
+          poster_id: string
+        }
+        Update: {
+          daily_video_id?: string
+          downloaded_at?: string
+          id?: string
+          posted_at?: string | null
+          posted_url?: string | null
+          poster_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "video_downloads_daily_video_id_fkey"
+            columns: ["daily_video_id"]
+            isOneToOne: false
+            referencedRelation: "daily_videos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "video_downloads_poster_id_fkey"
+            columns: ["poster_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       voice_rates: {
         Row: {
           chars: number
@@ -331,9 +638,16 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "poster"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -460,6 +774,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "poster"],
+    },
   },
 } as const
