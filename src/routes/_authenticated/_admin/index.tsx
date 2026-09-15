@@ -911,24 +911,25 @@ function Studio() {
 
   const updateScene = useCallback(
     (index: number, field: keyof Scene, value: string) => {
-      setScript((prev) => {
-        if (!prev) return prev;
-        const next = {
-          ...prev,
-          scenes: prev.scenes.map((s) => (s.index === index ? { ...s, [field]: value } : s)),
-        };
-        // La langue source vit AUSSI dans `scripts` : sans cette mise à jour, la
-        // carte du plan continuait d'afficher l'ancienne phrase et les voix off
-        // partaient sur le texte d'avant.
-        const nextAll = { ...scriptsRef.current, [sourceLang]: next };
-        scriptsRef.current = nextAll;
-        setScripts(nextAll);
-        if (projectId) saveHistory(projectId, next, nextAll);
-        return next;
-      });
+      const prev = scriptsRef.current[sourceLang] ?? scriptRef.current;
+      if (!prev) return;
+      const next: Script = {
+        ...prev,
+        scenes: prev.scenes.map((s) => (s.index === index ? { ...s, [field]: value } : s)),
+      };
+      // La langue source vit AUSSI dans `scripts` : sans cette mise à jour, la
+      // carte du plan continuait d'afficher l'ancienne phrase et les voix off
+      // partaient sur le texte d'avant.
+      const nextAll = { ...scriptsRef.current, [sourceLang]: next };
+      scriptsRef.current = nextAll;
+      scriptRef.current = next;
+      setScript(next);
+      setScripts(nextAll);
+      if (projectId) saveHistory(projectId, next, nextAll);
     },
     [projectId, saveHistory, sourceLang],
   );
+
 
   /** Remplace tout le script source à partir d'un texte collé, une ligne par plan. */
   const replaceScriptFromText = useCallback(
