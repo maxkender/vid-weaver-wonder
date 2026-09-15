@@ -63,7 +63,19 @@ import {
   SQUARE_CENTER_OFFSET_RATIO,
   SQUARE_MARGIN_RATIO,
   SQUARE_RADIUS_RATIO,
+  voiceWindow,
 } from "@/lib/karaoke-overlay";
+import {
+  charBudget,
+  charsPerSecond,
+  MAX_CONDENSE_PASSES,
+  MIN_VOICE_SPEED,
+  normalizeSeconds,
+  predictSeconds,
+  rateKey,
+  type VoiceRate,
+} from "@/lib/voice-rate";
+import { listVoiceRates, recordVoiceRate } from "@/lib/voice-rate.functions";
 import {
   
   defaultVoiceFor,
@@ -243,7 +255,14 @@ type Script = {
 type WordTiming = { word: string; start: number; end: number };
 
 /** Voix off d'UNE langue pour un plan : audio + alignement mot à mot + durée. */
-type VoiceTake = { audio: string; words: WordTiming[]; duration: number };
+type VoiceTake = {
+  audio: string;
+  words: WordTiming[];
+  /** Durée BRUTE du fichier audio (silences compris) : base du montage. */
+  duration: number;
+  /** Durée RÉELLEMENT parlée, silences de tête et de queue retirés. */
+  speaking?: number;
+};
 
 type SceneState = {
   /** MÉDIAS VISUELS — communs à toutes les langues du master, payés une fois. */
@@ -445,6 +464,26 @@ function Studio() {
   useEffect(() => {
     if (!langs.includes(voiceLangTab)) setVoiceLangTab(sourceLang);
   }, [langs, voiceLangTab, sourceLang]);
+
+  /**
+   * DÉBIT RÉEL DES VOIX, mémorisé en base (donc partagé avec le service de
+   * nuit). Une voix espagnole et une voix allemande ne lisent pas le même
+   * nombre de caractères par seconde : c'est la mesure, pas l'estimation par
+   * les mots, qui décide du budget de texte de chaque langue.
+   */
+  const [voiceRates, setVoiceRates] = useState<Record<string, VoiceRate>>({});
+  const runListRates = useServerFn(listVoiceRates);
+  const runRecordRate = useServerFn(recordVoiceRate);
+  useEffect(() => {
+    runListRates({})
+      .then((r) => setVoiceRates(((r as { rates?: Record<string, VoiceRate> }).rates) ?? {}))
+      .catch(() => undefined);
+  }, [runListRates]);
+  /** Caractères par seconde (à la vitesse 1,0) de la voix de cette langue. */
+  const cpsFor = useCallback(
+    (l: string) => charsPerSecond(l, voiceRates[rateKey(voiceForLang(l), l)]),
+    [voiceRates, voiceForLang],
+  );
 
   /**
    * Langues cochées sans aucun narrateur utilisable : ni choix de l'utilisateur,
