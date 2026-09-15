@@ -65,6 +65,17 @@ export const DEFAULT_MOTION: Record<VisualStyleId, string> = {
   retro: "Gentle vintage camera drift, slight handheld sway.",
 };
 
+/**
+ * PLAN 1 — cas particulier, quel que soit le style visuel choisi.
+ * Le spectateur décide de scroller pendant la première seconde : le plan
+ * d'ouverture ne doit jamais être contemplatif.
+ */
+export const DEFAULT_OPENING_MOTION =
+  "OPENING SHOT — this is the very first second of the video and it must stop the scroll. A visual event STARTS ON THE VERY FIRST FRAME and is finished before the end of the first second: an element drops, slides or bursts into frame, or a paper layer swings aside to reveal the subject, or a fast camera push that settles immediately after. No slow build-up, no still or contemplative opening, nothing that waits. After that first second the shot can settle and stay calm. The motion stays smooth and continuous, never stepped or jittery.";
+
+export const DEFAULT_OPENING_IMAGE =
+  "OPENING SHOT COMPOSITION — treat this like a poster, not an ambient illustration. ONE single subject, huge in the frame, filling most of the square, instantly readable on a phone in a third of a second. The red accent element is clearly visible on or right next to that subject. No empty scenery, no wide establishing shot, no crowded or talkative composition, no small distant subject.";
+
 /** Réglages modifiables depuis la page Paramètres. */
 export type StudioSettings = {
   narration: Record<NarrationStyleId, { brief: string; wordsBias: number }>;
