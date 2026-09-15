@@ -295,6 +295,11 @@ export type PromptOverrides = {
   bible?: string | undefined;
   /** Contexte narratif : plans précédents et plan suivant. */
   story?: string | undefined;
+  /**
+   * TYPE DE PLAN imposé (échelle et cadrage). Il change à chaque plan, alors
+   * que la direction artistique, elle, ne bouge jamais.
+   */
+  shot?: string | undefined;
 };
 
 function bibleLine(bible?: string) {
