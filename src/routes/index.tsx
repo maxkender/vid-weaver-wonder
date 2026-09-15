@@ -1473,6 +1473,10 @@ function Studio() {
     return longest || undefined;
   };
 
+  /** Toutes les langues cochées ont-elles leur voix off sur ce plan ? */
+  const hasAllVoices = (st: SceneState | undefined) =>
+    langs.length > 0 && langs.every((l) => Boolean(st?.voices?.[l]?.duration));
+
   const onGenerateAll = async () => {
     if (!script) return;
     if (!(await confirmWithStep(() => confirmCost(script)))) return;
