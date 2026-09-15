@@ -18,6 +18,10 @@ export type WordTiming = { word: string; start: number; end: number };
  */
 export const DEFAULT_VOICE_SPEED = 1;
 
+/** Débit acceptable d'une narration, en caractères par seconde. */
+export const MIN_CHARS_PER_SECOND = 7;
+export const MAX_CHARS_PER_SECOND = 16;
+
 /** Bornes DURES de la vitesse de synthèse, appliquées à la requête elle-même. */
 export const VOICE_SPEED_MIN = 0.95;
 export const VOICE_SPEED_MAX = 1.15;
