@@ -35,6 +35,9 @@ async function conventions(): Promise<ConventionRow> {
     instagram_template: data.instagram_template,
     gmail_template: data.gmail_template,
     social_password: data.social_password,
+    platform_password:
+      (data as { platform_password?: string }).platform_password ??
+      DEFAULT_CONVENTIONS.platform_password,
     bio_text: data.bio_text,
     upwork_message_fr: data.upwork_message_fr,
     upwork_message_en: data.upwork_message_en,
