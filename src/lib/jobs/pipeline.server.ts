@@ -404,7 +404,19 @@ async function stepRender(job: RenderJob, origin: string) {
   if (!res.ok) {
     throw new Error(`Service de rendu [${res.status}] : ${(await res.text()).slice(0, 400)}`);
   }
-  await logEvent(job.id, "rendering", "Manifeste envoyé au service de rendu");
+  // Envoi mémorisé : la file n'y reviendra qu'après le délai franc, et jamais
+  // si le rappel a déjà terminé le travail entre-temps.
+  const sends = (job.rendering_sends ?? 0) + 1;
+  await patchJobIfStatus(job.id, "rendering", {
+    rendering_sent_at: new Date().toISOString(),
+    rendering_sends: sends,
+  });
+  job.rendering_sends = sends;
+  await logEvent(
+    job.id,
+    "rendering",
+    `Manifeste envoyé au service de rendu (envoi ${sends}/3)`,
+  );
 }
 
 // ---------------------------------------------------------------- boucle
