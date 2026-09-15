@@ -23,7 +23,15 @@ const MAX_GROUP_CHARS = 18;
 /** Léger devancement : le texte apparaît juste avant la syllabe. */
 const LEAD_IN = 0.05;
 
-const cleanWord = (w) => String(w ?? "").replace(/[«»"]/g, "").replace(/\s+/g, " ").trim();
+/**
+ * PONCTUATION : on retire celle qui est collée au bord du mot (« : son »).
+ * L'apostrophe et le trait d'union internes restent (l'été, au-dessus).
+ */
+const EDGE_PUNCT = /^[\p{P}\p{S}\s]+|[\p{P}\p{S}\s]+$/gu;
+const hasLetterOrDigit = (w) => /[\p{L}\p{N}]/u.test(w ?? "");
+const cleanWord = (w) =>
+  String(w ?? "").replace(/[«»"]/g, "").replace(EDGE_PUNCT, "").replace(/\s+/g, " ").trim();
+
 
 /**
  * Fenêtre utile de la voix off : du premier au dernier mot réellement prononcé.
