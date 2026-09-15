@@ -2928,7 +2928,11 @@ function Studio() {
               <div key={h.id} className="flex flex-wrap items-center justify-between gap-3">
                 <button
                   onClick={async () => {
-                    setScript(h.script);
+                    // Projets enregistrés avant le garde-fou : on remet le
+                    // script en forme À L'OUVERTURE aussi, pas seulement à la
+                    // lecture de l'historique.
+                    const safe = normalizeScript(h.script) as Script;
+                    setScript(safe);
                     setProjectId(h.id);
                     setFinalUrl(null);
                     setFinalUrls({});
