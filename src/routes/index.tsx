@@ -628,8 +628,18 @@ function Studio() {
     });
   }, []);
   const confirmResolverRef = useRef<((value: boolean) => void) | null>(null);
+  /** Une seule fenêtre de confirmation à la fois (double clic ignoré). */
+  const confirmOpenRef = useRef(false);
 
   const requestCostConfirmation = (payload: LaunchCost): Promise<boolean> => {
+    // Un second clic pendant qu'une fenêtre est ouverte n'ouvre rien de plus.
+    if (confirmOpenRef.current) return Promise.resolve(false);
+    // Filet de sécurité : si un resolver traînait, on le libère avec « non »
+    // au lieu de laisser son `await` suspendu à jamais (bouton apparemment mort).
+    const stale = confirmResolverRef.current;
+    confirmResolverRef.current = null;
+    stale?.(false);
+    confirmOpenRef.current = true;
     setConfirmPayload(payload);
     setConfirmOpen(true);
     return new Promise((resolve) => {
@@ -637,9 +647,61 @@ function Studio() {
     });
   };
 
+  /** Attente visible : l'utilisateur sait qu'une fenêtre l'attend. */
+  const confirmWithStep = async (run: () => Promise<boolean>) => {
+    setCurrentStep("En attente de ta confirmation — voir la fenêtre");
+    try {
+      return await run();
+    } finally {
+      setCurrentStep("");
+    }
+  };
+
+  /**
+   * MODULES DE MONTAGE PRÉCHARGÉS dès l'ouverture du studio. Sinon, après un
+   * redéploiement du site pendant que l'onglet est resté ouvert, l'ancien nom de
+   * fichier n'existe plus et le montage échoue alors que les clips sont payés.
+   */
+  const assemblerRef = useRef<Promise<{
+    assemble: typeof import("@/lib/assemble-video");
+    music: typeof import("@/lib/music-store");
+    karaoke: typeof import("@/lib/karaoke-overlay");
+    overlay: typeof import("@/lib/overlay-png");
+  }> | null>(null);
+
+  const loadAssembler = useCallback(async () => {
+    if (!assemblerRef.current) {
+      assemblerRef.current = Promise.all([
+        import("@/lib/assemble-video"),
+        import("@/lib/music-store"),
+        import("@/lib/karaoke-overlay"),
+        import("@/lib/overlay-png"),
+      ]).then(([assemble, music, karaoke, overlay]) => ({
+        assemble,
+        music,
+        karaoke,
+        overlay,
+      }));
+    }
+    try {
+      return await assemblerRef.current;
+    } catch {
+      assemblerRef.current = null;
+      throw new Error(
+        "Le studio a été mis à jour pendant la session. Recharge la page : tes plans et tes voix sont conservés, rien ne sera repayé.",
+      );
+    }
+  }, []);
+
+  // Préchargement en arrière-plan : le montage n'aura plus besoin du réseau.
+  useEffect(() => {
+    void loadAssembler().catch(() => undefined);
+  }, [loadAssembler]);
+
   const onConfirmLaunch = () => {
     const resolve = confirmResolverRef.current;
     confirmResolverRef.current = null;
+    confirmOpenRef.current = false;
     setConfirmOpen(false);
     resolve?.(true);
   };
@@ -647,6 +709,7 @@ function Studio() {
   const onCancelLaunch = () => {
     const resolve = confirmResolverRef.current;
     confirmResolverRef.current = null;
+    confirmOpenRef.current = false;
     setConfirmOpen(false);
     resolve?.(false);
   };
@@ -1003,15 +1066,32 @@ function Studio() {
   const runExportUrl = useServerFn(getExportDownloadUrl);
 
   /**
+   * Empreinte du texte source : sert à savoir si une traduction déjà faite est
+   * encore valable. Seul le texte parlé compte (les visuels ne sont pas traduits).
+   */
+  const sourceSignature = (doc: Script) =>
+    [doc.title ?? "", doc.hook ?? "", doc.cta ?? "", ...doc.scenes.map((s) => `${s.index}:${s.narration}`)].join("¦");
+  /** Empreinte source de la traduction déjà obtenue, par langue. */
+  const translationSourceRef = useRef<Record<string, string>>({});
+
+  /**
    * MASTER : traduit le script source dans chaque autre langue cochée.
    * Les visuels ne sont jamais régénérés — seuls les textes parlés changent.
+   * `reuse` : une langue déjà traduite depuis CE texte source n'est pas refaite.
    */
   const onTranslateAll = async (
     doc: Script | null = script,
+    reuse = false,
   ): Promise<Record<string, Script> | undefined> => {
     if (!doc) return undefined;
-    const others = langs.filter((l) => l !== sourceLang);
+    const sig = sourceSignature(doc);
+    let others = langs.filter((l) => l !== sourceLang);
     const next: Record<string, Script> = { ...scriptsRef.current, [sourceLang]: doc };
+    if (reuse) {
+      others = others.filter(
+        (l) => !next[l] || translationSourceRef.current[l] !== sig,
+      );
+    }
     if (!others.length) {
       setScripts(next);
       scriptsRef.current = next;
@@ -1112,6 +1192,9 @@ function Studio() {
               overlay: byIndex.get(s.index)?.overlay ?? s.overlay,
             })),
           };
+          // Mémorise le texte source d'où vient cette traduction : tant qu'il
+          // ne change pas, on ne repaiera jamais la même traduction.
+          translationSourceRef.current[lang] = sig;
           toast.success(`Script traduit — ${languageLabel(lang)}`);
         } catch (e) {
           toast.error(
@@ -1125,6 +1208,9 @@ function Studio() {
       return next;
     } finally {
       setTranslating(false);
+      // L'en-tête ne doit jamais rester sur une étape terminée.
+      setCurrentStep("");
+      setAssembleStep("");
     }
   };
 
@@ -1428,9 +1514,13 @@ function Studio() {
     return longest || undefined;
   };
 
+  /** Toutes les langues cochées ont-elles leur voix off sur ce plan ? */
+  const hasAllVoices = (st: SceneState | undefined) =>
+    langs.length > 0 && langs.every((l) => Boolean(st?.voices?.[l]?.duration));
+
   const onGenerateAll = async () => {
     if (!script) return;
-    if (!(await confirmCost(script))) return;
+    if (!(await confirmWithStep(() => confirmCost(script)))) return;
     beginRun();
     setGeneratingAll(true);
     setCurrentStep("Génération des plans…");
@@ -1472,6 +1562,7 @@ function Studio() {
     } finally {
       setGeneratingAll(false);
       setCurrentStep(cancelledRef.current ? "Pipeline arrêté" : "");
+      setAssembleStep(cancelledRef.current ? "Pipeline arrêté" : "");
     }
   };
 
@@ -1525,10 +1616,11 @@ function Studio() {
   ) => {
     const doc = scriptFor(lang, scriptOverride ?? script);
 
-    const { assembleVideo } = await import("@/lib/assemble-video");
-    const { randomTrack } = await import("@/lib/music-store");
+    const mods = await loadAssembler();
+    const { assembleVideo } = mods.assemble;
+    const { randomTrack } = mods.music;
     const { makeCaptionCues, makeRoundedSquareMask, sophiaWindow, voiceWindow, shiftTimings } =
-      await import("@/lib/karaoke-overlay");
+      mods.karaoke;
     // L'export est TOUJOURS en 1080p, même en mode brouillon : les plans 720p
     // sont simplement agrandis.
     const dims =
@@ -1731,6 +1823,8 @@ function Studio() {
       toast.error(e instanceof Error ? e.message : "Échec de l'assemblage");
     } finally {
       setAssembling(false);
+      setCurrentStep(cancelledRef.current ? "Pipeline arrêté" : "");
+      setAssembleStep(cancelledRef.current ? "Pipeline arrêté" : "");
     }
   };
 
@@ -1738,13 +1832,15 @@ function Studio() {
   const onExportEverything = async (scriptOverride?: Script, skipConfirm = false) => {
     const doc = scriptOverride ?? script;
     if (!doc) return;
-    if (!skipConfirm && !(await confirmCost(doc))) return;
+    if (!skipConfirm && !(await confirmWithStep(() => confirmCost(doc)))) return;
     if (!skipConfirm) beginRun();
     setAssembling(true);
     try {
       // b — traductions.
       setCurrentStep("Traductions…");
-      await onTranslateAll(doc);
+      // Réutilise les traductions déjà obtenues depuis CE même texte source :
+      // on ne repaie pas 5 traductions pour un résultat identique.
+      await onTranslateAll(doc, true);
       if (cancelledRef.current) {
         setAssembleStep("Pipeline arrêté");
         return;
@@ -1807,6 +1903,7 @@ function Studio() {
     } finally {
       setAssembling(false);
       setCurrentStep(cancelledRef.current ? "Pipeline arrêté" : "");
+      setAssembleStep(cancelledRef.current ? "Pipeline arrêté" : "");
     }
   };
 
@@ -1883,14 +1980,16 @@ function Studio() {
       );
       return;
     }
-    const ok = await requestCostConfirmation({
-      clips: sceneCount,
-      seconds: planned,
-      perClip,
-      voices: sceneCount * langs.length,
-      languages: langs.length,
-      ctaSaving: settings.sophiaCta !== false ? perClip : 0,
-    });
+    const ok = await confirmWithStep(() =>
+      requestCostConfirmation({
+        clips: sceneCount,
+        seconds: planned,
+        perClip,
+        voices: sceneCount * langs.length,
+        languages: langs.length,
+        ctaSaving: settings.sophiaCta !== false ? perClip : 0,
+      }),
+    );
     if (!ok) return;
     beginRun();
     // Mode automatique : mêmes étapes, sans les portes de validation.
@@ -1907,6 +2006,7 @@ function Studio() {
     } finally {
       setAutoRunning(false);
       setCurrentStep(cancelledRef.current ? "Pipeline arrêté" : "");
+      setAssembleStep(cancelledRef.current ? "Pipeline arrêté" : "");
     }
   };
 
@@ -2012,10 +2112,11 @@ function Studio() {
     if (!st?.videoUrl) return;
     setExporting(scene.index);
     try {
-      const { assembleVideo } = await import("@/lib/assemble-video");
-      const { makeOverlayPng } = await import("@/lib/overlay-png");
+      const mods = await loadAssembler();
+      const { assembleVideo } = mods.assemble;
+      const { makeOverlayPng } = mods.overlay;
       const { makeCaptionCues, makeRoundedSquareMask, sophiaWindow, voiceWindow, shiftTimings } =
-        await import("@/lib/karaoke-overlay");
+        mods.karaoke;
       const dims =
         orientation === "horizontal"
           ? { width: 1920, height: 1080 }
@@ -3146,9 +3247,19 @@ function Studio() {
 
                       {/* Action principale visible, le reste dans un menu. */}
                       <div className="flex flex-wrap items-center gap-2">
+                        {/* La longueur du clip se cale sur la voix off la plus
+                            longue de toutes les langues produites : sans ces
+                            voix, on paierait un clip trop court. */}
                         <button
-                          onClick={() => onVideo(scene)}
-                          disabled={st.videoLoading || !imagesValidated}
+                          onClick={() => onVideo(scene, undefined, script, clipSecondsFor(st))}
+                          disabled={
+                            st.videoLoading || !imagesValidated || !hasAllVoices(st)
+                          }
+                          title={
+                            hasAllVoices(st)
+                              ? undefined
+                              : "Génère d'abord les voix off de toutes les langues : la longueur du plan s'y cale."
+                          }
                           className="btn-base btn-ghost px-2.5 py-1.5 text-xs"
                         >
                           <Play className="h-3.5 w-3.5" /> Animer
@@ -3252,10 +3363,11 @@ function Studio() {
         open={confirmOpen}
         onOpenChange={(open) => {
           setConfirmOpen(open);
-          if (!open && confirmResolverRef.current) {
+          if (!open) {
+            confirmOpenRef.current = false;
             const resolve = confirmResolverRef.current;
             confirmResolverRef.current = null;
-            resolve(false);
+            resolve?.(false);
           }
         }}
       >
