@@ -1616,10 +1616,11 @@ function Studio() {
   ) => {
     const doc = scriptFor(lang, scriptOverride ?? script);
 
-    const { assembleVideo } = await import("@/lib/assemble-video");
-    const { randomTrack } = await import("@/lib/music-store");
+    const mods = await loadAssembler();
+    const { assembleVideo } = mods.assemble;
+    const { randomTrack } = mods.music;
     const { makeCaptionCues, makeRoundedSquareMask, sophiaWindow, voiceWindow, shiftTimings } =
-      await import("@/lib/karaoke-overlay");
+      mods.karaoke;
     // L'export est TOUJOURS en 1080p, même en mode brouillon : les plans 720p
     // sont simplement agrandis.
     const dims =
@@ -2111,10 +2112,11 @@ function Studio() {
     if (!st?.videoUrl) return;
     setExporting(scene.index);
     try {
-      const { assembleVideo } = await import("@/lib/assemble-video");
-      const { makeOverlayPng } = await import("@/lib/overlay-png");
+      const mods = await loadAssembler();
+      const { assembleVideo } = mods.assemble;
+      const { makeOverlayPng } = mods.overlay;
       const { makeCaptionCues, makeRoundedSquareMask, sophiaWindow, voiceWindow, shiftTimings } =
-        await import("@/lib/karaoke-overlay");
+        mods.karaoke;
       const dims =
         orientation === "horizontal"
           ? { width: 1920, height: 1080 }
