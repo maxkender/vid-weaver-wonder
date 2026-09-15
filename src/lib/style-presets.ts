@@ -233,11 +233,20 @@ export function visualPath(id: VisualStyleId, key: "brief" | "quality" | "motion
 export function openingPath(key: "motion" | "image"): FieldPath {
   return `opening.first.${key}`;
 }
+export function guidePath(key: "language" | "hook" | "shots"): FieldPath {
+  return `guides.first.${key}`;
+}
 
 /** Valeur livrée (à jour) d'un champ texte. */
 export function defaultFieldValue(path: FieldPath): string {
   const [group, id, key] = path.split(".");
   if (group === "narration") return DEFAULT_STYLE_BRIEF[id as NarrationStyleId] ?? "";
+  if (group === "guides")
+    return key === "language"
+      ? DEFAULT_LANGUAGE_BRIEF
+      : key === "hook"
+        ? DEFAULT_HOOK_BRIEF
+        : DEFAULT_SHOT_BRIEF;
   if (group === "opening")
     return key === "motion" ? DEFAULT_OPENING_MOTION : DEFAULT_OPENING_IMAGE;
   if (key === "brief") return DEFAULT_VISUAL_BRIEF[id as VisualStyleId] ?? "";
