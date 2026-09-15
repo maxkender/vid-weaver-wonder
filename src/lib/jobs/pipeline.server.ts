@@ -197,6 +197,7 @@ async function stepImages(job: RenderJob, t0: number) {
 async function languageSetting(language: string) {
   try {
     const { admin } = await import("./store.server");
+    const { admin } = await import("./store.server");
     const db = await admin();
     const { data } = await db
       .from("language_settings")
@@ -391,6 +392,7 @@ async function stepRender(job: RenderJob, origin: string) {
   // narration, atténué au même volume (0,22).
   let music = null as { url: string; gainDb: number | null } | null;
   try {
+    const { admin } = await import("./store.server");
     const db = await admin();
     const { data: tracks } = await db
       .from("music_tracks")
