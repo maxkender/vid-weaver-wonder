@@ -657,6 +657,47 @@ function Studio() {
     }
   };
 
+  /**
+   * MODULES DE MONTAGE PRÉCHARGÉS dès l'ouverture du studio. Sinon, après un
+   * redéploiement du site pendant que l'onglet est resté ouvert, l'ancien nom de
+   * fichier n'existe plus et le montage échoue alors que les clips sont payés.
+   */
+  const assemblerRef = useRef<Promise<{
+    assemble: typeof import("@/lib/assemble-video");
+    music: typeof import("@/lib/music-store");
+    karaoke: typeof import("@/lib/karaoke-overlay");
+    overlay: typeof import("@/lib/overlay-png");
+  }> | null>(null);
+
+  const loadAssembler = useCallback(async () => {
+    if (!assemblerRef.current) {
+      assemblerRef.current = Promise.all([
+        import("@/lib/assemble-video"),
+        import("@/lib/music-store"),
+        import("@/lib/karaoke-overlay"),
+        import("@/lib/overlay-png"),
+      ]).then(([assemble, music, karaoke, overlay]) => ({
+        assemble,
+        music,
+        karaoke,
+        overlay,
+      }));
+    }
+    try {
+      return await assemblerRef.current;
+    } catch {
+      assemblerRef.current = null;
+      throw new Error(
+        "Le studio a été mis à jour pendant la session. Recharge la page : tes plans et tes voix sont conservés, rien ne sera repayé.",
+      );
+    }
+  }, []);
+
+  // Préchargement en arrière-plan : le montage n'aura plus besoin du réseau.
+  useEffect(() => {
+    void loadAssembler().catch(() => undefined);
+  }, [loadAssembler]);
+
   const onConfirmLaunch = () => {
     const resolve = confirmResolverRef.current;
     confirmResolverRef.current = null;
