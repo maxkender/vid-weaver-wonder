@@ -386,6 +386,31 @@ async function stepRender(job: RenderJob, origin: string) {
     })),
   );
 
+  // Musique de fond : même banque partagée que le studio (bucket `music`,
+  // table `music_tracks`), un morceau au hasard parmi ceux du style de
+  // narration, atténué au même volume (0,22).
+  let music = null as { url: string; gainDb: number | null } | null;
+  try {
+    const { admin } = await import("./store.server");
+    const db = await admin();
+    const { data: tracks } = await db
+      .from("music_tracks")
+      .select("path, styles, gain_db");
+    const rows = (tracks ?? []) as { path: string; styles: string[] | null; gain_db: number | null }[];
+    const pool = rows.filter((t) => (t.styles ?? []).includes(job.narration_style));
+    const picked = (pool.length ? pool : rows)[Math.floor(Math.random() * (pool.length || rows.length || 1))];
+    if (picked) {
+      const { data: signed } = await db.storage
+        .from("music")
+        .createSignedUrl(picked.path, 60 * 60 * 6);
+      if (signed?.signedUrl) {
+        music = { url: signed.signedUrl, gainDb: picked.gain_db === null ? null : Number(picked.gain_db) };
+      }
+    }
+  } catch {
+    /* la musique ne doit jamais faire échouer un montage */
+  }
+
   const body = JSON.stringify({
     jobId: job.id,
     width: 1080,
@@ -394,6 +419,7 @@ async function stepRender(job: RenderJob, origin: string) {
     squareMask: job.visual_style === "papercraft",
     callbackUrl: `${origin}/api/public/jobs/render-callback`,
     scenes,
+    ...(music ? { musicUrl: music.url, musicVolume: 0.22, ...(music.gainDb !== null ? { musicGainDb: music.gainDb } : {}) } : {}),
   });
 
   const res = await fetch(`${url.replace(/\/$/, "")}/render`, {

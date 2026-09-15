@@ -64,16 +64,33 @@ async function renderScene(scene, dir, opts) {
   const out = `part-${i}.mp4`;
   const args = [];
 
-  const stillOnly = !scene.videoUrl;
-  let sourceName;
-  if (stillOnly) {
-    if (!scene.imageUrl) throw new Error(`Plan ${i} : ni clip ni image.`);
-    sourceName = `img-${i}.png`;
-    await download(scene.imageUrl, join(dir, sourceName));
-  } else {
-    sourceName = `clip-${i}.mp4`;
-    await download(scene.videoUrl, join(dir, sourceName));
+  // Un plan a TOUJOURS de l'image : clip animé si disponible et lisible,
+  // sinon image fixe. On télécharge l'image dès qu'elle existe, pour pouvoir
+  // basculer dessus si le clip est illisible (clip raté, fichier tronqué).
+  let imageName = null;
+  if (scene.imageUrl) {
+    imageName = `img-${i}.png`;
+    await download(scene.imageUrl, join(dir, imageName));
   }
+  let clipName = null;
+  let clipLen = 0;
+  if (scene.videoUrl) {
+    clipName = `clip-${i}.mp4`;
+    await download(scene.videoUrl, join(dir, clipName));
+    clipLen = await probeDuration(clipName, dir);
+    if (!(clipLen > 0.2)) {
+      // Durée illisible : le clip ne peut pas porter le plan. On repasse sur
+      // l'image fixe plutôt que de livrer du noir.
+      if (!imageName) {
+        throw new Error(`Plan ${i + 1} : clip animé illisible et aucune image de secours.`);
+      }
+      clipName = null;
+      clipLen = 0;
+    }
+  }
+  const stillOnly = !clipName;
+  if (stillOnly && !imageName) throw new Error(`Plan ${i + 1} : ni clip ni image.`);
+  const sourceName = stillOnly ? imageName : clipName;
 
   const hasVoice = Boolean(scene.audioUrl);
   let audioName = null;
@@ -94,22 +111,20 @@ async function renderScene(scene, dir, opts) {
   const voiceSpan = tEnd ? tEnd - tStart : undefined;
   const target = voiceSpan && voiceSpan > 0.5 ? voiceSpan : declared;
 
-  const clipLen = stillOnly ? 0 : await probeDuration(sourceName, dir);
   let tempo = 1; // accélération de la voix
   let stretch = 1; // ralentissement du clip
-  if (!stillOnly && clipLen > 0.2 && target > clipLen) {
+  if (!stillOnly && target > clipLen) {
     const needed = target / clipLen;
     if (needed > STRETCH_BEFORE_TEMPO) {
       tempo = Math.min(MAX_TEMPO, needed / STRETCH_BEFORE_TEMPO);
     }
     stretch = Math.min(MAX_STRETCH, target / tempo / clipLen);
-    // Filet de sécurité : si les plafonds laissent la piste vidéo plus courte
-    // que la voix, on dépasse volontairement le plafond d'étirement — un plan
-    // très ralenti vaut mieux qu'une image gelée en fin de plan.
-    const needTotal = target / tempo / clipLen;
-    if (needTotal > stretch) stretch = needTotal;
   }
-  const outDur = target / tempo;
+  // Durée du plan, EXACTEMENT comme le studio (src/lib/assemble-video.ts) :
+  // la voix commande, mais jamais au-delà de ce que la piste vidéo couvre.
+  // Une image fixe couvre n'importe quelle durée.
+  const videoSpan = stillOnly ? Infinity : clipLen * stretch;
+  const outDur = Math.min(target / tempo, videoSpan);
 
   const { width, height } = opts;
   if (stillOnly) {
@@ -122,12 +137,15 @@ async function renderScene(scene, dir, opts) {
 
   const big = { w: Math.round(width * 1.2), h: Math.round(height * 1.2) };
   const base = `scale=${width}:${height}:force_original_aspect_ratio=decrease,pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2:black,setsar=1`;
+  // Filet de sécurité commun : `tpad` clone la dernière image si, malgré tout,
+  // la piste vidéo s'arrêtait avant la fin du plan. Jamais de noir.
+  const pad = `,tpad=stop_mode=clone:stop_duration=2,trim=0:${outDur.toFixed(3)},setpts=PTS-STARTPTS`;
   const vf = stillOnly
     ? // Image fixe : très léger zoom lent, jamais parfaitement immobile.
       `scale=${big.w}:${big.h}:force_original_aspect_ratio=decrease,pad=${big.w}:${big.h}:(ow-iw)/2:(oh-ih)/2:black,` +
       `zoompan=z='min(1+0.00035*on,1.07)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':` +
-      `d=${Math.max(1, Math.ceil(outDur * OUTPUT_FPS))}:s=${width}x${height}:fps=${OUTPUT_FPS},setsar=1,fps=${OUTPUT_FPS}`
-    : `${base}${stretch > 1.001 ? `,setpts=PTS*${stretch.toFixed(4)}` : ""},fps=${OUTPUT_FPS}`;
+      `d=${Math.max(1, Math.ceil(outDur * OUTPUT_FPS))}:s=${width}x${height}:fps=${OUTPUT_FPS},setsar=1,fps=${OUTPUT_FPS}${pad}`
+    : `${base}${stretch > 1.001 ? `,setpts=PTS*${stretch.toFixed(4)}` : ""},fps=${OUTPUT_FPS}${pad}`;
 
   const chain = [`[0:v]${vf}[base]`];
   let last = "base";
@@ -183,6 +201,15 @@ async function renderScene(scene, dir, opts) {
   );
 
   await run(args, dir);
+
+  // CONTRÔLE DE SORTIE : mieux vaut un rendu en échec qu'une vidéo à moitié
+  // noire livrée en silence. La piste vidéo doit couvrir toute la durée du plan.
+  const madeDur = await probeDuration(out, dir);
+  if (!(madeDur >= outDur - 0.15)) {
+    throw new Error(
+      `Plan ${i + 1} : la piste vidéo ne dure que ${madeDur.toFixed(2)} s pour une voix de ${outDur.toFixed(2)} s — rendu interrompu pour éviter une vidéo noire.`,
+    );
+  }
   return { name: out, duration: outDur };
 }
 
@@ -226,6 +253,13 @@ export async function renderJob(manifest) {
     if (manifest.musicUrl) {
       await download(manifest.musicUrl, join(dir, "music.mp3"));
       const volume = Number(manifest.musicVolume) > 0 ? Number(manifest.musicVolume) : 0.22;
+      // Même réglage que le studio : gain du morceau mesuré une fois dans la
+      // banque musicale, puis atténuation à 0,22. Sans gain connu, on
+      // normalise le morceau comme avant.
+      const gainDb = Number(manifest.musicGainDb);
+      const level = Number.isFinite(gainDb)
+        ? `volume=${(gainDb + 20 * Math.log10(volume)).toFixed(2)}dB`
+        : `loudnorm=I=-16:TP=-1.5:LRA=11,volume=${volume}`;
       await run(
         [
           "-i", "concat.mp4",
@@ -233,7 +267,7 @@ export async function renderJob(manifest) {
           // normalize=0 : sans ça, amix divise chaque entrée par 2 et la voix
           // off perd 6 dB. Seule la musique est atténuée, par son propre volume.
           "-filter_complex",
-          `[1:a]loudnorm=I=-16:TP=-1.5:LRA=11,volume=${volume}[bg];[0:a][bg]amix=inputs=2:duration=first:dropout_transition=0:normalize=0[a]`,
+          `[1:a]${level}[bg];[0:a][bg]amix=inputs=2:duration=first:dropout_transition=0:normalize=0[a]`,
           "-map", "0:v:0", "-map", "[a]",
           "-c:v", "copy", "-c:a", "aac", "-b:a", "160k",
           "-movflags", "+faststart",
