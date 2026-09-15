@@ -228,7 +228,7 @@ async function speechAttempt(
   const spoken = Math.max(0.2, (words.at(-1)?.end ?? 0) - (words[0]?.start ?? 0));
   const cps = characters / spoken;
   if (characters >= 40 && (cps > MAX_CHARS_PER_SECOND || cps < MIN_CHARS_PER_SECOND)) {
-    throw new Error(
+    throw new AbnormalRateError(
       `Débit de voix anormal (${where}) : ${cps.toFixed(1)} caractères par seconde ` +
         `(${characters} caractères en ${spoken.toFixed(2)} s, vitesse demandée ${clampVoiceSpeed(speed)}). ` +
         `Le débit doit rester entre ${MIN_CHARS_PER_SECOND} et ${MAX_CHARS_PER_SECOND}. Prise refusée.`,
@@ -240,6 +240,39 @@ async function speechAttempt(
     characters,
     textChars: text.trim().length,
   };
+}
+
+/** Nombre maximal de prises pour un même plan (aléa de génération). */
+export const VOICE_MAX_ATTEMPTS = 3;
+
+/**
+ * Une prise au débit anormal est un ALÉA du fournisseur, pas un défaut de
+ * configuration : on relance jusqu'à trois fois, une seconde entre chaque
+ * tentative. Si une prise revient correcte, rien n'est signalé. Après trois
+ * échecs, l'erreur d'origine remonte, plan et langue nommés.
+ */
+export async function generateElevenSpeechWithTimings(
+  text: string,
+  voiceId: string,
+  language = "fr",
+  context?: string,
+  speed = DEFAULT_VOICE_SPEED,
+): Promise<SpeechResult> {
+  let last: unknown;
+  for (let attempt = 1; attempt <= VOICE_MAX_ATTEMPTS; attempt++) {
+    try {
+      return await speechAttempt(text, voiceId, language, context, speed);
+    } catch (e) {
+      // Seul le débit anormal se relance : une erreur de plan, de voix ou de
+      // texte tronqué se reproduirait à l'identique et coûterait pour rien.
+      if (!(e instanceof AbnormalRateError)) throw e;
+      last = e;
+      if (attempt < VOICE_MAX_ATTEMPTS) await new Promise((r) => setTimeout(r, 1000));
+    }
+  }
+  throw last instanceof Error
+    ? new Error(`${last.message} (${VOICE_MAX_ATTEMPTS} prises consécutives refusées)`)
+    : new Error("Voix off refusée après plusieurs tentatives.");
 }
 
 /** Voix FR recommandées, épinglées en tête de liste quand la langue active est le français. */
