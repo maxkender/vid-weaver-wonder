@@ -340,6 +340,31 @@ async function stepClips(job: RenderJob, t0: number) {
 async function stepRender(job: RenderJob, origin: string) {
   const url = process.env["RENDER_WORKER_URL"];
   const secret = process.env["RENDER_WORKER_SECRET"];
+
+  // Un manifeste n'est JAMAIS renvoyé tant que le rappel peut encore arriver.
+  const { decideRenderSend } = await import("./render-dispatch");
+  const decision = decideRenderSend({
+    sends: job.rendering_sends ?? 0,
+    sentAt: job.rendering_sent_at ?? null,
+  });
+  if (decision.action === "wait") {
+    return;
+  }
+  if (decision.action === "giveup") {
+    const ok = await patchJobIfStatus(job.id, "rendering", {
+      status: "failed",
+      step: "failed",
+      error: decision.message,
+      lease_until: null,
+    });
+    if (ok) {
+      await logEvent(job.id, "rendering", decision.message, "error");
+      const { notifyClient } = await import("./notify.server");
+      await notifyClient(job.id);
+    }
+    return;
+  }
+
   if (!url || !secret) {
     // Pas de service externe : le montage est assuré par la station intégrée
     // (page /station). Le job reste en « rendering » jusqu'à sa prise en charge.
