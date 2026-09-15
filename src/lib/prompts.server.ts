@@ -39,6 +39,8 @@ export type Script = {
   /** Justification en une ligne du choix d'accroche, affichée dans le studio. */
   hookChoice?: string;
   scenes: Scene[];
+  /** Message clair quand la longueur reste hors cible après les 3 passes. */
+  lengthNote?: string;
   cta: string;
   hashtags: string[];
   /** Bible visuelle : personnages, palette et décors constants d'une scène à l'autre. */
