@@ -182,10 +182,32 @@ async function stepImages(job: RenderJob, t0: number) {
 
 // ---------------------------------------------------------------- étape 4
 
+/**
+ * Réglage de langue piloté depuis l'administration (table `language_settings`).
+ * Les valeurs codées en dur ne servent que si la table est vide.
+ */
+async function languageSetting(language: string) {
+  try {
+    const { admin } = await import("./store.server");
+    const db = await admin();
+    const { data } = await db
+      .from("language_settings")
+      .select("eleven_voice_id, voice_speed")
+      .eq("language", language)
+      .maybeSingle();
+    return data as { eleven_voice_id: string | null; voice_speed: number } | null;
+  } catch {
+    return null;
+  }
+}
+
 async function stepVoice(job: RenderJob, t0: number) {
   const { generateElevenSpeechWithTimings } = await import("../elevenlabs.server");
   const scenes = job.scenes;
-  const voice = job.voice_id ?? defaultVoiceFor("elevenlabs", job.language);
+  const setting = await languageSetting(job.language);
+  const voice =
+    job.voice_id ?? setting?.eleven_voice_id ?? defaultVoiceFor("elevenlabs", job.language);
+  const speed = Number(setting?.voice_speed ?? 1.05);
 
   for (let i = 0; i < scenes.length; i++) {
     if (outOfTime(t0)) return false;
@@ -198,6 +220,7 @@ async function stepVoice(job: RenderJob, t0: number) {
       voice,
       job.language,
       `plan ${i + 1}`,
+      speed,
     );
     scene.audioPath = await uploadDataUrl(`jobs/${job.id}/voice-${i}.mp3`, audioDataUrl);
     scene.words = words;

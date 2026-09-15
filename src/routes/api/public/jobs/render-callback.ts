@@ -70,6 +70,27 @@ export const Route = createFileRoute("/api/public/jobs/render-callback")({
               lease_until: null,
             });
             await logEvent(job.id, "done", "Vidéo finale disponible");
+
+            // La vidéo rejoint la diffusion du jour dans sa langue, en brouillon :
+            // l'administrateur la relit et la publie depuis son tableau de bord.
+            try {
+              const { admin } = await import("@/lib/jobs/store.server");
+              const db = await admin();
+              await db.from("daily_videos").upsert(
+                {
+                  publish_date: new Date().toISOString().slice(0, 10),
+                  language: job.language,
+                  render_id: job.id,
+                  storage_path: path,
+                  title: job.topic ?? "",
+                  duration_sec: body.durationSec ?? job.duration_sec ?? 0,
+                  status: "draft",
+                },
+                { onConflict: "publish_date,language" },
+              );
+            } catch {
+              /* l'assignation du jour ne doit jamais faire échouer le rendu */
+            }
           }
         }
 

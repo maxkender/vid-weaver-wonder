@@ -1,11 +1,27 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { Loader2, LogOut, ShieldAlert } from "lucide-react";
+import {
+  BarChart3,
+  FileText,
+  Layers,
+  Lightbulb,
+  Loader2,
+  LogOut,
+  ScrollText,
+  Send,
+  Users,
+} from "lucide-react";
 
-import { Button } from "@/components/ui/button";
+import { Toaster } from "@/components/ui/sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { getActiveContractTemplate, getMyProfile } from "@/lib/platform.functions";
-import { ContractMarkdown } from "@/components/contract-markdown";
+import { getMyProfile } from "@/lib/platform.functions";
+import { AdminOverview } from "@/components/admin/overview";
+import { AdminTopics } from "@/components/admin/topics";
+import { AdminAccounts } from "@/components/admin/accounts";
+import { AdminPosters } from "@/components/admin/posters";
+import { AdminDiffusion } from "@/components/admin/diffusion";
+import { AdminContent } from "@/components/admin/content";
+import { AdminJournal } from "@/components/admin/journal";
 
 export const Route = createFileRoute("/_authenticated/admin")({
   head: () => ({
@@ -13,12 +29,12 @@ export const Route = createFileRoute("/_authenticated/admin")({
       { title: "Administration — plateforme de diffusion" },
       {
         name: "description",
-        content: "Pilotage des posteurs, des contrats et des vidéos quotidiennes par langue.",
+        content: "Pilotage des posteurs, des comptes, des sujets et des vidéos quotidiennes par langue.",
       },
       { property: "og:title", content: "Administration de la plateforme de diffusion" },
       {
         property: "og:description",
-        content: "Suivi des posteurs, contrats signés et vidéos publiées chaque jour.",
+        content: "Suivi des posteurs, contrats signés, file de sujets et vidéos publiées chaque jour.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -27,12 +43,22 @@ export const Route = createFileRoute("/_authenticated/admin")({
   component: AdminPage,
 });
 
+const SECTIONS = [
+  { id: "overview", label: "Vue d'ensemble", icon: BarChart3 },
+  { id: "topics", label: "Sujets", icon: Lightbulb },
+  { id: "accounts", label: "Comptes", icon: Layers },
+  { id: "posters", label: "Posteurs", icon: Users },
+  { id: "diffusion", label: "Diffusion", icon: Send },
+  { id: "content", label: "Réglages de contenu", icon: FileText },
+  { id: "journal", label: "Journal", icon: ScrollText },
+] as const;
+
+type SectionId = (typeof SECTIONS)[number]["id"];
+
 function AdminPage() {
   const navigate = useNavigate();
   const [ready, setReady] = useState(false);
-  const [template, setTemplate] = useState<{ version: number; title: string; body: string } | null>(
-    null,
-  );
+  const [section, setSection] = useState<SectionId>("overview");
 
   useEffect(() => {
     void (async () => {
@@ -41,8 +67,6 @@ function AdminPage() {
         await navigate({ to: "/espace", replace: true });
         return;
       }
-      const t = await getActiveContractTemplate();
-      setTemplate(t.template);
       setReady(true);
     })();
   }, [navigate]);
@@ -56,69 +80,76 @@ function AdminPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background pb-16">
-      <header className="sticky top-0 z-20 border-b border-border bg-background/95 backdrop-blur">
-        <div className="mx-auto flex max-w-4xl items-center justify-between gap-3 px-4 py-3">
-          <p className="text-sm font-semibold text-foreground">Administration</p>
-          <div className="flex items-center gap-1">
-            <Button variant="ghost" size="sm" asChild>
-              <Link to="/">Studio</Link>
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
+    <div className="min-h-screen bg-background">
+      <Toaster position="top-center" />
+      <div className="flex min-h-screen">
+        <aside className="sticky top-0 hidden h-screen w-56 shrink-0 border-r border-border p-3 lg:block">
+          <p className="px-2 text-sm font-semibold tracking-tight">Administration</p>
+          <nav className="mt-3 space-y-0.5">
+            {SECTIONS.map((s) => {
+              const Icon = s.icon;
+              return (
+                <button
+                  key={s.id}
+                  onClick={() => setSection(s.id)}
+                  className={`flex w-full items-center gap-2 rounded-[8px] px-2 py-1.5 text-left text-xs ${
+                    section === s.id
+                      ? "bg-primary/15 text-primary"
+                      : "text-muted-foreground hover:bg-muted"
+                  }`}
+                >
+                  <Icon className="h-3.5 w-3.5" />
+                  {s.label}
+                </button>
+              );
+            })}
+          </nav>
+          <div className="mt-4 space-y-0.5 border-t border-border pt-3">
+            <Link to="/" className="flex items-center gap-2 rounded-[8px] px-2 py-1.5 text-xs text-muted-foreground hover:bg-muted">
+              Studio de production
+            </Link>
+            <button
               onClick={async () => {
                 await supabase.auth.signOut();
                 await navigate({ to: "/connexion", replace: true });
               }}
+              className="flex w-full items-center gap-2 rounded-[8px] px-2 py-1.5 text-left text-xs text-muted-foreground hover:bg-muted"
             >
-              <LogOut className="size-4" />
-            </Button>
+              <LogOut className="h-3.5 w-3.5" /> Déconnexion
+            </button>
           </div>
+        </aside>
+
+        <div className="min-w-0 flex-1">
+          <header className="sticky top-0 z-20 border-b border-border bg-background/95 px-4 py-2 backdrop-blur lg:hidden">
+            <select
+              value={section}
+              onChange={(e) => setSection(e.target.value as SectionId)}
+              className="field w-full text-xs"
+              aria-label="Section"
+            >
+              {SECTIONS.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.label}
+                </option>
+              ))}
+            </select>
+          </header>
+
+          <main className="px-4 py-4">
+            <h1 className="mb-3 text-[15px] font-semibold tracking-tight">
+              {SECTIONS.find((s) => s.id === section)?.label}
+            </h1>
+            {section === "overview" ? <AdminOverview /> : null}
+            {section === "topics" ? <AdminTopics /> : null}
+            {section === "accounts" ? <AdminAccounts /> : null}
+            {section === "posters" ? <AdminPosters /> : null}
+            {section === "diffusion" ? <AdminDiffusion /> : null}
+            {section === "content" ? <AdminContent /> : null}
+            {section === "journal" ? <AdminJournal /> : null}
+          </main>
         </div>
-      </header>
-
-      <main className="mx-auto max-w-4xl space-y-4 px-4 py-5">
-        <section className="rounded-xl border border-border bg-card p-4">
-          <h1 className="text-base font-semibold text-foreground">Espace administrateur</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            La gestion des posteurs, des vidéos quotidiennes et des réglages par langue arrive à
-            l'étape suivante. Le studio de production reste accessible.
-          </p>
-          <div className="mt-3 flex flex-wrap gap-2">
-            <Button variant="secondary" size="sm" asChild>
-              <Link to="/">Studio</Link>
-            </Button>
-            <Button variant="secondary" size="sm" asChild>
-              <Link to="/sujets">Sujets</Link>
-            </Button>
-            <Button variant="secondary" size="sm" asChild>
-              <Link to="/parametres">Paramètres</Link>
-            </Button>
-          </div>
-        </section>
-
-        {template ? (
-          <section className="rounded-xl border border-border bg-card p-4">
-            <h2 className="text-sm font-semibold text-foreground">
-              Modèle de contrat actif — version {template.version}
-            </h2>
-            <div className="mt-3 flex items-start gap-3 rounded-lg border border-destructive/40 bg-destructive/10 p-3">
-              <ShieldAlert className="mt-0.5 size-5 shrink-0 text-destructive" />
-              <p className="text-sm text-foreground">
-                Modèle de travail, non relu par un juriste. À faire valider par un avocat avant toute
-                utilisation réelle. Les conditions d'utilisation d'Instagram interdisent la cession de
-                comptes entre personnes, et un compte Google personnel n'est pas transférable à une
-                société : une clause de restitution peut être inapplicable et exposer le compte à une
-                suspension.
-              </p>
-            </div>
-            <div className="mt-3 max-h-96 overflow-y-auto rounded-lg border border-border bg-background p-4">
-              <ContractMarkdown body={template.body} />
-            </div>
-          </section>
-        ) : null}
-      </main>
+      </div>
     </div>
   );
 }
