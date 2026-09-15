@@ -237,19 +237,24 @@ async function speechAttempt(
   // Dans les deux cas c'est un défaut, pas une durée à accepter.
   const spoken = Math.max(0.2, (words.at(-1)?.end ?? 0) - (words[0]?.start ?? 0));
   const cps = characters / spoken;
-  if (characters >= 40 && (cps > MAX_CHARS_PER_SECOND || cps < MIN_CHARS_PER_SECOND)) {
-    throw new AbnormalRateError(
-      `Débit de voix anormal (${where}) : ${cps.toFixed(1)} caractères par seconde ` +
-        `(${characters} caractères en ${spoken.toFixed(2)} s, vitesse demandée ${clampVoiceSpeed(speed)}). ` +
-        `Le débit doit rester entre ${MIN_CHARS_PER_SECOND} et ${MAX_CHARS_PER_SECOND}. Prise refusée.`,
-    );
-  }
-  return {
+  const take: SpeechResult = {
     audioDataUrl: `data:audio/mpeg;base64,${json.audio_base64}`,
     words,
     characters,
     textChars: text.trim().length,
   };
+  if (characters >= 40 && (cps > MAX_CHARS_PER_SECOND || cps < MIN_CHARS_PER_SECOND)) {
+    const gap =
+      cps > MAX_CHARS_PER_SECOND ? cps - MAX_CHARS_PER_SECOND : MIN_CHARS_PER_SECOND - cps;
+    throw new AbnormalRateError(
+      `Débit de voix anormal (${where}) : ${cps.toFixed(1)} caractères par seconde ` +
+        `(${characters} caractères en ${spoken.toFixed(2)} s, vitesse demandée ${clampVoiceSpeed(speed)}). ` +
+        `Le débit doit rester entre ${MIN_CHARS_PER_SECOND} et ${MAX_CHARS_PER_SECOND}.`,
+      take,
+      gap,
+    );
+  }
+  return take;
 }
 
 /** Nombre maximal de prises pour un même plan (aléa de génération). */
