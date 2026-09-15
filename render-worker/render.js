@@ -253,6 +253,13 @@ export async function renderJob(manifest) {
     if (manifest.musicUrl) {
       await download(manifest.musicUrl, join(dir, "music.mp3"));
       const volume = Number(manifest.musicVolume) > 0 ? Number(manifest.musicVolume) : 0.22;
+      // Même réglage que le studio : gain du morceau mesuré une fois dans la
+      // banque musicale, puis atténuation à 0,22. Sans gain connu, on
+      // normalise le morceau comme avant.
+      const gainDb = Number(manifest.musicGainDb);
+      const level = Number.isFinite(gainDb)
+        ? `volume=${(gainDb + 20 * Math.log10(volume)).toFixed(2)}dB`
+        : `loudnorm=I=-16:TP=-1.5:LRA=11,volume=${volume}`;
       await run(
         [
           "-i", "concat.mp4",
@@ -260,7 +267,7 @@ export async function renderJob(manifest) {
           // normalize=0 : sans ça, amix divise chaque entrée par 2 et la voix
           // off perd 6 dB. Seule la musique est atténuée, par son propre volume.
           "-filter_complex",
-          `[1:a]loudnorm=I=-16:TP=-1.5:LRA=11,volume=${volume}[bg];[0:a][bg]amix=inputs=2:duration=first:dropout_transition=0:normalize=0[a]`,
+          `[1:a]${level}[bg];[0:a][bg]amix=inputs=2:duration=first:dropout_transition=0:normalize=0[a]`,
           "-map", "0:v:0", "-map", "[a]",
           "-c:v", "copy", "-c:a", "aac", "-b:a", "160k",
           "-movflags", "+faststart",
