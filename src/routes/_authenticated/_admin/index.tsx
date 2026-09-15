@@ -1893,14 +1893,23 @@ function Studio() {
         "Aucune musique dans la banque : ajoute des MP3 dans « Musiques » pour qu'elles soient mixées.",
       );
 
+    // Niveau de la voix mesuré ICI, dans le navigateur (quelques millisecondes)
+    // au lieu d'une passe `loudnorm` dans ffmpeg, qui faisait tourner tout le
+    // graphe audio à 192 kHz et triplait la durée du montage.
+    const { measureVoiceGainDb } = await import("@/lib/audio-gain");
+    const voiceGainDb = await measureVoiceGainDb(withDurations.map((s) => s.audio));
+
     const blob = await assembleVideo(withDurations, {
       ...dims,
       music: track?.blob ?? undefined,
       musicVolume: settings.musicVolume,
+      musicGainDb: track?.gainDb ?? 0,
+      voiceGainDb,
       langLabel: languageLabel(lang),
       onStretchWarning: (message) => toast.warning(message),
       onProgress: (step) => setAssembleStep(`${languageLabel(lang)} — ${step}`),
     });
+
 
     if (projectId && lang === sourceLang) {
       const { saveFinalVideo } = await import("@/lib/project-store");
