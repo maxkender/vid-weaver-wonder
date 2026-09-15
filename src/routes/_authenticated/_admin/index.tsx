@@ -3674,8 +3674,20 @@ function Studio() {
                       )}
 
                       <p className="text-xs text-muted-foreground">
-                        ≈ {estimateSpeechSeconds(scene.narration, viewLang).toFixed(1)} s de voix
-                        {estimateSpeechSeconds(scene.narration, viewLang) > 8 &&
+                        {/* Durée PRÉDITE avec la même source de vérité que le
+                            calage : le débit mesuré de la voix de cette langue. */}
+                        ≈{" "}
+                        {predictSeconds(
+                          (scene.narration ?? "").trim().length,
+                          cpsFor(viewLang),
+                          speedFor(viewLang),
+                        ).toFixed(1)}{" "}
+                        s de voix
+                        {predictSeconds(
+                          (scene.narration ?? "").trim().length,
+                          cpsFor(viewLang),
+                          speedFor(viewLang),
+                        ) > 8 &&
                           " — plus long que le clip, le plan sera légèrement ralenti"}
                       </p>
 
