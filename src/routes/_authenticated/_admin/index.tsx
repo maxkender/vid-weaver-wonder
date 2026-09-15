@@ -1313,6 +1313,7 @@ function Studio() {
   const runTranslate = useServerFn(translateScript);
   const runCreateUpload = useServerFn(createExportUpload);
   const runExportUrl = useServerFn(getExportDownloadUrl);
+  const runSaveDaily = useServerFn(saveDailyExport);
 
   /**
    * Empreinte du texte source : sert à savoir si une traduction déjà faite est
@@ -2351,7 +2352,7 @@ function Studio() {
             path,
             durationSec: Math.round(duration),
             title: doc?.title ?? "",
-            caption: doc?.caption ?? doc?.hook ?? "",
+            caption: doc?.hook ?? "",
             hashtags: asHashtags(doc?.hashtags),
           },
         });
