@@ -59,7 +59,11 @@ import {
   type TokenUsage,
   type UsageReport,
 } from "@/lib/usage";
-import { SQUARE_MARGIN_RATIO, SQUARE_RADIUS_RATIO } from "@/lib/karaoke-overlay";
+import {
+  SQUARE_CENTER_OFFSET_RATIO,
+  SQUARE_MARGIN_RATIO,
+  SQUARE_RADIUS_RATIO,
+} from "@/lib/karaoke-overlay";
 import {
   
   defaultVoiceFor,
@@ -3033,12 +3037,14 @@ function Studio() {
                       )}
 
                       {useSquareMask && (
-                        <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                        <div className="pointer-events-none absolute inset-0">
                           <div
-                            className="aspect-square"
+                            className="absolute left-1/2 aspect-square"
                             style={{
                               // Géométrie reprise du montage : aucune valeur en dur ici.
                               width: `${(1 - 2 * SQUARE_MARGIN_RATIO) * 100}%`,
+                              top: `${(0.5 + SQUARE_CENTER_OFFSET_RATIO) * 100}%`,
+                              transform: "translate(-50%, -50%)",
                               borderRadius: `${SQUARE_RADIUS_RATIO * 100}%`,
                               boxShadow: "0 0 0 9999px #000",
                             }}
