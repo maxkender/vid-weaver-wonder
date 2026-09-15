@@ -243,6 +243,8 @@ export function translationSystemPrompt(
     /** Sens de la correction : le texte actuel est trop long, trop court, ou bon. */
     mode?: "ok" | "shorten" | "lengthen";
   },
+  /** Niveau de langue imposé : une traduction ne remonte jamais d'un cran. */
+  languageBrief?: string,
 ) {
   return [
     adjust
