@@ -1,6 +1,7 @@
 import { chatJSON } from "./ai-gateway.server";
 import {
   scriptSystemPrompt,
+  simplifySystemPrompt,
   scriptUserPrompt,
   SOPHIA_OUTRO,
   type Script,
