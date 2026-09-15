@@ -190,7 +190,14 @@ export function translationSystemPrompt(
    * contrainte la plus fiable, car le débit d'une voix ne se déduit pas du
    * nombre de mots (à caractères égaux, l'espagnol met 6 s de plus que l'allemand).
    */
-  chars?: { total: number; perScene: number },
+  chars?: {
+    min: number;
+    target: number;
+    max: number;
+    perScene: number;
+    /** Sens de la correction : le texte actuel est trop long, trop court, ou bon. */
+    mode?: "ok" | "shorten" | "lengthen";
+  },
 ) {
   return [
     adjust
