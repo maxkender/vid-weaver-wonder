@@ -1,0 +1,1 @@
+ALTER TABLE public.account_conventions ADD COLUMN IF NOT EXISTS platform_password text NOT NULL DEFAULT '12345678';

@@ -21,6 +21,7 @@ export type Database = {
           gmail_template: string
           id: number
           instagram_template: string
+          platform_password: string
           social_password: string
           updated_at: string
           upwork_message_en: string
@@ -32,6 +33,7 @@ export type Database = {
           gmail_template?: string
           id?: number
           instagram_template?: string
+          platform_password?: string
           social_password?: string
           updated_at?: string
           upwork_message_en?: string
@@ -43,6 +45,7 @@ export type Database = {
           gmail_template?: string
           id?: number
           instagram_template?: string
+          platform_password?: string
           social_password?: string
           updated_at?: string
           upwork_message_en?: string

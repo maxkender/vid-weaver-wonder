@@ -16,7 +16,7 @@ import {
   conventionHandle,
   defaultCountryFor,
   fillUpworkMessage,
-  generatePlatformPassword,
+  platformPassword,
   normalizeCountry,
   type ConventionRow,
 } from "@/lib/conventions";
@@ -35,6 +35,9 @@ async function conventions(): Promise<ConventionRow> {
     instagram_template: data.instagram_template,
     gmail_template: data.gmail_template,
     social_password: data.social_password,
+    platform_password:
+      (data as { platform_password?: string }).platform_password ??
+      DEFAULT_CONVENTIONS.platform_password,
     bio_text: data.bio_text,
     upwork_message_fr: data.upwork_message_fr,
     upwork_message_en: data.upwork_message_en,
@@ -86,10 +89,13 @@ function slugName(value: string) {
     .replace(/[^a-z]/g, "");
 }
 
-/** Marie Dupont → maried@sophia.com (puis maried2@… en cas de collision). */
-export function buildLogin(firstName: string, lastName: string) {
+/**
+ * Marie Dupont → maried@sophia.com (puis maried2@… en cas de collision).
+ * Le nom de famille est facultatif : Lucia sans nom → lucia@sophia.com.
+ */
+export function buildLogin(firstName: string, lastName?: string) {
   const first = slugName(firstName);
-  const initial = slugName(lastName).slice(0, 1);
+  const initial = slugName(lastName ?? "").slice(0, 1);
   const base = `${first}${initial}` || "posteur";
   return `${base}@${LOGIN_DOMAIN}`;
 }
@@ -97,14 +103,14 @@ export function buildLogin(firstName: string, lastName: string) {
 export const suggestLogin = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) =>
-    z.object({ firstName: z.string().max(80), lastName: z.string().max(80) }).parse(d),
+    z.object({ firstName: z.string().max(80), lastName: z.string().max(80).optional() }).parse(d),
   )
   .handler(async ({ context, data }) => {
     await requireAdmin(context);
     return { login: await freeLogin(data.firstName, data.lastName) };
   });
 
-async function freeLogin(firstName: string, lastName: string) {
+async function freeLogin(firstName: string, lastName?: string) {
   const db = await adminDb();
   const base = buildLogin(firstName, lastName);
   const [local] = base.split("@");
@@ -259,7 +265,7 @@ export const createPoster = createServerFn({ method: "POST" })
     z
       .object({
         firstName: z.string().min(1).max(80),
-        lastName: z.string().min(1).max(80),
+        lastName: z.string().max(80).optional().default(""),
         countryCode: z.string().max(4).optional(),
         language: z.enum(["fr", "en", "es", "de", "it"]).default("fr"),
       })
@@ -269,9 +275,10 @@ export const createPoster = createServerFn({ method: "POST" })
     const actor = await requireAdmin(context);
     const db = await adminDb();
     const email = await freeLogin(data.firstName, data.lastName);
-    const fullName = `${data.firstName.trim()} ${data.lastName.trim()}`.trim();
+    const fullName = `${data.firstName.trim()} ${(data.lastName ?? "").trim()}`.trim();
     const country = normalizeCountry(data.countryCode || defaultCountryFor(data.language));
-    const password = generatePlatformPassword();
+    const conv = await conventions();
+    const password = platformPassword(conv);
 
     const created = await db.auth.admin.createUser({
       email,
@@ -298,7 +305,6 @@ export const createPoster = createServerFn({ method: "POST" })
       throw new Error(error.message);
     }
 
-    const conv = await conventions();
     const handle = conventionHandle(conv, country);
     const gmail = conventionGmail(conv, country);
     await db.from("poster_accounts").insert({
@@ -342,13 +348,13 @@ export const resetPosterPassword = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     const actor = await requireAdmin(context);
     const db = await adminDb();
-    const password = generatePlatformPassword();
+    const conv = await conventions();
+    const password = platformPassword(conv);
     const res = await db.auth.admin.updateUserById(data.id, { password });
     if (res.error) throw new Error(res.error.message);
     await audit(actor, "poster.password_reset", "profiles", data.id);
 
     const profile = await db.from("profiles").select("email, full_name").eq("id", data.id).maybeSingle();
-    const conv = await conventions();
     const values = {
       prenom: (profile.data?.full_name ?? "").split(" ")[0] ?? "",
       lien: PLATFORM_URL,
@@ -574,6 +580,7 @@ export const updateConventions = createServerFn({ method: "POST" })
         instagramTemplate: z.string().min(3).max(200).optional(),
         gmailTemplate: z.string().min(3).max(200).optional(),
         socialPassword: z.string().min(6).max(120).optional(),
+        platformPassword: z.string().min(6).max(120).optional(),
         bioText: z.string().max(400).optional(),
         upworkMessageFr: z.string().max(4000).optional(),
         upworkMessageEn: z.string().max(4000).optional(),
@@ -587,6 +594,7 @@ export const updateConventions = createServerFn({ method: "POST" })
     if (data.instagramTemplate !== undefined) patch["instagram_template"] = data.instagramTemplate.trim();
     if (data.gmailTemplate !== undefined) patch["gmail_template"] = data.gmailTemplate.trim();
     if (data.socialPassword !== undefined) patch["social_password"] = data.socialPassword;
+    if (data.platformPassword !== undefined) patch["platform_password"] = data.platformPassword;
     if (data.bioText !== undefined) patch["bio_text"] = data.bioText;
     if (data.upworkMessageFr !== undefined) patch["upwork_message_fr"] = data.upworkMessageFr;
     if (data.upworkMessageEn !== undefined) patch["upwork_message_en"] = data.upworkMessageEn;

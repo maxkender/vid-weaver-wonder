@@ -38,6 +38,7 @@ export function AdminConventions() {
           instagramTemplate: conv.instagram_template,
           gmailTemplate: conv.gmail_template,
           socialPassword: conv.social_password,
+          platformPassword: conv.platform_password,
           bioText: conv.bio_text,
           upworkMessageFr: conv.upwork_message_fr,
           upworkMessageEn: conv.upwork_message_en,
@@ -88,6 +89,19 @@ export function AdminConventions() {
             className="field mt-1 font-mono text-xs"
           />
         </div>
+      </div>
+
+      <div className="mt-3 sm:w-1/3">
+        <p className="label-x">Mot de passe de la plateforme</p>
+        <input
+          value={conv.platform_password}
+          onChange={(e) => set({ platform_password: e.target.value })}
+          className="field mt-1 font-mono text-xs"
+        />
+        <p className="mt-1 text-[11px] text-muted-foreground">
+          Identique pour tous les posteurs, attribué à la création et par le bouton de
+          réinitialisation.
+        </p>
       </div>
 
       <div className="mt-3">

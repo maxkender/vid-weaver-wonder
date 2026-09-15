@@ -160,7 +160,7 @@ export function AdminPosters() {
             <input value={firstName} onChange={(e) => setFirstName(e.target.value)} className="field mt-1 w-40 text-xs" />
           </div>
           <div>
-            <p className="label-x">Nom</p>
+            <p className="label-x">Nom (facultatif)</p>
             <input value={lastName} onChange={(e) => setLastName(e.target.value)} className="field mt-1 w-40 text-xs" />
           </div>
           <div>
@@ -186,7 +186,7 @@ export function AdminPosters() {
           </div>
           <button
             onClick={onCreate}
-            disabled={busy || firstName.trim().length < 2 || lastName.trim().length < 1}
+            disabled={busy || firstName.trim().length < 2}
             className="btn-base btn-primary text-xs"
           >
             {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null} Créer l'accès
@@ -304,7 +304,7 @@ export function AdminPosters() {
                   <div className="flex justify-end gap-1">
                     <button
                       className="btn-base btn-ghost px-2 py-1 text-xs"
-                      title="Régénérer le mot de passe de la plateforme"
+                      title="Réinitialiser le mot de passe de la plateforme"
                       onClick={async () => {
                         const res = (await runReset({ data: { id: p.id } })) as {
                           password: string;
@@ -319,7 +319,7 @@ export function AdminPosters() {
                           messageFr: res.messageFr,
                           messageEn: res.messageEn,
                         });
-                        toast.success("Nouveau mot de passe généré");
+                        toast.success("Mot de passe réinitialisé");
                       }}
                     >
                       <KeyRound className="h-3.5 w-3.5" />
