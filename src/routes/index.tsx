@@ -227,6 +227,8 @@ type HistoryItem = {
   langs?: string[];
   /** Narrateur retenu par langue. */
   voices?: Record<string, string>;
+  /** Coût réellement consommé par cette vidéo. */
+  usage?: UsageReport;
 };
 
 const HISTORY_KEY = "studio-history-v1";
@@ -545,10 +547,6 @@ function Studio() {
       usageRef.current = next;
       return next;
     });
-  }, []);
-  const resetUsage = useCallback(() => {
-    usageRef.current = emptyUsage();
-    setUsage(usageRef.current);
   }, []);
   const confirmResolverRef = useRef<((value: boolean) => void) | null>(null);
 
