@@ -3200,9 +3200,19 @@ function Studio() {
 
                       {/* Action principale visible, le reste dans un menu. */}
                       <div className="flex flex-wrap items-center gap-2">
+                        {/* La longueur du clip se cale sur la voix off la plus
+                            longue de toutes les langues produites : sans ces
+                            voix, on paierait un clip trop court. */}
                         <button
-                          onClick={() => onVideo(scene)}
-                          disabled={st.videoLoading || !imagesValidated}
+                          onClick={() => onVideo(scene, undefined, script, clipSecondsFor(st))}
+                          disabled={
+                            st.videoLoading || !imagesValidated || !clipSecondsFor(st)
+                          }
+                          title={
+                            clipSecondsFor(st)
+                              ? undefined
+                              : "Génère d'abord les voix off de toutes les langues : la longueur du plan s'y cale."
+                          }
                           className="btn-base btn-ghost px-2.5 py-1.5 text-xs"
                         >
                           <Play className="h-3.5 w-3.5" /> Animer
