@@ -19,7 +19,7 @@ export const LANGUAGE_IDS = LANGUAGES.map((l) => l.id) as unknown as [
  * Langues du MASTER multilingue : un même master (script + images + clips) est
  * décliné dans ces langues sans jamais régénérer un visuel.
  */
-export const MASTER_LANGUAGE_IDS = ["fr", "en", "es", "de"] as const;
+export const MASTER_LANGUAGE_IDS = ["fr", "en", "es", "de", "it"] as const;
 export type MasterLanguageId = (typeof MASTER_LANGUAGE_IDS)[number];
 
 export const MASTER_LANGUAGES = LANGUAGES.filter((l) =>
