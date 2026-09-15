@@ -99,6 +99,7 @@ export function scriptSystemPrompt(
     "RÈGLE N°1 — L'ACCROCHE (scène 1, la partie la plus importante) : une AFFIRMATION FACTUELLE brute et surprenante, en une ou deux phrases courtes, lue en moins de 4 secondes. Jamais une question. Jamais « saviez-vous que ».",
     "L'accroche s'appuie sur quelque chose que TOUT LE MONDE connaît déjà : un film, un personnage célèbre, un animal, un objet du quotidien, un mythe. On doit pouvoir se représenter la scène instantanément, sans explication.",
     "TEST DES 2 SECONDES : l'accroche doit être comprise SANS la moindre connaissance préalable. Interdits absolus : un nom propre inconnu du grand public, un lieu obscur, un pronom sans référent (« il », « ce », « cette »), une formule vague (« ce jour-là », « cet objet »). Si on doit attendre la scène 2 pour comprendre de QUOI on parle, l'accroche est ratée : réécris-la.",
+    "PREMIÈRE PHRASE — ELLE DÉCRIT UN ÉVÉNEMENT OU UNE IMAGE CONCRÈTE ET FRAPPANTE, quelque chose qui se voit : un geste, un choc, un objet, une scène précise. Jamais une mise en contexte, jamais une présentation de sujet, jamais un cadre général (« à telle époque, en tel lieu, on pensait que… »). Si la première phrase ne peut pas être dessinée telle quelle, réécris-la.",
     "Le champ hook reprend exactement la ou les phrases de la scène 1.",
 
     "",
@@ -220,6 +221,11 @@ export type PromptOverrides = {
   visualBrief?: string | undefined;
   quality?: string | undefined;
   motion?: string | undefined;
+  /**
+   * Consigne propre au PLAN 1 (accroche). Pour l'image elle s'ajoute au brief,
+   * pour l'animation elle REMPLACE la consigne de mouvement des autres plans.
+   */
+  opening?: string | undefined;
   /** Bible visuelle (personnages + palette) à répéter sur chaque plan. */
   bible?: string | undefined;
   /** Contexte narratif : plans précédents et plan suivant. */
@@ -247,7 +253,8 @@ export function coverPrompt(
 ) {
   const brief = o.visualBrief?.trim() || DEFAULT_VISUAL_BRIEF[visual];
   const quality = o.quality?.trim() || DEFAULT_QUALITY[visual];
-  return `Vertical 9:16 key frame. ${brief}. ${quality}.${bibleLine(o.bible)}${storyLine(o.story)} ${
+  const opening = o.opening?.trim() ? ` ${o.opening.trim()}` : "";
+  return `Vertical 9:16 key frame. ${brief}. ${quality}.${opening}${bibleLine(o.bible)}${storyLine(o.story)} ${
     square ? SQUARE_FRAME + " " : ""
   }Absolutely no text, no letters, no watermark, no logo. Scene: ${imagePrompt}`;
 }
@@ -260,7 +267,8 @@ export function motionPrompt(
 ) {
   const brief = o.visualBrief?.trim() || DEFAULT_VISUAL_BRIEF[visual];
   const quality = o.quality?.trim() || DEFAULT_QUALITY[visual];
-  const motion = o.motion?.trim() || DEFAULT_MOTION[visual];
+  // Plan 1 : consigne de mouvement propre, qui remplace celle des autres plans.
+  const motion = o.opening?.trim() || o.motion?.trim() || DEFAULT_MOTION[visual];
   return `${videoPrompt}. Vertical short-form video. ${brief}. ${quality}.${bibleLine(o.bible)}${storyLine(o.story)} ${
     square
       ? SQUARE_FRAME +

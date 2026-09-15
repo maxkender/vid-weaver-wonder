@@ -13,7 +13,7 @@ export const SQUARE_RADIUS_RATIO = 0.1;
 /** Décalage vertical du centre, relatif à la hauteur (négatif = vers le haut). */
 export const SQUARE_CENTER_OFFSET_RATIO = -0.0475;
 /** Taille de police des sous-titres, relative au CÔTÉ DU CARRÉ. */
-export const CAPTION_SIZE_RATIO = 0.135;
+export const CAPTION_SIZE_RATIO = 0.081;
 /** Largeur maximale d'une ligne, relative au côté du carré. */
 export const CAPTION_MAX_WIDTH_RATIO = 0.86 / 0.88;
 

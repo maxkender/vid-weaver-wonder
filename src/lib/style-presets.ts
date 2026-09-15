@@ -59,11 +59,22 @@ export const DEFAULT_QUALITY: Record<VisualStyleId, string> = {
 
 export const DEFAULT_MOTION: Record<VisualStyleId, string> = {
   papercraft:
-    "Stop-motion paper animation: the paper cut-outs move in small discrete steps, slight handmade jitter, layers sliding over each other, static or very slow push-in camera.",
+    "Smooth continuous paper animation: the paper layers glide over each other in one steady, perfectly fluid motion, gentle parallax between the depth planes, slow constant camera push, motion rendered at full frame rate with natural motion blur. Absolutely no stop-motion, no frame-by-frame stepping, no discrete jumps, no jitter, no shaking, no strobing: the paper moves as if pushed by one slow, steady hand.",
   cinematique: "Slow cinematic camera movement, subtle parallax.",
   documentaire: "Handheld documentary camera, very subtle movement.",
   retro: "Gentle vintage camera drift, slight handheld sway.",
 };
+
+/**
+ * PLAN 1 — cas particulier, quel que soit le style visuel choisi.
+ * Le spectateur décide de scroller pendant la première seconde : le plan
+ * d'ouverture ne doit jamais être contemplatif.
+ */
+export const DEFAULT_OPENING_MOTION =
+  "OPENING SHOT — this is the very first second of the video and it must stop the scroll. A visual event STARTS ON THE VERY FIRST FRAME and is finished before the end of the first second: an element drops, slides or bursts into frame, or a paper layer swings aside to reveal the subject, or a fast camera push that settles immediately after. No slow build-up, no still or contemplative opening, nothing that waits. After that first second the shot can settle and stay calm. The motion stays smooth and continuous, never stepped or jittery.";
+
+export const DEFAULT_OPENING_IMAGE =
+  "OPENING SHOT COMPOSITION — treat this like a poster, not an ambient illustration. ONE single subject, huge in the frame, filling most of the square, instantly readable on a phone in a third of a second. The red accent element is clearly visible on or right next to that subject. No empty scenery, no wide establishing shot, no crowded or talkative composition, no small distant subject.";
 
 /** Réglages modifiables depuis la page Paramètres. */
 export type StudioSettings = {
@@ -72,6 +83,8 @@ export type StudioSettings = {
     VisualStyleId,
     { brief: string; quality: string; motion: string; square: boolean }
   >;
+  /** Consignes propres au plan 1 (accroche), appliquées à tous les styles. */
+  opening: { motion: string; image: string };
   /** Cohérence visuelle : réutiliser la 1ʳᵉ image comme référence des suivantes. */
   useReferenceImage: boolean;
   /** Volume de la musique de fond dans l'export. */
@@ -116,11 +129,16 @@ export function narrationPath(id: NarrationStyleId): FieldPath {
 export function visualPath(id: VisualStyleId, key: "brief" | "quality" | "motion"): FieldPath {
   return `visual.${id}.${key}`;
 }
+export function openingPath(key: "motion" | "image"): FieldPath {
+  return `opening.first.${key}`;
+}
 
 /** Valeur livrée (à jour) d'un champ texte. */
 export function defaultFieldValue(path: FieldPath): string {
   const [group, id, key] = path.split(".");
   if (group === "narration") return DEFAULT_STYLE_BRIEF[id as NarrationStyleId] ?? "";
+  if (group === "opening")
+    return key === "motion" ? DEFAULT_OPENING_MOTION : DEFAULT_OPENING_IMAGE;
   if (key === "brief") return DEFAULT_VISUAL_BRIEF[id as VisualStyleId] ?? "";
   if (key === "quality") return DEFAULT_QUALITY[id as VisualStyleId] ?? "";
   if (key === "motion") return DEFAULT_MOTION[id as VisualStyleId] ?? "";
@@ -130,6 +148,7 @@ export function defaultFieldValue(path: FieldPath): string {
 function readField(settings: StudioSettings, path: FieldPath): string {
   const [group, id, key] = path.split(".");
   if (group === "narration") return settings.narration[id as NarrationStyleId]?.brief ?? "";
+  if (group === "opening") return settings.opening?.[key as "motion" | "image"] ?? "";
   const v = settings.visual[id as VisualStyleId];
   return (v?.[key as "brief" | "quality" | "motion"] as string) ?? "";
 }
@@ -142,6 +161,9 @@ function writeField(settings: StudioSettings, path: FieldPath, value: string): S
       ...settings,
       narration: { ...settings.narration, [k]: { ...settings.narration[k], brief: value } },
     };
+  }
+  if (group === "opening") {
+    return { ...settings, opening: { ...settings.opening, [key as string]: value } };
   }
   const k = id as VisualStyleId;
   return {
@@ -185,7 +207,14 @@ const LEGACY_DEFAULTS: Record<FieldPath, string[]> = {
   "visual.papercraft.brief": [
     DEFAULT_VISUAL_BRIEF.papercraft.split(", and ALWAYS exactly ONE element")[0]!,
   ],
+  // Ancienne consigne d'animation saccadée (stop-motion image par image).
+  "visual.papercraft.motion": [
+    "Stop-motion paper animation: the paper cut-outs move in small discrete steps, slight handmade jitter, layers sliding over each other, static or very slow push-in camera.",
+  ],
 };
+
+/** Anciennes valeurs par défaut des réglages numériques/booléens. */
+const LEGACY_MUSIC_VOLUMES = [0.14];
 
 export function defaultSettings(): StudioSettings {
   const narration = {} as StudioSettings["narration"];
@@ -204,8 +233,9 @@ export function defaultSettings(): StudioSettings {
   return {
     narration,
     visual,
+    opening: { motion: DEFAULT_OPENING_MOTION, image: DEFAULT_OPENING_IMAGE },
     useReferenceImage: true,
-    musicVolume: 0.14,
+    musicVolume: 0.22,
     sophiaLogo: true,
     hd: true,
     precomposeSquare: true,
@@ -232,6 +262,7 @@ export function allFieldPaths(): FieldPath[] {
     ...(Object.keys(DEFAULT_VISUAL_BRIEF) as VisualStyleId[]).flatMap((id) =>
       (["brief", "quality", "motion"] as const).map((k) => visualPath(id, k)),
     ),
+    ...(["motion", "image"] as const).map((k) => openingPath(k)),
   ];
 }
 
@@ -247,8 +278,18 @@ export function loadSettings(): StudioSettings {
       ...saved,
       narration: { ...base.narration, ...(saved.narration ?? {}) },
       visual: { ...base.visual, ...(saved.visual ?? {}) },
+      opening: { ...base.opening, ...(saved.opening ?? {}) },
       customFields: saved.customFields ?? [],
     };
+
+    // Migration silencieuse du volume musical : une valeur enregistrée
+    // identique à un ancien défaut livré n'a jamais été réglée à la main.
+    if (
+      typeof saved.musicVolume === "number" &&
+      LEGACY_MUSIC_VOLUMES.some((v) => Math.abs(saved.musicVolume! - v) < 1e-6)
+    ) {
+      merged = { ...merged, musicVolume: base.musicVolume };
+    }
 
     const migrating = !Array.isArray(saved.customFields);
     const marks = new Set(merged.customFields);

@@ -21,7 +21,7 @@ async function ensureFont(size: number) {
  * soit la marge choisie, et rien ne déborde sur les bandes noires.
  * Référence @geccoapp : 13,5 % du côté du carré.
  */
-export const CAPTION_SIZE_RATIO = 0.135;
+export const CAPTION_SIZE_RATIO = 0.081;
 /** Largeur maximale d'une ligne, relative au côté du carré (0.86 / 0.88). */
 export const CAPTION_MAX_WIDTH_RATIO = 0.86 / 0.88;
 

@@ -21,7 +21,7 @@ const FONT_NAME = process.env.CAPTION_FONT_NAME ?? "Poppins";
 
 /** Constantes strictement identiques à src/lib/assemble-video.ts. */
 export const OUTPUT_FPS = 30;
-const MAX_STRETCH = 1.6;
+const MAX_STRETCH = 1.2;
 const STRETCH_BEFORE_TEMPO = 1.25;
 const MAX_TEMPO = 1.12;
 const AUDIO_FADE = 0.03;
@@ -210,6 +210,9 @@ export async function renderJob(manifest) {
       [
         "-f", "concat", "-safe", "0", "-i", "list.txt",
         "-vf", `fps=${OUTPUT_FPS},scale=${width}:${height},setsar=1,format=yuv420p`,
+        // Normalisation de sonie de la voix : toutes les langues au même niveau
+        // perçu, pour que la musique soit toujours posée pareil en dessous.
+        "-af", "loudnorm=I=-16:TP=-1.5:LRA=11",
         "-r", String(OUTPUT_FPS),
         "-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-pix_fmt", "yuv420p",
         "-c:a", "aac", "-b:a", "128k", "-ar", "44100", "-ac", "2",
@@ -222,7 +225,7 @@ export async function renderJob(manifest) {
     let finalName = "concat.mp4";
     if (manifest.musicUrl) {
       await download(manifest.musicUrl, join(dir, "music.mp3"));
-      const volume = Number(manifest.musicVolume) > 0 ? Number(manifest.musicVolume) : 0.14;
+      const volume = Number(manifest.musicVolume) > 0 ? Number(manifest.musicVolume) : 0.22;
       await run(
         [
           "-i", "concat.mp4",
@@ -230,7 +233,7 @@ export async function renderJob(manifest) {
           // normalize=0 : sans ça, amix divise chaque entrée par 2 et la voix
           // off perd 6 dB. Seule la musique est atténuée, par son propre volume.
           "-filter_complex",
-          `[1:a]volume=${volume}[bg];[0:a][bg]amix=inputs=2:duration=first:dropout_transition=0:normalize=0[a]`,
+          `[1:a]loudnorm=I=-16:TP=-1.5:LRA=11,volume=${volume}[bg];[0:a][bg]amix=inputs=2:duration=first:dropout_transition=0:normalize=0[a]`,
           "-map", "0:v:0", "-map", "[a]",
           "-c:v", "copy", "-c:a", "aac", "-b:a", "160k",
           "-movflags", "+faststart",

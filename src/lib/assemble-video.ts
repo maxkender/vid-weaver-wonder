@@ -7,8 +7,18 @@ import type { CaptionCue } from "./karaoke-overlay";
 
 /** Cadence unique de tout le pipeline (studio ET service de rendu). */
 export const OUTPUT_FPS = 30;
-/** Étirement maximal d'un clip pour couvrir une voix plus longue. */
-const MAX_STRETCH = 1.6;
+/**
+ * Étirement maximal d'un clip pour couvrir une voix plus longue.
+ * Au-delà, le plan paraît mou et « bizarre » : on préfère le signaler.
+ */
+const MAX_STRETCH = 1.2;
+/**
+ * Normalisation de sonie (EBU R128), une passe. Voix ET musique passent par la
+ * même cible : la musique est ensuite posée à un niveau FIXE sous la voix,
+ * au lieu d'un pourcentage d'un signal dont le niveau varie selon le narrateur.
+ */
+const LOUDNORM = "loudnorm=I=-16:TP=-1.5:LRA=11";
+const VOICE_LOUDNORM = LOUDNORM;
 /** Au-delà de cet étirement, on accélère d'abord un peu la voix. */
 const STRETCH_BEFORE_TEMPO = 1.25;
 /** Accélération maximale de la voix (inaudible à ce niveau). */
@@ -106,10 +116,22 @@ async function assembleVideoInner(
     height: number;
     music?: Blob | undefined;
     musicVolume?: number | undefined;
+    /** Langue du montage, pour nommer la langue dans les avertissements. */
+    langLabel?: string | undefined;
+    /** Signalé quand un plan doit être ralenti au-delà du plafond. */
+    onStretchWarning?: ((message: string) => void) | undefined;
     onProgress?: (step: string, ratio: number) => void;
   },
 ): Promise<Blob> {
-  const { width, height, music, musicVolume = 0.14, onProgress } = opts;
+  const {
+    width,
+    height,
+    music,
+    musicVolume = 0.22,
+    langLabel,
+    onStretchWarning,
+    onProgress,
+  } = opts;
   const ffmpeg = await getFFmpeg();
   const parts: string[] = [];
 
@@ -150,13 +172,19 @@ async function assembleVideoInner(
         tempo = Math.min(MAX_TEMPO, needed / STRETCH_BEFORE_TEMPO);
       }
       stretch = Math.min(MAX_STRETCH, target / tempo / clipLen);
-      // Filet de sécurité : si les plafonds (étirement 1,6 / voix 1,12) laissent
+      // Filet de sécurité : si les plafonds (étirement 1,2 / voix 1,12) laissent
       // la piste vidéo plus courte que la voix, le lecteur figerait la dernière
       // image — exactement ce qu'on veut supprimer. On dépasse donc volontairement
       // le plafond d'étirement : un plan très ralenti reste bien préférable à
-      // une image gelée en fin de plan.
+      // une image gelée en fin de plan. Mais ce n'est plus masqué : on le signale,
+      // c'est un défaut de calibrage du script, pas un aléa de montage.
       const needTotal = target / tempo / clipLen;
-      if (needTotal > stretch) stretch = needTotal;
+      if (needTotal > stretch) {
+        stretch = needTotal;
+        onStretchWarning?.(
+          `Plan ${i + 1}${langLabel ? ` (${langLabel})` : ""} : la voix dure ${target.toFixed(1)} s pour un clip de ${clipLen.toFixed(1)} s. L'image est ralentie ×${needTotal.toFixed(2)} et paraîtra molle — le texte de ce plan est trop long pour un clip de 8 s.`,
+        );
+      }
     }
     // Durée finale du plan, une fois la voix éventuellement accélérée.
     const outDur = target / tempo;
@@ -296,6 +324,11 @@ async function assembleVideoInner(
       "list.txt",
       "-vf",
       `fps=${OUTPUT_FPS},scale=${width}:${height},setsar=1,format=yuv420p`,
+      // Normalisation de la VOIX assemblée : chaque narrateur ElevenLabs sort à
+      // un niveau différent, la musique serait donc tantôt noyée tantôt dominante.
+      // Après ce filtre, toutes les langues sortent au même niveau perçu.
+      "-af",
+      VOICE_LOUDNORM,
       "-r",
       String(OUTPUT_FPS),
       "-c:v",
@@ -340,7 +373,10 @@ async function assembleVideoInner(
         // normalize=0 : sans ça, amix divise chaque entrée par 2 et la voix off
         // perd 6 dB dès qu'une musique est présente. Seule la musique est
         // atténuée, par son propre filtre volume.
-        `[1:a]volume=${musicVolume}[bg];[0:a][bg]amix=inputs=2:duration=first:dropout_transition=0:normalize=0[a]`,
+        // La musique est elle aussi normalisée (même cible que la voix) AVANT
+        // d'être atténuée : elle est donc posée à un niveau fixe sous la voix,
+        // et non à un pourcentage d'un signal brut au niveau imprévisible.
+        `[1:a]${LOUDNORM},volume=${musicVolume}[bg];[0:a][bg]amix=inputs=2:duration=first:dropout_transition=0:normalize=0[a]`,
         "-map",
         "0:v:0",
         "-map",

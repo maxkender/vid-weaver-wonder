@@ -164,6 +164,8 @@ export const generateSceneImage = createServerFn({ method: "POST" })
         bible: z.string().max(4000).optional(),
         visualBrief: z.string().max(4000).optional(),
         quality: z.string().max(2000).optional(),
+        /** Consigne propre au plan 1 (accroche). */
+        opening: z.string().max(2000).optional(),
         /** Contexte narratif : plans précédents + plan suivant. */
         story: z.string().max(4000).optional(),
         /** Image de référence (plan 1 = style) pour garder les mêmes personnages. */
@@ -178,6 +180,7 @@ export const generateSceneImage = createServerFn({ method: "POST" })
       bible: data.bible,
       visualBrief: data.visualBrief,
       quality: data.quality,
+      opening: data.opening,
       story: data.story,
     });
     const refs = [data.referenceImage, data.previousImage].filter(
@@ -212,6 +215,8 @@ export const startSceneVideo = createServerFn({ method: "POST" })
         visualBrief: z.string().max(4000).optional(),
         quality: z.string().max(2000).optional(),
         motion: z.string().max(2000).optional(),
+        /** Consigne de mouvement propre au plan 1 (accroche). */
+        opening: z.string().max(2000).optional(),
         /** Contexte narratif : plans précédents + plan suivant. */
         story: z.string().max(4000).optional(),
         /** 1080p : le modèle n'accepte cette définition que sur des plans de 8 s. */
@@ -234,6 +239,7 @@ export const startSceneVideo = createServerFn({ method: "POST" })
         visualBrief: data.visualBrief,
         quality: data.quality,
         motion: data.motion,
+        opening: data.opening,
         story: data.story,
       }),
       seconds,
