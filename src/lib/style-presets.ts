@@ -207,7 +207,14 @@ const LEGACY_DEFAULTS: Record<FieldPath, string[]> = {
   "visual.papercraft.brief": [
     DEFAULT_VISUAL_BRIEF.papercraft.split(", and ALWAYS exactly ONE element")[0]!,
   ],
+  // Ancienne consigne d'animation saccadée (stop-motion image par image).
+  "visual.papercraft.motion": [
+    "Stop-motion paper animation: the paper cut-outs move in small discrete steps, slight handmade jitter, layers sliding over each other, static or very slow push-in camera.",
+  ],
 };
+
+/** Anciennes valeurs par défaut des réglages numériques/booléens. */
+const LEGACY_MUSIC_VOLUMES = [0.14];
 
 export function defaultSettings(): StudioSettings {
   const narration = {} as StudioSettings["narration"];
@@ -226,8 +233,9 @@ export function defaultSettings(): StudioSettings {
   return {
     narration,
     visual,
+    opening: { motion: DEFAULT_OPENING_MOTION, image: DEFAULT_OPENING_IMAGE },
     useReferenceImage: true,
-    musicVolume: 0.14,
+    musicVolume: 0.22,
     sophiaLogo: true,
     hd: true,
     precomposeSquare: true,
