@@ -2060,12 +2060,20 @@ function Studio() {
       snapshot = await generateAllVoices(script, snapshot);
       if (cancelledRef.current) return;
 
+      // Un contrôle de durée n'a de droit de veto QUE tant qu'il reste des
+      // plans animés à payer. Si tous les clips existent déjà, il avertit.
       const over = overflowFrom(script, snapshot);
-      if (over.length) {
+      const clipsToPay = script.scenes.some((sc) => !snapshot[sc.index]?.videoUrl);
+      if (over.length && clipsToPay) {
         toast.error(
           `Animation bloquée — ${overflowLabel(over)}. Durées mesurées hors cible : le débit des voix vient d'être recalé, relance le calibrage avant d'animer.`,
         );
         return;
+      }
+      if (over.length && !clipsToPay) {
+        toast.warning(
+          `Durées hors cible — ${overflowLabel(over)}. Les plans animés existent déjà : le montage continue.`,
+        );
       }
 
 
