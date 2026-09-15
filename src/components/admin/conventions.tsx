@@ -38,6 +38,7 @@ export function AdminConventions() {
           instagramTemplate: conv.instagram_template,
           gmailTemplate: conv.gmail_template,
           socialPassword: conv.social_password,
+          platformPassword: conv.platform_password,
           bioText: conv.bio_text,
           upworkMessageFr: conv.upwork_message_fr,
           upworkMessageEn: conv.upwork_message_en,
