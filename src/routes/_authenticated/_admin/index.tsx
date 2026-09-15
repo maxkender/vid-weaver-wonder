@@ -1208,16 +1208,15 @@ function Studio() {
           // réel de SA voix, pas du nombre de mots français. À 6,8 c/s, une
           // cible de 63 s ne laisse pas le même texte qu'à 10,4 c/s.
           const cps = cpsFor(lang);
-          const budget = charBudget(midSec, cps, baseVoiceSpeed);
+          const window = charWindow(loSec, hiSec, cps, baseVoiceSpeed);
+          const charsOf = (scenes: { narration: string }[]) =>
+            narrationChars(scenes.map((s) => s.narration));
           const predicted = (scenes: { narration: string }[]) =>
-            predictSeconds(
-              scenes.reduce((n, s) => n + (s.narration ?? "").trim().length, 0),
-              cps,
-              baseVoiceSpeed,
-            );
+            predictSeconds(charsOf(scenes), cps, baseVoiceSpeed);
           const callTranslate = (
             src: { title: string; hook: string; cta: string; scenes: TransRes["scenes"] },
             adjust: boolean,
+            mode: "ok" | "shorten" | "lengthen" = "ok",
           ) =>
             runTranslate({
               data: {
