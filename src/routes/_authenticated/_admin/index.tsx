@@ -1125,6 +1125,9 @@ function Studio() {
           // Longueur du script SOURCE calculée sur le débit mesuré de sa voix.
           sourceCharsPerSecond: cpsFor(language),
           voiceSpeed: baseVoiceSpeed,
+          // Niveau de langue et règles d'accroche (page Paramètres).
+          languageBrief: settings.guides.language,
+          hookBrief: settings.guides.hook,
         },
       })) as Script;
       setScript(result);
