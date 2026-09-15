@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
+import { Route as ConnexionRouteImport } from './routes/connexion'
 import { Route as StationRouteImport } from './routes/station'
 import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/_admin/index'
 import { Route as AuthenticatedAdminParametresRouteImport } from './routes/_authenticated/_admin/parametres'
@@ -22,6 +23,11 @@ import { Route as ApiPublicVideosIdRouteImport } from './routes/api/public/video
 
 const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
   id: '/_authenticated',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ConnexionRoute = ConnexionRouteImport.update({
+  id: '/connexion',
+  path: '/connexion',
   getParentRoute: () => rootRouteImport,
 } as any)
 const StationRoute = StationRouteImport.update({
@@ -75,6 +81,7 @@ const ApiPublicVideosIdRoute = ApiPublicVideosIdRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedAdminIndexRoute
+  '/connexion': typeof ConnexionRoute
   '/station': typeof StationRoute
   '/parametres': typeof AuthenticatedAdminParametresRoute
   '/sujets': typeof AuthenticatedAdminSujetsRoute
@@ -85,6 +92,7 @@ export interface FileRoutesByFullPath {
   '/api/public/videos/$id': typeof ApiPublicVideosIdRoute
 }
 export interface FileRoutesByTo {
+  '/connexion': typeof ConnexionRoute
   '/station': typeof StationRoute
   '/parametres': typeof AuthenticatedAdminParametresRoute
   '/sujets': typeof AuthenticatedAdminSujetsRoute
@@ -98,6 +106,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
+  '/connexion': typeof ConnexionRoute
   '/station': typeof StationRoute
   '/_authenticated/_admin/parametres': typeof AuthenticatedAdminParametresRoute
   '/_authenticated/_admin/sujets': typeof AuthenticatedAdminSujetsRoute
@@ -112,6 +121,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/connexion'
     | '/station'
     | '/parametres'
     | '/sujets'
@@ -122,6 +132,7 @@ export interface FileRouteTypes {
     | '/api/public/videos/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
+    | '/connexion'
     | '/station'
     | '/parametres'
     | '/sujets'
@@ -134,6 +145,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/_authenticated'
+    | '/connexion'
     | '/station'
     | '/_authenticated/_admin/parametres'
     | '/_authenticated/_admin/sujets'
@@ -147,6 +159,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
+  ConnexionRoute: typeof ConnexionRoute
   StationRoute: typeof StationRoute
   ApiPublicVideosRoute: typeof ApiPublicVideosRouteWithChildren
   ApiVideoContentIdRoute: typeof ApiVideoContentIdRoute
@@ -161,6 +174,13 @@ declare module '@tanstack/react-router' {
       path: ''
       fullPath: '/'
       preLoaderRoute: typeof AuthenticatedRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/connexion': {
+      id: '/connexion'
+      path: '/connexion'
+      fullPath: '/connexion'
+      preLoaderRoute: typeof ConnexionRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/station': {
@@ -258,6 +278,7 @@ const ApiPublicVideosRouteWithChildren = ApiPublicVideosRoute._addFileChildren(
 
 const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
+  ConnexionRoute: ConnexionRoute,
   StationRoute: StationRoute,
   ApiPublicVideosRoute: ApiPublicVideosRouteWithChildren,
   ApiVideoContentIdRoute: ApiVideoContentIdRoute,
