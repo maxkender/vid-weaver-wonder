@@ -132,6 +132,22 @@ export async function buildScript(data: BuildScriptInput): Promise<Script> {
 
   script.scenes = (script.scenes ?? []).slice(0, sceneCount).map((s, i) => ({ ...s, index: i }));
 
+  // L'ACCROCHE RETENUE DEVIENT LE PLAN 1. L'IA propose trois accroches et
+  // choisit la meilleure : si elle a oublié de la recopier dans la scène 1, on
+  // la remet en tête (la passe de longueur qui suit rattrape les caractères).
+  const hook = (script.hook ?? "").trim();
+  const first = script.scenes[0];
+  if (hook && first) {
+    const flat = (t: string) =>
+      t.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, " ").trim();
+    if (!flat(first.narration ?? "").startsWith(flat(hook).slice(0, 24))) {
+      first.narration = `${hook} ${(first.narration ?? "").trim()}`.trim();
+    }
+  }
+  script.hookOptions = (script.hookOptions ?? []).map((h) => String(h).trim()).filter(Boolean);
+  script.hookChoice = (script.hookChoice ?? "").trim();
+
+
   // UN SEUL plan CTA : on retire les scènes de pub écrites par l'IA.
   const isCta = (t: string) => /\b(sophia|t[ée]l[ée]charge|l'appli|l'application)\b/i.test(t);
   while (
