@@ -142,7 +142,12 @@ export async function generateElevenSpeechWithTimings(
   language = "fr",
   context?: string,
   speed = DEFAULT_VOICE_SPEED,
-): Promise<{ audioDataUrl: string; words: WordTiming[]; characters: number }> {
+): Promise<{
+  audioDataUrl: string;
+  words: WordTiming[];
+  characters: number;
+  textChars: number;
+}> {
   const apiKey = apiKeyOrThrow();
   const where = `${context ? `${context} — ` : ""}langue « ${language} »`;
 
