@@ -1166,6 +1166,56 @@ function Studio() {
   const translationSourceRef = useRef<Record<string, string>>({});
 
   /**
+   * DÉBIT DE DÉPART D'UNE VOIX JAMAIS ENTENDUE : une seule prise COURTE de
+   * calibration (deux phrases), mesurée puis mémorisée. Tout le calibrage des
+   * longueurs se fait ensuite sur le texte seul, sans appeler ElevenLabs.
+   */
+  const ensureVoiceRates = async (targets: string[], doc: Script | null) => {
+    for (const lang of targets) {
+      if (cancelledRef.current) return;
+      const voiceId = voiceForLang(lang);
+      if (!voiceId) continue;
+      if (voiceRatesRef.current[rateKey(voiceId, lang)]) continue;
+      const src = scriptsRef.current[lang] ?? (lang === sourceLang ? doc : null);
+      const sample = (src?.scenes?.[0]?.narration ?? "").trim().slice(0, 200);
+      if (sample.length < 40) continue;
+      setCurrentStep(`Calibration de la voix — ${languageLabel(lang)}…`);
+      try {
+        const { audioDataUrl, words, characters } = (await runVoice({
+          data: { text: sample, voice: voiceId, engine, language: lang as LanguageId, speed: 1 },
+        })) as { audioDataUrl: string; words?: WordTiming[]; characters?: number };
+        bumpUsage((u) => ({
+          ...u,
+          voiceChars: {
+            ...u.voiceChars,
+            [lang]: (u.voiceChars[lang] ?? 0) + (characters ?? sample.length),
+          },
+        }));
+        const duration = await audioDuration(audioDataUrl);
+        const win = voiceWindow(words ?? [], duration);
+        const speaking = Math.max(0.3, win ? win.end - win.start : duration);
+        const r = (await runRecordRate({
+          data: {
+            voiceId,
+            language: lang,
+            chars: characters ?? sample.length,
+            seconds: speaking,
+          },
+        })) as { rate?: VoiceRate | null };
+        if (r.rate) {
+          voiceRatesRef.current = {
+            ...voiceRatesRef.current,
+            [rateKey(voiceId, lang)]: r.rate,
+          };
+          setVoiceRates((p) => ({ ...p, [rateKey(voiceId, lang)]: r.rate as VoiceRate }));
+        }
+      } catch {
+        // Pas de mesure possible : on garde le débit par défaut de la langue.
+      }
+    }
+  };
+
+  /**
    * MASTER : traduit le script source dans chaque autre langue cochée.
    * Les visuels ne sont jamais régénérés — seuls les textes parlés changent.
    * `reuse` : une langue déjà traduite depuis CE texte source n'est pas refaite.
