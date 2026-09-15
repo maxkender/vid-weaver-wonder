@@ -92,6 +92,76 @@ import { pipelineState, resumePipeline, stopPipeline } from "@/lib/jobs/control.
 
 
 
+
+/**
+ * Récapitulatif du coût RÉEL d'une vidéo. Les quantités sont toujours
+ * affichées ; un montant n'apparaît que si l'utilisateur a renseigné ses
+ * tarifs dans Paramètres — aucun prix n'est inventé.
+ */
+function UsageRecap({
+  usage,
+  priceVideoSecond,
+  priceImage,
+  compact,
+}: {
+  usage: UsageReport;
+  priceVideoSecond: number | null;
+  priceImage: number | null;
+  compact?: boolean;
+}) {
+  const chars = totalVoiceChars(usage);
+  const money = moneyTotal(usage, priceVideoSecond, priceImage);
+  const calls =
+    usage.textCalls.script + usage.textCalls.factCheck + usage.textCalls.translation;
+  if (compact) {
+    return (
+      <span className="text-[11px] text-muted-foreground">
+        {usage.clips.count} clips / {usage.clips.seconds} s · {usage.images} images ·{" "}
+        {chars.toLocaleString("fr-FR")} car.
+        {money !== null ? ` · ${formatEuros(money)}` : ""}
+      </span>
+    );
+  }
+  return (
+    <div className="surface-card space-y-2 p-3 text-xs">
+      <div className="text-sm font-medium">Coût réel de cette vidéo</div>
+      <div className="grid gap-1 text-muted-foreground sm:grid-cols-2">
+        <span>
+          Clips animés : {usage.clips.count} ({usage.clips.seconds} s commandées)
+        </span>
+        <span>Images générées : {usage.images}</span>
+        <span>
+          Voix off : {chars.toLocaleString("fr-FR")} caractères (1 crédit ElevenLabs par
+          caractère)
+        </span>
+        <span>
+          Appels de texte : {calls} (script {usage.textCalls.script}, vérification{" "}
+          {usage.textCalls.factCheck}, traductions {usage.textCalls.translation})
+        </span>
+      </div>
+      {Object.keys(usage.voiceChars).length > 0 && (
+        <div className="flex flex-wrap gap-2 text-muted-foreground">
+          {Object.entries(usage.voiceChars).map(([l, n]) => (
+            <span key={l}>
+              {l.toUpperCase()} {n.toLocaleString("fr-FR")} car.
+            </span>
+          ))}
+        </div>
+      )}
+      {usage.tokens && (
+        <div className="text-muted-foreground">
+          Jetons IA relevés : {usage.tokens.totalTokens?.toLocaleString("fr-FR") ?? "—"}
+        </div>
+      )}
+      <div className={money !== null ? "font-medium text-foreground" : "text-muted-foreground"}>
+        {money !== null
+          ? `Total vidéo + images : ${formatEuros(money)} (hors crédits voix)`
+          : "Renseigne tes tarifs dans Paramètres pour voir un montant en euros."}
+      </div>
+    </div>
+  );
+}
+
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
@@ -2142,6 +2212,14 @@ function Studio() {
                   </span>
                 </button>
                 <span className="flex flex-wrap items-center gap-2">
+                  {h.usage && (
+                    <UsageRecap
+                      usage={h.usage}
+                      priceVideoSecond={settings.priceVideoSecond ?? null}
+                      priceImage={settings.priceImage ?? null}
+                      compact
+                    />
+                  )}
                   {Object.entries(h.exports ?? {}).map(([l, info]) => (
                     <a
                       key={l}
