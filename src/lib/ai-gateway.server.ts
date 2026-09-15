@@ -241,7 +241,12 @@ export async function getVideoJob(id: string): Promise<VideoJob> {
 }
 
 export async function fetchVideoContent(id: string): Promise<Response> {
-  return fetch(`${GATEWAY}/videos/${id}/content`, { headers: gatewayHeaders(false) });
+  // Téléchargement du clip déjà payé : un hoquet réseau ne doit rien perdre.
+  return withRetry("téléchargement du clip", async () => {
+    const res = await fetch(`${GATEWAY}/videos/${id}/content`, { headers: gatewayHeaders(false) });
+    if (!res.ok) throw await gatewayError(res);
+    return res;
+  });
 }
 
 /** Génère une voix off (TTS) et renvoie une data URL audio/mpeg. */
