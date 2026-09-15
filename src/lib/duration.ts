@@ -18,6 +18,18 @@ const WORDS_PER_SECOND: Record<string, number> = {
 
 const DEFAULT_WPS = 3.0;
 
+/**
+ * SOURCE DE VÉRITÉ de la fourchette de durée cible.
+ * Un script peut dépasser la durée demandée de 10 % au maximum : au-delà on
+ * paie des secondes de clip pour rien (60 s demandées → 66 s tolérées).
+ */
+export const DURATION_TOLERANCE = 1.1;
+
+/** Fourchette acceptée pour une durée demandée, en secondes. */
+export function durationRange(targetSeconds: number) {
+  return { lo: targetSeconds, hi: Math.round(targetSeconds * DURATION_TOLERANCE) };
+}
+
 /** Débit de parole d'une langue (mots par seconde). */
 export function wordsPerSecond(language = "fr") {
   return WORDS_PER_SECOND[language.slice(0, 2).toLowerCase()] ?? DEFAULT_WPS;
