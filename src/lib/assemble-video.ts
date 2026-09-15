@@ -3,7 +3,9 @@ import { fetchFile } from "@ffmpeg/util";
 import coreURL from "@ffmpeg/core?url";
 import wasmURL from "@ffmpeg/core/wasm?url";
 import { videoDuration } from "./duration";
+import { linearToDb } from "./audio-gain";
 import type { CaptionCue } from "./karaoke-overlay";
+
 
 /** Cadence unique de tout le pipeline (studio ET service de rendu). */
 export const OUTPUT_FPS = 30;
