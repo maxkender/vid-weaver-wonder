@@ -383,6 +383,7 @@ export function allFieldPaths(): FieldPath[] {
       (["brief", "quality", "motion"] as const).map((k) => visualPath(id, k)),
     ),
     ...(["motion", "image"] as const).map((k) => openingPath(k)),
+    ...(["language", "hook", "shots"] as const).map((k) => guidePath(k)),
   ];
 }
 
