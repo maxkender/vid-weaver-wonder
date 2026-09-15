@@ -521,6 +521,8 @@ export type Database = {
           poster_id: string | null
           progress: number
           publish_date: string | null
+          rendering_sends: number
+          rendering_sent_at: string | null
           scenes: Json
           script: Json | null
           status: string
@@ -550,6 +552,8 @@ export type Database = {
           poster_id?: string | null
           progress?: number
           publish_date?: string | null
+          rendering_sends?: number
+          rendering_sent_at?: string | null
           scenes?: Json
           script?: Json | null
           status?: string
@@ -579,6 +583,8 @@ export type Database = {
           poster_id?: string | null
           progress?: number
           publish_date?: string | null
+          rendering_sends?: number
+          rendering_sent_at?: string | null
           scenes?: Json
           script?: Json | null
           status?: string
@@ -756,6 +762,8 @@ export type Database = {
           poster_id: string | null
           progress: number
           publish_date: string | null
+          rendering_sends: number
+          rendering_sent_at: string | null
           scenes: Json
           script: Json | null
           status: string

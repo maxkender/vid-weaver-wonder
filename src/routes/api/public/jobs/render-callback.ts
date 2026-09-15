@@ -2,7 +2,13 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 
-import { getJob, patchJob, logEvent, uploadBytes } from "@/lib/jobs/store.server";
+import {
+  getJob,
+  patchJob,
+  patchJobIfStatus,
+  logEvent,
+  uploadBytes,
+} from "@/lib/jobs/store.server";
 import { verifySignedBody } from "@/lib/jobs/signing.server";
 
 const schema = z.object({
@@ -38,6 +44,12 @@ export const Route = createFileRoute("/api/public/jobs/render-callback")({
         const job = await getJob(body.jobId);
         if (!job) return Response.json({ error: "not found" }, { status: 404 });
 
+        // RAPPEL IDEMPOTENT : un travail déjà terminé n'est jamais réécrit, et
+        // la vidéo du jour n'est pas retouchée par un rappel en double.
+        if (job.status === "done" || job.status === "cancelled") {
+          return Response.json({ ok: true, ignored: job.status });
+        }
+
         if (body.status === "failed" || !body.videoUrl) {
           await patchJob(job.id, {
             status: "failed",
@@ -60,7 +72,9 @@ export const Route = createFileRoute("/api/public/jobs/render-callback")({
               await res.arrayBuffer(),
               "video/mp4",
             );
-            await patchJob(job.id, {
+            // Finalisation conditionnée : seul un travail encore en attente de
+            // rendu peut passer en « done ». Un rappel en double ne fait rien.
+            const won = await patchJobIfStatus(job.id, ["rendering", "failed"], {
               status: "done",
               step: "done",
               progress: 1,
@@ -69,6 +83,7 @@ export const Route = createFileRoute("/api/public/jobs/render-callback")({
               error: null,
               lease_until: null,
             });
+            if (!won) return Response.json({ ok: true, ignored: "already-final" });
             await logEvent(job.id, "done", "Vidéo finale disponible");
 
             // La vidéo rejoint la diffusion du jour dans sa langue, en brouillon :

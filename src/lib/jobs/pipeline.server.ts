@@ -32,6 +32,7 @@ import {
   isPaused,
   logEvent,
   patchJob,
+  patchJobIfStatus,
   releaseJob,
   setPaused,
   signedUrl,
@@ -340,6 +341,31 @@ async function stepClips(job: RenderJob, t0: number) {
 async function stepRender(job: RenderJob, origin: string) {
   const url = process.env["RENDER_WORKER_URL"];
   const secret = process.env["RENDER_WORKER_SECRET"];
+
+  // Un manifeste n'est JAMAIS renvoyé tant que le rappel peut encore arriver.
+  const { decideRenderSend } = await import("./render-dispatch");
+  const decision = decideRenderSend({
+    sends: job.rendering_sends ?? 0,
+    sentAt: job.rendering_sent_at ?? null,
+  });
+  if (decision.action === "wait") {
+    return;
+  }
+  if (decision.action === "giveup") {
+    const ok = await patchJobIfStatus(job.id, "rendering", {
+      status: "failed",
+      step: "failed",
+      error: decision.message,
+      lease_until: null,
+    });
+    if (ok) {
+      await logEvent(job.id, "rendering", decision.message, "error");
+      const { notifyClient } = await import("./notify.server");
+      await notifyClient(job.id);
+    }
+    return;
+  }
+
   if (!url || !secret) {
     // Pas de service externe : le montage est assuré par la station intégrée
     // (page /station). Le job reste en « rendering » jusqu'à sa prise en charge.
@@ -378,7 +404,19 @@ async function stepRender(job: RenderJob, origin: string) {
   if (!res.ok) {
     throw new Error(`Service de rendu [${res.status}] : ${(await res.text()).slice(0, 400)}`);
   }
-  await logEvent(job.id, "rendering", "Manifeste envoyé au service de rendu");
+  // Envoi mémorisé : la file n'y reviendra qu'après le délai franc, et jamais
+  // si le rappel a déjà terminé le travail entre-temps.
+  const sends = (job.rendering_sends ?? 0) + 1;
+  await patchJobIfStatus(job.id, "rendering", {
+    rendering_sent_at: new Date().toISOString(),
+    rendering_sends: sends,
+  });
+  job.rendering_sends = sends;
+  await logEvent(
+    job.id,
+    "rendering",
+    `Manifeste envoyé au service de rendu (envoi ${sends}/3)`,
+  );
 }
 
 // ---------------------------------------------------------------- boucle
@@ -413,7 +451,11 @@ export async function runTick(origin: string) {
     if (job.status === "queued") {
       await assertRunning(job.id);
       await stepTopic(job);
-      await patchJob(job.id, { status: "scripting", step: "scripting", progress: 0.05 });
+      await patchJobIfStatus(job.id, "queued", {
+        status: "scripting",
+        step: "scripting",
+        progress: 0.05,
+      });
       job.status = "scripting";
     }
     if (job.status === "scripting") {
@@ -455,14 +497,21 @@ export async function runTick(origin: string) {
       return { jobId: job.id, paused: true, error: message };
     }
     // Une seule tentative payante par job : au premier échec, on s'arrête.
-    await patchJob(job.id, {
-      status: "failed",
-      step: "failed",
-      error: message.slice(0, 1000),
-      lease_until: null,
-    });
-    const { notifyClient } = await import("./notify.server");
-    await notifyClient(job.id);
+    // Écriture conditionnée : un rappel arrivé entre-temps (job « done ») gagne.
+    const marked = await patchJobIfStatus(
+      job.id,
+      ["queued", "scripting", "images", "voice", "clips", "rendering"],
+      {
+        status: "failed",
+        step: "failed",
+        error: message.slice(0, 1000),
+        lease_until: null,
+      },
+    );
+    if (marked) {
+      const { notifyClient } = await import("./notify.server");
+      await notifyClient(job.id);
+    }
     return { jobId: job.id, error: message };
   }
 }

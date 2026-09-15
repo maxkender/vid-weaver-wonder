@@ -1098,7 +1098,15 @@ export const retryJob = createServerFn({ method: "POST" })
 
     const { error: upErr } = await db
       .from("render_jobs")
-      .update({ status, step: status, error: null, lease_until: null })
+      .update({
+        status,
+        step: status,
+        error: null,
+        lease_until: null,
+        // Relance manuelle : le compteur d'envois au service de rendu repart à zéro.
+        rendering_sent_at: null,
+        rendering_sends: 0,
+      })
       .eq("id", data.id);
     if (upErr) throw new Error(upErr.message);
 
