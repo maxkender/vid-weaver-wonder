@@ -202,7 +202,7 @@ async function languageSetting(language: string) {
 }
 
 async function stepVoice(job: RenderJob, t0: number) {
-  const { generateElevenSpeechWithTimings } = await import("../elevenlabs.server");
+  const { generateElevenSpeechWithTimings, clampVoiceSpeed } = await import("../elevenlabs.server");
   const scenes = job.scenes;
   const setting = await languageSetting(job.language);
   const voice =
