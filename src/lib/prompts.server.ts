@@ -50,6 +50,9 @@ export type Script = {
   scenes: Scene[];
   /** Message clair quand la longueur reste hors cible après les 3 passes. */
   lengthNote?: string;
+  /** Faits corrigés par la vérification plan par plan. */
+  factNote?: string;
+
   cta: string;
   hashtags: string[];
   /** Bible visuelle : personnages, palette et décors constants d'une scène à l'autre. */
