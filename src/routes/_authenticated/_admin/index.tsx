@@ -2089,36 +2089,19 @@ function Studio() {
         return;
       }
 
-      // d — voix off de toutes les langues (c'est elles qui donnent les durées).
-      snapshot = await generateAllVoices(doc, snapshot);
-      if (cancelledRef.current) {
-        setAssembleStep("Pipeline arrêté");
-        return;
-      }
-
-      // BOUCLE FERMÉE : mesuré, corrigé, remesuré — et seulement ensuite animé.
-      // Deux tours de condensation maximum sur les seules langues qui débordent
-      // (la voix off est peu coûteuse ; les plans animés, eux, sont définitifs).
-      let over = overflowFrom(doc, snapshot);
+      // d — CALIBRAGE DES DURÉES SUR LE TEXTE SEUL. Aucune voix n'est
+      // synthétisée ici : on se sert du débit MESURÉ de chaque voix. Régénérer
+      // les voix à chaque passe revenait à payer trois fois la même prise, et
+      // cinq fois plus avec cinq langues.
+      let over = outOfWindowFrom(doc, snapshot);
       for (let round = 0; round < 2 && over.length && !cancelledRef.current; round++) {
-        const bad = over.map((o) => o.lang);
-        setAssembleStep(`Condensation — ${bad.map((l) => languageLabel(l)).join(", ")}…`);
-        setCurrentStep(`Condensation — ${overflowLabel(over)}`);
+        const bad = over.map((o) => o.lang).filter((l) => l !== sourceLang);
+        if (!bad.length) break;
+        setAssembleStep(`Calibrage — ${bad.map((l) => languageLabel(l)).join(", ")}…`);
+        setCurrentStep(`Calibrage — ${overflowLabel(over)}`);
         await onTranslateAll(doc, false, bad);
         if (cancelledRef.current) break;
-        // Les voix de ces langues ne correspondent plus au texte : on les refait.
-        for (const l of bad) {
-          for (const sc of doc.scenes) {
-            const st = snapshot[sc.index];
-            if (st?.voices?.[l]) {
-              const voices = { ...st.voices };
-              delete voices[l];
-              snapshot[sc.index] = { ...st, voices };
-            }
-          }
-        }
-        snapshot = await generateAllVoices(doc, snapshot);
-        over = overflowFrom(doc, snapshot);
+        over = outOfWindowFrom(doc, snapshot);
       }
       if (cancelledRef.current) {
         setAssembleStep("Pipeline arrêté");
@@ -2126,9 +2109,26 @@ function Studio() {
       }
       if (over.length) {
         toast.error(
-          `Animation bloquée — ${overflowLabel(over)}. Ces versions restent hors de la cible après condensation et accélération de la voix : aucun plan animé n'a été commandé.`,
+          `Animation bloquée — ${overflowLabel(over)}. Ces versions restent hors de la cible après calibrage du texte et accélération de la voix : aucune voix off ni aucun plan animé n'a été commandé.`,
         );
         setAssembleStep("Durée hors cible : animation bloquée");
+        return;
+      }
+
+      // e — voix off, UNE SEULE FOIS par plan et par langue, maintenant que
+      // toutes les langues sont dans la fenêtre. La durée réellement entendue
+      // corrige ensuite le débit mémorisé pour les prochaines vidéos.
+      snapshot = await generateAllVoices(doc, snapshot);
+      if (cancelledRef.current) {
+        setAssembleStep("Pipeline arrêté");
+        return;
+      }
+      const realOver = outOfWindowFrom(doc, snapshot);
+      if (realOver.length) {
+        toast.warning(
+          `Durées mesurées hors cible — ${overflowLabel(realOver)}. Le débit des voix vient d'être recalé : relance le calibrage avant d'animer.`,
+        );
+        setAssembleStep("Durée mesurée hors cible : animation bloquée");
         return;
       }
 
