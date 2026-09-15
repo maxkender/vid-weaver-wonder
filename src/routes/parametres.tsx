@@ -10,6 +10,7 @@ import {
   isCustomField,
   loadSettings,
   narrationPath,
+  openingPath,
   NARRATION_LABELS,
   resetField,
   saveSettings,
@@ -230,6 +231,39 @@ function SettingsPage() {
             </section>
           ))}
         </div>
+      )}
+
+      {tab === "visual" && (
+        <section className="surface-card mt-4 space-y-4 p-4">
+          <div>
+            <h2 className="text-base font-semibold">Plan 1 — l'accroche</h2>
+            <p className="text-muted-foreground mt-1 text-sm">
+              Consignes appliquées au premier plan uniquement, quel que soit le style visuel.
+              C'est la première seconde qui décide si le spectateur reste.
+            </p>
+          </div>
+          {(
+            [
+              ["motion", "Mouvement du plan 1 (anglais)"],
+              ["image", "Composition du plan 1 (anglais)"],
+            ] as const
+          ).map(([key, label]) => (
+            <div key={key}>
+              <FieldHeader
+                label={label}
+                path={openingPath(key)}
+                settings={settings}
+                persist={persist}
+              />
+              <textarea
+                rows={4}
+                value={settings.opening[key]}
+                onChange={(e) => persist(setField(settings, openingPath(key), e.target.value))}
+                className={field}
+              />
+            </div>
+          ))}
+        </section>
       )}
 
       {tab === "general" && (
