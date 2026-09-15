@@ -352,11 +352,8 @@ async function assembleVideoInner(
       "list.txt",
       "-vf",
       `fps=${OUTPUT_FPS},scale=${width}:${height},setsar=1,format=yuv420p`,
-      // Normalisation de la VOIX assemblée : chaque narrateur ElevenLabs sort à
-      // un niveau différent, la musique serait donc tantôt noyée tantôt dominante.
-      // Après ce filtre, toutes les langues sortent au même niveau perçu.
-      "-af",
-      VOICE_LOUDNORM,
+      // Aucun filtre audio ici : la voix est déjà au bon niveau, plan par plan.
+
       "-r",
       String(OUTPUT_FPS),
       "-c:v",
