@@ -104,6 +104,12 @@ export function KaraokeCaption({ text, fallback, getMedia, words, showLogo = tru
     );
 
   if (state) {
+    const displayWord = state.word.replace(/[«»"]/g, "").toLocaleLowerCase();
+    // Même garde-fou qu'au rendu : une seule ligne, réduite si elle dépasse le carré.
+    const fittedCqw = Math.min(
+      CAPTION_CQW,
+      (SIDE_RATIO * CAPTION_MAX_WIDTH_RATIO * 100) / Math.max(1, displayWord.length * 0.58),
+    );
     return (
       <div
         className="pointer-events-none absolute inset-0 flex items-center justify-center px-6"
@@ -118,20 +124,20 @@ export function KaraokeCaption({ text, fallback, getMedia, words, showLogo = tru
             // Même proportion que dans l'export MP4 : taille et largeur maximale
             // calculées sur le CÔTÉ DU CARRÉ, pas sur la largeur du cadre.
             maxWidth: `${(SIDE_RATIO * CAPTION_MAX_WIDTH_RATIO * 100).toFixed(1)}%`,
-            fontSize: `${CAPTION_CQW.toFixed(2)}cqw`,
+            fontSize: `${fittedCqw.toFixed(2)}cqw`,
             lineHeight: 1.08,
             whiteSpace: "nowrap",
             top: `${((0.5 + SQUARE_CENTER_OFFSET_RATIO) * 100).toFixed(2)}%`,
             transform: "translate(-50%, -50%)",
-            WebkitTextStroke: `${(CAPTION_CQW * 0.03).toFixed(3)}cqw rgba(0,0,0,0.88)`,
+            WebkitTextStroke: `${(fittedCqw * 0.03).toFixed(3)}cqw rgba(0,0,0,0.88)`,
             paintOrder: "stroke fill",
-            textShadow: `0 ${(CAPTION_CQW * 0.06).toFixed(3)}cqw ${(CAPTION_CQW * 0.16).toFixed(
+            textShadow: `0 ${(fittedCqw * 0.06).toFixed(3)}cqw ${(fittedCqw * 0.16).toFixed(
               3,
             )}cqw rgba(0,0,0,0.55)`,
             opacity: state.pop,
           }}
         >
-          {state.word.replace(/[«»"]/g, "").toLocaleLowerCase()}
+          {displayWord}
         </span>
       </div>
     );
