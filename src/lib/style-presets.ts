@@ -129,11 +129,16 @@ export function narrationPath(id: NarrationStyleId): FieldPath {
 export function visualPath(id: VisualStyleId, key: "brief" | "quality" | "motion"): FieldPath {
   return `visual.${id}.${key}`;
 }
+export function openingPath(key: "motion" | "image"): FieldPath {
+  return `opening.first.${key}`;
+}
 
 /** Valeur livrée (à jour) d'un champ texte. */
 export function defaultFieldValue(path: FieldPath): string {
   const [group, id, key] = path.split(".");
   if (group === "narration") return DEFAULT_STYLE_BRIEF[id as NarrationStyleId] ?? "";
+  if (group === "opening")
+    return key === "motion" ? DEFAULT_OPENING_MOTION : DEFAULT_OPENING_IMAGE;
   if (key === "brief") return DEFAULT_VISUAL_BRIEF[id as VisualStyleId] ?? "";
   if (key === "quality") return DEFAULT_QUALITY[id as VisualStyleId] ?? "";
   if (key === "motion") return DEFAULT_MOTION[id as VisualStyleId] ?? "";
@@ -143,6 +148,7 @@ export function defaultFieldValue(path: FieldPath): string {
 function readField(settings: StudioSettings, path: FieldPath): string {
   const [group, id, key] = path.split(".");
   if (group === "narration") return settings.narration[id as NarrationStyleId]?.brief ?? "";
+  if (group === "opening") return settings.opening?.[key as "motion" | "image"] ?? "";
   const v = settings.visual[id as VisualStyleId];
   return (v?.[key as "brief" | "quality" | "motion"] as string) ?? "";
 }
