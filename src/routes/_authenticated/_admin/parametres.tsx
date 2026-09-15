@@ -268,15 +268,18 @@ function SettingsPage() {
           <div className="border-t border-border/60 pt-4">
             <h2 className="text-base font-semibold">Écriture et cadrages</h2>
             <p className="text-muted-foreground mt-1 text-sm">
-              Trois consignes appliquées à toutes les vidéos : le niveau de langue (écriture
-              ET traductions), les règles de l'accroche, et la rotation des types de plan qui
-              évite que les huit images se ressemblent.
+              Les consignes appliquées à toutes les vidéos : le niveau de langue (écriture ET
+              traductions), les six conditions de l'accroche, la fonction de chacun des huit
+              plans, la relecture finale « à quelle seconde je scrolle ? », et la rotation des
+              types de plan qui évite que les huit images se ressemblent.
             </p>
           </div>
           {(
             [
               ["language", "Niveau de langue (écriture et traductions)"],
-              ["hook", "Règles de l'accroche"],
+              ["hook", "Règles de l'accroche (six conditions)"],
+              ["structure", "Structure des plans, information nouvelle et densité"],
+              ["audit", "Relecture finale et réécriture du plan le plus faible"],
               ["shots", "Rotation des types de plan (anglais)"],
             ] as const
           ).map(([key, label]) => (
