@@ -97,9 +97,11 @@ export function scriptSystemPrompt(
     KIND_BRIEF[kind],
     styleBriefOverride?.trim() || DEFAULT_STYLE_BRIEF[style],
     `Produis exactement ${sceneCount} scènes.`,
-    totalWords
-      ? `RÈGLE N°0 — DURÉE : le script complet${includeCta ? " (scènes + CTA)" : ""} doit faire environ ${totalWords} mots au total, avec une marge de 5 % maximum. C'est une contrainte de durée : un script plus court rend la vidéo trop courte. Compte les mots avant de répondre et complète si tu es en dessous.`
-      : "",
+    chars
+      ? `RÈGLE N°0 — DURÉE, EN CARACTÈRES (unique mesure de longueur, calculée sur le débit réel de la voix) : la somme de toutes les narrations${includeCta ? " (CTA exclu, il est ajouté après)" : ""} doit faire ${chars.target} CARACTÈRES espaces compris, avec une marge de ±5 % — jamais moins de ${chars.min}, jamais plus de ${chars.max}. Soit environ ${chars.perScene} caractères par scène. Compte réellement les caractères avant de répondre et complète si tu es en dessous : un script plus court rend la vidéo deux fois trop courte.`
+      : totalWords
+        ? `RÈGLE N°0 — DURÉE : le script complet${includeCta ? " (scènes + CTA)" : ""} doit faire environ ${totalWords} mots au total, avec une marge de 5 % maximum. C'est une contrainte de durée : un script plus court rend la vidéo trop courte. Compte les mots avant de répondre et complète si tu es en dessous.`
+        : "",
 
     "",
     "RÈGLE N°1 — L'ACCROCHE (scène 1, la partie la plus importante) : une AFFIRMATION FACTUELLE brute et surprenante, en une ou deux phrases courtes, lue en moins de 4 secondes. Jamais une question. Jamais « saviez-vous que ».",
