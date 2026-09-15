@@ -65,8 +65,8 @@ import {
   SQUARE_RADIUS_RATIO,
   voiceWindow,
 } from "@/lib/karaoke-overlay";
+import { calibrationMode, charWindow, narrationChars } from "@/lib/calibration";
 import {
-  charBudget,
   charsPerSecond,
   MAX_CONDENSE_PASSES,
   MIN_VOICE_SPEED,
