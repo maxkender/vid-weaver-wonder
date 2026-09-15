@@ -485,7 +485,7 @@ export const generateSceneVoice = createServerFn({ method: "POST" })
         engine: z.enum(["lovable", "elevenlabs"]).default("lovable"),
         language: z.enum(LANGUAGE_IDS).default("fr"),
         /** Rythme de lecture (Paramètres) : identique pour toutes les langues. */
-        speed: z.number().min(0.9).max(1.15).default(1.05),
+        speed: z.number().min(0.95).max(1.15).default(1),
       })
       .parse(input),
   )

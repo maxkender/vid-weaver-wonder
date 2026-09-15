@@ -202,12 +202,13 @@ async function languageSetting(language: string) {
 }
 
 async function stepVoice(job: RenderJob, t0: number) {
-  const { generateElevenSpeechWithTimings } = await import("../elevenlabs.server");
+  const { generateElevenSpeechWithTimings, clampVoiceSpeed } = await import("../elevenlabs.server");
   const scenes = job.scenes;
   const setting = await languageSetting(job.language);
   const voice =
     job.voice_id ?? setting?.eleven_voice_id ?? defaultVoiceFor("elevenlabs", job.language);
-  const speed = Number(setting?.voice_speed ?? 1.05);
+  // Vitesse figée à 1,0 : la longueur du texte est déjà calée sur la durée.
+  const speed = clampVoiceSpeed(Number(setting?.voice_speed ?? 1));
 
   for (let i = 0; i < scenes.length; i++) {
     if (outOfTime(t0)) return false;

@@ -1049,7 +1049,7 @@ export const updateLanguageSetting = createServerFn({ method: "POST" })
         language: z.string().min(2).max(5),
         enabled: z.boolean().optional(),
         elevenVoiceId: z.string().max(60).optional(),
-        voiceSpeed: z.number().min(0.9).max(1.15).optional(),
+        voiceSpeed: z.number().min(0.95).max(1.15).optional(),
         narrationStyle: z.string().max(40).optional(),
         visualStyle: z.string().max(40).optional(),
         musicStyle: z.string().max(40).optional(),

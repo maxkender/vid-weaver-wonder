@@ -11,8 +11,26 @@ export const ELEVEN_VOICES = [
 
 export type WordTiming = { word: string; start: number; end: number };
 
-/** Débit par défaut : soutenu, c'est ce qui retient sur TikTok. */
-export const DEFAULT_VOICE_SPEED = 1.05;
+/**
+ * Débit par défaut : 1,0. La longueur du texte est déjà calée sur le budget,
+ * la vitesse n'a donc plus rien à rattraper. Les deux leviers ne doivent
+ * jamais agir en même temps.
+ */
+export const DEFAULT_VOICE_SPEED = 1;
+
+/** Débit acceptable d'une narration, en caractères par seconde. */
+export const MIN_CHARS_PER_SECOND = 7;
+export const MAX_CHARS_PER_SECOND = 16;
+
+/** Bornes DURES de la vitesse de synthèse, appliquées à la requête elle-même. */
+export const VOICE_SPEED_MIN = 0.95;
+export const VOICE_SPEED_MAX = 1.15;
+
+/** Dernier verrou : aucune valeur calculée en amont ne peut le contourner. */
+export function clampVoiceSpeed(speed: number | undefined) {
+  const v = Number.isFinite(speed) ? (speed as number) : DEFAULT_VOICE_SPEED;
+  return Math.min(VOICE_SPEED_MAX, Math.max(VOICE_SPEED_MIN, v));
+}
 
 function voiceSettings(speed = DEFAULT_VOICE_SPEED) {
   return {
@@ -20,7 +38,7 @@ function voiceSettings(speed = DEFAULT_VOICE_SPEED) {
     similarity_boost: 0.88,
     style: 0.05,
     use_speaker_boost: true,
-    speed: Math.min(1.15, Math.max(0.9, speed)),
+    speed: clampVoiceSpeed(speed),
   };
 }
 
@@ -156,9 +174,10 @@ export async function generateElevenSpeechWithTimings(
     alignment?: Alignment;
     normalized_alignment?: Alignment;
   };
-  // Coût réel : ElevenLabs facture au CARACTÈRE (1 crédit par caractère) et
-  // renvoie son propre décompte dans un en-tête quand il est disponible.
-  let characters = text.length;
+  // Coût réel : ElevenLabs facture au CARACTÈRE (1 crédit par caractère). On
+  // compte les caractères RÉELLEMENT ENVOYÉS ; l'en-tête du fournisseur a déjà
+  // renvoyé des valeurs partielles qui faisaient croire à une troncature.
+  const characters = text.trim().length;
   try {
     const res = await callEleven(
       `/v1/text-to-speech/${voiceId}/with-timestamps`,
@@ -168,10 +187,6 @@ export async function generateElevenSpeechWithTimings(
       voiceId,
       speed,
     );
-    const reported = Number(
-      res.headers.get("character-cost") ?? res.headers.get("x-character-cost") ?? "",
-    );
-    if (Number.isFinite(reported) && reported > 0) characters = reported;
     json = (await res.json()) as typeof json;
   } catch (e) {
     throw new Error(
@@ -200,6 +215,18 @@ export async function generateElevenSpeechWithTimings(
     throw new Error(
       `Texte tronqué par la synthèse (${where}) : ${words.length} mots prononcés sur ${expectedWords} attendus ` +
         `(${spokenChars} caractères sur ${textChars}). Aucune voix off partielle n'est conservée.`,
+    );
+  }
+  // GARDE-FOU DE DÉBIT : une narration se lit entre 7 et 16 caractères par
+  // seconde. Au-delà la voix s'emballe (inécoutable), en dessous elle traîne.
+  // Dans les deux cas c'est un défaut, pas une durée à accepter.
+  const spoken = Math.max(0.2, (words.at(-1)?.end ?? 0) - (words[0]?.start ?? 0));
+  const cps = characters / spoken;
+  if (characters >= 40 && (cps > MAX_CHARS_PER_SECOND || cps < MIN_CHARS_PER_SECOND)) {
+    throw new Error(
+      `Débit de voix anormal (${where}) : ${cps.toFixed(1)} caractères par seconde ` +
+        `(${characters} caractères en ${spoken.toFixed(2)} s, vitesse demandée ${clampVoiceSpeed(speed)}). ` +
+        `Le débit doit rester entre ${MIN_CHARS_PER_SECOND} et ${MAX_CHARS_PER_SECOND}. Prise refusée.`,
     );
   }
   return {
