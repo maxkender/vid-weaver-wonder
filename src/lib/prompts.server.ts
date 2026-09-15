@@ -398,11 +398,17 @@ export const TOPIC_BRIEF: Record<NarrationStyle, string> = {
  * ne suffit pas, il faut la promesse d'une révélation.
  */
 export const TOPIC_INTRIGUE = [
-  "EXIGENCE D'INTRIGUE (critère éliminatoire) : le sujet doit donner l'impression que quelque chose d'IMPOSSIBLE, de CACHÉ ou de CONTRAIRE AU BON SENS va être révélé.",
-  "Il faut une tension, un secret, une croyance renversée, ou un détail que personne ne remarque. Un sujet purement explicatif (« pourquoi tel phénomène se produit ») n'est PAS assez accrocheur : reformule-le jusqu'à ce qu'il promette une révélation.",
-  "TEST DE VALIDATION DU SUJET, à appliquer avant de répondre : en lisant le sujet seul, est-ce qu'on a envie de connaître la suite parce qu'on sent qu'on va apprendre quelque chose qui contredit ce qu'on croyait ? Si la réponse est non, propose un autre sujet.",
+  "RÈGLE DE SUJET VALIDÉE PAR LE CLIENT — ELLE PRIME SUR TOUT LE RESTE ET ELLE EST ÉLIMINATOIRE.",
+  "Les sujets ne sont NI des anecdotes historiques, NI des faits obscurs. Ce sont des QUESTIONS QUE TOUT LE MONDE S'EST DÉJÀ POSÉES, dont tout le monde croit connaître la réponse, et dont la réponse commune est FAUSSE ou INCOMPLÈTE.",
+  "TROIS FAMILLES, ET RIEN D'AUTRE :",
+  "1. LES QUESTIONS DU QUOTIDIEN : pourquoi y a-t-il des saisons, pourquoi les feuilles changent de couleur, pourquoi bâille-t-on, pourquoi a-t-on des frissons, pourquoi dort-on, qu'est-ce que l'effet de serre, pourquoi les abeilles sont vitales.",
+  "2. LES GRANDS ÉPISODES D'HISTOIRE QUE TOUT LE MONDE A ENTENDUS SANS JAMAIS COMPRENDRE : Waterloo, Tchernobyl, la peste noire, la chute de Rome, la guerre du Vietnam.",
+  "3. LES MYTHES ET FICTIONS CONNUS DE TOUS, EXPLIQUÉS OU DÉMONTÉS : le talon d'Achille, Sisyphe, le Cyclope, Spider-Man qui arrête un train.",
+  "CRITÈRE ABSOLU : le spectateur doit comprendre le sujet SANS AUCUNE CONNAISSANCE PRÉALABLE, et doit avoir DÉJÀ EU LA QUESTION EN TÊTE au moins une fois dans sa vie. Un sujet qu'il faut expliquer avant de pouvoir le poser est un MAUVAIS SUJET : remplace-le.",
+  "TEST DE VALIDATION, à appliquer avant de répondre : quelle réponse le spectateur a-t-il déjà dans la tête ? Si tu ne peux pas nommer cette réponse commune, et dire en quoi elle est fausse ou incomplète, le sujet est refusé.",
   "TEST DE SIMPLICITÉ : le sujet doit pouvoir être expliqué à un enfant de 12 ans sans aucune notion technique, sans formule et sans vocabulaire de cours de sciences.",
 ].join("\n");
+
 
 /**
  * LEVIERS VIRAUX : les 9 vidéos de référence qui marchent ont toutes de la
