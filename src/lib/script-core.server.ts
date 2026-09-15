@@ -1,5 +1,6 @@
 import { chatJSON } from "./ai-gateway.server";
 import {
+  auditSystemPrompt,
   scriptSystemPrompt,
   simplifySystemPrompt,
   scriptUserPrompt,
@@ -55,6 +56,10 @@ export type BuildScriptInput = {
   languageBrief?: string | undefined;
   /** Règles de l'accroche (page Paramètres). */
   hookBrief?: string | undefined;
+  /** Structure des plans, information nouvelle et densité (page Paramètres). */
+  structureBrief?: string | undefined;
+  /** Relecture finale « à quelle seconde je scrolle ? » (page Paramètres). */
+  auditBrief?: string | undefined;
 };
 
 /**
@@ -141,6 +146,7 @@ export async function buildScript(data: BuildScriptInput): Promise<Script> {
       },
       data.languageBrief,
       data.hookBrief,
+      data.structureBrief,
     ),
     `${scriptUserPrompt(data.kind, data.topic)}\nÉcris tout le script en ${langName}.`,
   );
@@ -160,6 +166,7 @@ export async function buildScript(data: BuildScriptInput): Promise<Script> {
     }
   }
   script.hookOptions = (script.hookOptions ?? []).map((h) => String(h).trim()).filter(Boolean);
+  script.hookScores = (script.hookScores ?? []).map((h) => String(h).trim()).filter(Boolean);
   script.hookChoice = (script.hookChoice ?? "").trim();
 
 
