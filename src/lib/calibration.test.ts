@@ -54,8 +54,16 @@ describe("budget de caractères", () => {
   }
 
   it("le débit mesuré prime sur la valeur par défaut", () => {
-    const cps = charsPerSecond("es", { chars: 710, seconds: 100, takes: 4 });
-    expect(cps).toBeCloseTo(7.1, 2);
+    // Mesure plausible (proche de la théorie) : elle fait foi.
+    const cps = charsPerSecond("fr", { chars: 2000, seconds: 100, takes: 8 });
+    expect(cps).toBeCloseTo(20, 2);
+  });
+
+  it("une mesure deux fois trop lente est écartée", () => {
+    // Cas réel : caractères comptés à moitié → 9 c/s en français. Suivre cette
+    // mesure donnerait un budget deux fois trop court (vidéo de 35 s).
+    const polluted = charsPerSecond("fr", { chars: 900, seconds: 100, takes: 8 });
+    expect(polluted).toBeGreaterThan(15);
   });
 
   it("un budget en MOTS par seconde serait cinq fois trop petit", () => {

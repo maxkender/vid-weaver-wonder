@@ -185,6 +185,9 @@ export function scriptSystemPrompt(
     chars
       ? `LONGUEUR PAR SCÈNE : chaque scène correspond à UN plan vidéo qui dure entre 6 et 8 SECONDES de parole, jamais moins. La narration d'une scène fait environ ${chars.perScene} CARACTÈRES espaces compris (entre ${Math.round(chars.perScene * 0.8)} et ${Math.round(chars.perScene * 1.2)}). Une scène trop COURTE est une erreur aussi grave qu'une scène trop longue : elle produit une coupe toutes les 4 secondes et hache la vidéo. Compte réellement les caractères de chaque scène avant de répondre et rallonge celles qui sont sous ${Math.round(chars.perScene * 0.8)} caractères.`
       : `LONGUEUR PAR SCÈNE : chaque scène correspond à UN plan vidéo qui dure entre 6 et 8 SECONDES de parole, jamais moins. La narration d'une scène fait entre ${lo} et ${hi} MOTS. Une scène trop COURTE est une erreur aussi grave qu'une scène trop longue : elle produit une coupe toutes les 4 secondes et hache la vidéo. Compte réellement les mots de chaque scène avant de répondre et rallonge celles qui sont sous ${lo} mots.`,
+    chars && chars.perScene >= 110
+      ? `CE QUE TU FAIS DE CETTE LONGUEUR : ${chars.perScene} caractères, c'est presque DEUX phrases par plan. Cette place sert à apporter de la MATIÈRE — un chiffre comparé à quelque chose de familier, un lieu précis, un geste concret, une conséquence — jamais du remplissage, jamais des adjectifs empilés, jamais une reformulation. La règle reste : une information nouvelle par plan, aucun plan supprimable sans perte.`
+      : "",
     "PAS DE PLAN DE REMPLISSAGE : aucun plan ne se contente de définir un terme, de reformuler le plan précédent ou de faire une transition. Chaque plan apporte une information nouvelle et fait avancer l'explication. Si une idée tient en trois secondes, fusionne-la avec la scène suivante plutôt que d'en faire un plan à part.",
     "Le champ overlay est le texte incrusté à l'écran : 3 à 6 mots, percutant.",
 
