@@ -81,7 +81,19 @@ const KIND_BRIEF: Record<VideoKind, string> = {
 
 /** Trois exemples verbatim de scripts qui fonctionnent : modèles de ton et de rythme. */
 const REFERENCE_EXAMPLES = [
-  "EXEMPLES DE RÉFÉRENCE (modèles de TON et de RYTHME à imiter, jamais à recopier ni à réutiliser comme sujet) :",
+  "EXEMPLES DE RÉFÉRENCE (modèles de TON et de RYTHME à imiter, jamais à recopier ni à réutiliser comme sujet). Ce sont les scripts validés par le client : ILS PRIMENT SUR TOUTE AUTRE CONSIGNE DE TON. Relis-les AVANT d'écrire.",
+  "LES NEUF ACCROCHES VALIDÉES, mot pour mot — écris une accroche de la MÊME FAMILLE : deux phrases, 20 à 30 mots, affirmation nette puis amorce de la preuve, ancrage sur du familier puis renversement :",
+  "1. « Le Spider Sense de Spider-Man n\'a pas été inventé. Il a été copié sur les vraies araignées. Et dans la nature, il fonctionne encore mieux que dans le film. »",
+  "2. « De tous les pouvoirs de Spider-Man, un seul est vraiment impossible : grimper au mur. »",
+  "3. « Un incendie assez grand ne subit plus la météo, il fabrique la sienne. »",
+  "4. « Plus tu grandis, plus le temps passe vite. Il y a une vraie raison à ça et il existe même un moyen de le ralentir. »",
+  "5. « La ville de Troie a vraiment existé. Tout le monde la croyait inventée, jusqu\'à ce qu\'un marchand allemand, obsédé par Homère, creuse en suivant le texte comme une carte et la trouve. »",
+  "6. « La scène où Spider-Man arrête un train est peut-être le moment le plus scientifiquement correct du cinéma de super-héros. »",
+  "7. « Le Cyclope de l\'Odyssée a une origine bien réelle. Les Grecs avaient des preuves : de vrais crânes géants percés d\'un trou unique. »",
+  "8. « Cette tornade qui vient de frapper la France pourrait être un avant-goût de ce qui nous attend dans les prochaines années. »",
+  "9. « Les personnes qui vivent plus de 110 ans semblent partager une particularité biologique étonnante. Elles se cachent dans leur sang. »",
+  "CHUTES VALIDÉES (le niveau exigé pour la dernière phrase : un angle neuf, un chiffre ou un paradoxe, citable telle quelle) : « Un système d\'alerte de proximité câblé dans 8 pattes. » · « Une araignée peut grimper. Une araignée de 70 kilos, non. » · « La légende disait vrai. Il fallait juste creuser. » · « Une araignée de quelques millimètres fabrique en silence ce que nos meilleures usines ne savent pas copier. »",
+  "L\'EXEMPLE 2 ci-dessous est l\'ÉTALON : preuve donnée dès la deuxième phrase, chiffres toujours comparés à du familier (« 2 fois plus gros qu\'un crâne humain », « hauts comme un mouton »), retournement marqué par « Sauf que » aux deux tiers, relances en questions courtes suivies de réponses nominales sèches, chute qui recontextualise tout avec un chiffre.",
   "EXEMPLE 1 — « Le Spider Sense de Spider-Man n'a pas été inventé. Il a été copié sur les vraies araignées. Et dans la nature, il fonctionne encore mieux que dans le film. Leurs pattes sont couvertes de poils sensoriels ultra-fins, les trichobothries. Ils ne détectent pas le contact, ils détectent l'air. Le moindre déplacement d'air autour d'elle fait vibrer ses poils. Un insecte qui approche ? Une main qui descend ? La sensibilité est telle qu'ils réagissent à des mouvements d'air 1000 fois plus faibles que ce que ton oreille peut percevoir. Résultat : une araignée sait qu'on arrive avant de nous voir. Elle sent le danger arriver dans le vide. Un système d'alerte de proximité câblé dans 8 pattes. »",
   "EXEMPLE 2 — « Le Cyclope de l'Odyssée a une origine bien réelle. Les Grecs avaient des preuves : de vrais crânes géants percés d'un trou unique. Dans des grottes de Sicile, ils déterraient des crânes énormes, 2 fois plus gros qu'un crâne humain. Et en plein centre du front, un seul trou, immense, rond, un œil unique. Pour eux, aucun doute : des géants vivaient sur cette île. Le Cyclope était né. Et ce n'est pas un hasard si l'Odyssée place les Cyclopes précisément en Sicile. Sauf que des siècles plus tard, les scientifiques ont identifié ces crânes. Des éléphants nains, hauts comme un mouton, qui vivaient sur l'île il y a des milliers d'années. Et le trou au milieu du front ? Pas un œil. La cavité de leur trompe. Le monstre le plus célèbre de la mythologie est une erreur de paléontologie commise 2 500 ans avant son invention. »",
   "EXEMPLE 3 — « Les personnes qui vivent plus de 110 ans semblent partager une particularité biologique étonnante. Elles se cachent dans leur sang et elles pourraient être l'une des clés de leur longévité. Chez les personnes de 70 à 99 ans, un certain type de cellules immunitaires représente environ 4 % des lymphocytes T. Mais chez les plus de 110 ans, cette proportion grimpe jusqu'à près de 18 %. Ces cellules sont capables de détruire des cellules anormales, notamment certaines cellules tumorales. Les chercheurs pensent donc qu'elles pourraient aider ces personnes à rester en bonne santé exceptionnellement longtemps. Mais pour l'instant, personne ne sait si elles expliquent leur longévité ou si elles en sont simplement une conséquence. »",
@@ -128,11 +140,11 @@ export function scriptSystemPrompt(
 
     "",
     `RÈGLE N°1 — L'ACCROCHE (scène 1, la partie la plus importante) :\n${hookBrief?.trim() || DEFAULT_HOOK_BRIEF}`,
-    "L'accroche est une AFFIRMATION FACTUELLE brute et surprenante. Jamais une question.",
-    "L'accroche s'appuie sur quelque chose que TOUT LE MONDE connaît déjà : un film, un personnage célèbre, un animal, un objet du quotidien, un mythe. On doit pouvoir se représenter la scène instantanément, sans explication.",
+    "L'accroche est une AFFIRMATION FACTUELLE, énoncée comme un fait. Jamais une question.",
+    "L'accroche s'appuie sur quelque chose que TOUT LE MONDE connaît déjà : un film, un personnage célèbre, un animal, un objet du quotidien, un mythe, une actualité. Puis elle dit que ce n'est pas ce qu'on croit.",
     "TEST DES 2 SECONDES : l'accroche doit être comprise SANS la moindre connaissance préalable. Interdits absolus : un nom propre inconnu du grand public, un lieu obscur, un pronom sans référent (« il », « ce », « cette »), une formule vague (« ce jour-là », « cet objet »). Si on doit attendre la scène 2 pour comprendre de QUOI on parle, l'accroche est ratée : réécris-la.",
-    "PREMIÈRE PHRASE — ELLE DÉCRIT UN ÉVÉNEMENT OU UNE IMAGE CONCRÈTE ET FRAPPANTE, quelque chose qui se voit : un geste, un choc, un objet, une scène précise. Jamais une mise en contexte, jamais une présentation de sujet, jamais un cadre général (« à telle époque, en tel lieu, on pensait que… »). Si la première phrase ne peut pas être dessinée telle quelle, réécris-la.",
-    "Le champ hook reprend exactement la ou les phrases de la scène 1.",
+    "L'accroche PEUT annoncer la conclusion (« Le Cyclope de l'Odyssée a une origine bien réelle », « La ville de Troie a vraiment existé ») : la tension porte alors sur le COMMENT, et la vidéo explique le mécanisme. Ce n'est PAS une faute.",
+    "Le champ hook reprend exactement la ou les phrases de la scène 1 (deux phrases, 20 à 30 mots).",
 
     "",
     `RÈGLE N°1 TER — STRUCTURE, INFORMATION ET DENSITÉ (aussi importante que l'accroche) :\n${structureBrief?.trim() || DEFAULT_STRUCTURE_BRIEF}`,
