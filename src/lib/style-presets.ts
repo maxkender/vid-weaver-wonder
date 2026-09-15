@@ -262,6 +262,7 @@ export function allFieldPaths(): FieldPath[] {
     ...(Object.keys(DEFAULT_VISUAL_BRIEF) as VisualStyleId[]).flatMap((id) =>
       (["brief", "quality", "motion"] as const).map((k) => visualPath(id, k)),
     ),
+    ...(["motion", "image"] as const).map((k) => openingPath(k)),
   ];
 }
 
@@ -277,8 +278,18 @@ export function loadSettings(): StudioSettings {
       ...saved,
       narration: { ...base.narration, ...(saved.narration ?? {}) },
       visual: { ...base.visual, ...(saved.visual ?? {}) },
+      opening: { ...base.opening, ...(saved.opening ?? {}) },
       customFields: saved.customFields ?? [],
     };
+
+    // Migration silencieuse du volume musical : une valeur enregistrée
+    // identique à un ancien défaut livré n'a jamais été réglée à la main.
+    if (
+      typeof saved.musicVolume === "number" &&
+      LEGACY_MUSIC_VOLUMES.some((v) => Math.abs(saved.musicVolume! - v) < 1e-6)
+    ) {
+      merged = { ...merged, musicVolume: base.musicVolume };
+    }
 
     const migrating = !Array.isArray(saved.customFields);
     const marks = new Set(merged.customFields);
