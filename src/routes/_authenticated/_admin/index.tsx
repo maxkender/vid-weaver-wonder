@@ -655,6 +655,8 @@ function Studio() {
    * de cette voix et de la vitesse retenue pour cette langue.
    */
   const langDurations = useMemo(() => {
+    const { lo, hi } = durationRange(targetSeconds);
+    const budgetSeconds = (lo + hi) / 2;
     return langs
       .map((l) => {
         const s = scriptOf(l);
@@ -672,7 +674,13 @@ function Studio() {
           return sum + predictSeconds((sc.narration ?? "").trim().length, cps, speed);
         }, 0);
         const actualChars = scriptChars(s);
-        const charsPerShot = targetCharsPerShot(l, targetSeconds, s.scenes.length, cps, baseVoiceSpeed);
+        const charsPerShot = targetCharsPerShot(
+          l,
+          budgetSeconds,
+          s.scenes.length,
+          cps,
+          baseVoiceSpeed,
+        );
         return {
           lang: l,
           seconds: total,
@@ -1378,9 +1386,10 @@ function Studio() {
           // cible de 63 s ne laisse pas le même texte qu'à 10,4 c/s.
           const cps = cpsFor(lang);
           const window = charWindow(loSec, hiSec, cps, baseVoiceSpeed);
+          const budgetSeconds = (loSec + hiSec) / 2;
           const charsPerShot = targetCharsPerShot(
             lang,
-            window.target / (cps * baseVoiceSpeed),
+            budgetSeconds,
             doc.scenes.length,
             cps,
             baseVoiceSpeed,
@@ -1453,6 +1462,13 @@ function Studio() {
               (scene) =>
                 Math.abs(scene.narration.trim().length - charsPerShot) / charsPerShot > 0.15,
             );
+          const planError = (scenes: TransRes["scenes"]) =>
+            scenes.reduce(
+              (sum, scene) =>
+                sum + Math.abs(scene.narration.trim().length - charsPerShot) / charsPerShot,
+              0,
+            );
+          let bestPlanError = planError(res.scenes);
           for (
             let pass = 0;
             pass < MAX_CONDENSE_PASSES &&
@@ -1467,11 +1483,13 @@ function Studio() {
             );
             res = await callTranslate(res, true, mode);
             const g = gap(predicted(res.scenes));
-            if (g < bestGap) {
+            const nextPlanError = planError(res.scenes);
+            if (g < bestGap || (g === bestGap && nextPlanError < bestPlanError)) {
               best = res;
               bestGap = g;
+              bestPlanError = nextPlanError;
             }
-            if (bestGap === 0) break;
+            if (bestGap === 0 && !hasPlanOutsideTolerance(best.scenes)) break;
           }
           res = best;
           if (bestGap > 0) {
@@ -1503,6 +1521,22 @@ function Studio() {
               overlay: byIndex.get(s.index)?.overlay ?? s.overlay,
             })),
           }) as Script;
+          // Une ancienne voix ne doit jamais survivre à un changement de texte :
+          // la nouvelle traduction finale sera synthétisée une seule fois ensuite.
+          const previous = scriptsRef.current[lang];
+          if (previous && sourceSignature(previous) !== sourceSignature(next[lang])) {
+            setStates((current) => {
+              const cleaned = { ...current };
+              for (const scene of next[lang].scenes) {
+                const state = cleaned[scene.index];
+                if (!state?.voices?.[lang]) continue;
+                const voices = { ...state.voices };
+                delete voices[lang];
+                cleaned[scene.index] = { ...state, voices };
+              }
+              return cleaned;
+            });
+          }
           // Mémorise le texte source d'où vient cette traduction : tant qu'il
           // ne change pas, on ne repaiera jamais la même traduction.
           translationSourceRef.current[lang] = sig;

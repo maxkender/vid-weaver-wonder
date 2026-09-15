@@ -72,10 +72,22 @@ export function targetCharsPerShot(
 
 /** Assertion chargée avec le module : 64 s / 8 plans à 10,9 car/s vaut ~87 car/plan. */
 function assertTranslationBudgetUnits() {
-  for (const language of ["fr", "en", "es", "de", "it"]) {
-    const budget = targetCharsPerShot(language, 64, 8, 10.9);
-    if (budget < 70 || budget > 95) {
-      throw new Error(`Budget de traduction invalide (${language}) : ${budget} caractères/plan`);
+  const frenchBudget = targetCharsPerShot("fr", 64, 8, 10.9);
+  if (frenchBudget < 70 || frenchBudget > 95) {
+    throw new Error(`Budget de traduction invalide (fr) : ${frenchBudget} caractères/plan`);
+  }
+  const measuredByLanguage: Record<string, number> = {
+    fr: 10.9,
+    en: 8.7,
+    es: 7.1,
+    de: 7.7,
+    it: 8.3,
+  };
+  for (const [language, cps] of Object.entries(measuredByLanguage)) {
+    const budget = targetCharsPerShot(language, 64, 8, cps);
+    const predicted = predictSeconds(budget * 8, cps);
+    if (Math.abs(predicted - 64) / 64 > 0.05) {
+      throw new Error(`Budget de traduction incohérent (${language}) : ${predicted.toFixed(1)} s`);
     }
   }
 }

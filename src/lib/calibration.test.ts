@@ -12,11 +12,18 @@ const HI = 66;
 const MID = (LO + HI) / 2;
 
 describe("budget de caractères", () => {
-  for (const lang of MASTER_LANGUAGE_IDS) {
-    it(`${lang} : 64 secondes sur 8 plans donnent 70 à 95 caractères par plan`, () => {
-      const budget = targetCharsPerShot(lang, 64, 8, 10.9);
+  it("fr : 64 secondes sur 8 plans donnent 70 à 95 caractères par plan", () => {
+      const budget = targetCharsPerShot("fr", 64, 8, 10.9);
       expect(budget).toBeGreaterThanOrEqual(70);
       expect(budget).toBeLessThanOrEqual(95);
+  });
+
+  for (const lang of MASTER_LANGUAGE_IDS) {
+    it(`${lang} : le budget par plan prédit bien 64 secondes au total`, () => {
+      const cps = MEASURED[lang] ?? DEFAULT_CHARS_PER_SECOND[lang]!;
+      const budget = targetCharsPerShot(lang, 64, 8, cps);
+      expect(predictSeconds(budget * 8, cps)).toBeGreaterThanOrEqual(64 * 0.95);
+      expect(predictSeconds(budget * 8, cps)).toBeLessThanOrEqual(64 * 1.05);
     });
   }
 
