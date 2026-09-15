@@ -369,6 +369,12 @@ function SettingsPage() {
             Sert au récapitulatif de coût affiché après chaque vidéo. Tant que ces champs sont
             vides, seules les quantités sont affichées : aucun prix n'est inventé.
           </span>
+          <span className="-mt-2 block text-xs text-muted-foreground">
+            Tarifs publics du fournisseur (Veo 3.1 Lite) : environ 0,03 $ par seconde de vidéo
+            quand l'audio natif est désactivé — ce que ce studio demande systématiquement,
+            l'audio étant refait avec les voix off — et 0,05 $ par seconde sinon. La passerelle
+            peut appliquer sa propre marge : renseigne ici ton tarif réel en euros.
+          </span>
 
           <label className="flex items-start gap-3 text-sm">
             <input
