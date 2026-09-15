@@ -8,7 +8,9 @@ import {
   estimateProduction,
   getAdminVideoLink,
   getDistribution,
+  listFailedJobs,
   produceNow,
+  retryJob,
   setDailyVideoStatus,
   updateDailyVideo,
   updateDistributionSettings,
@@ -17,6 +19,7 @@ import { MASTER_LANGUAGES } from "@/lib/languages";
 
 type Distribution = Awaited<ReturnType<typeof getDistribution>>;
 type Estimate = Awaited<ReturnType<typeof estimateProduction>>;
+type FailedJob = Awaited<ReturnType<typeof listFailedJobs>>[number];
 
 function isoDay(d: Date) {
   return d.toISOString().slice(0, 10);
