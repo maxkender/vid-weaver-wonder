@@ -1303,6 +1303,8 @@ function Studio() {
                 charMin: window.min,
                 charMax: window.max,
                 charMode: mode,
+                // Une traduction ne remonte jamais d'un cran en niveau de langue.
+                languageBrief: settings.guides.language,
               },
             }).then((r) => {
               bumpUsage((u) => ({
