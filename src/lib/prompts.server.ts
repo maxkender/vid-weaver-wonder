@@ -207,11 +207,21 @@ export function translationSystemPrompt(
     "Ce n'est PAS du mot à mot : écris comme un natif écrirait, avec le rythme et les tournures naturelles de la langue.",
     "Tous les CHIFFRES, dates, proportions, unités et noms propres sont repris à l'identique.",
     "STYLE CONSERVÉ : phrases très courtes, phrases nominales et fragments autorisés, tutoiement (ou l'équivalent naturel et familier de la langue), ton oral et direct, jamais publicitaire. Aucun emoji, aucun point d'exclamation.",
-    `CONTRAINTE DE DURÉE PAR PLAN : chaque narration traduite doit pouvoir être lue à voix haute en moins de ${maxSeconds} secondes, soit ${maxWordsPerScene} MOTS MAXIMUM par scène. Compte les mots. Si la traduction naturelle dépasse, CONDENSE : supprime les redondances et les mots de liaison, garde TOUS les chiffres et toute l'information.`,
+    // Quand le budget de CARACTÈRES est fourni (débit réel de la voix), il
+    // remplace toutes les consignes en MOTS : deux unités concurrentes dans le
+    // même prompt, c'est la garantie d'un texte deux fois trop court.
     chars
-      ? `BUDGET DE CARACTÈRES — CONTRAINTE PRIORITAIRE, mesurée sur la voix réelle de cette langue : le script complet (somme de toutes les narrations, hook et cta inclus s'ils existent) doit tenir en ${chars.total} CARACTÈRES AU MAXIMUM, soit environ ${chars.perScene} caractères par scène. Compte les caractères, espaces compris, avant de répondre. Une traduction n'est pas un calque : si tu dépasses, coupe les redondances, les adverbes, les reformulations et les mots de liaison. Garde le sens, le ton, tous les chiffres et toute l'information. Ne descends pas sous 80 % de ce budget.`
-      : "",
-    total
+      ? [
+          `BUDGET DE CARACTÈRES — CONTRAINTE PRIORITAIRE ET UNIQUE MESURE DE LONGUEUR, calculée sur le débit réel de la voix de cette langue : le script complet (somme de toutes les narrations) doit faire ${chars.target} CARACTÈRES, espaces compris, avec une marge de ±5 %. Jamais moins de ${chars.min}, jamais plus de ${chars.max}. Soit environ ${chars.perScene} caractères par scène.`,
+          "Compte réellement les caractères de l'ensemble AVANT de répondre. Un script trop COURT est une faute aussi grave qu'un script trop long : la vidéo dure alors deux fois moins que le format visé.",
+          chars.mode === "lengthen"
+            ? "LE TEXTE ACTUEL EST TROP COURT : tu dois l'ALLONGER pour atteindre le budget. Tu étoffes avec du détail CONCRET déjà impliqué par le sens (date, lieu, nom, chiffre, conséquence matérielle, précision sensorielle). Tu n'inventes aucun fait, tu n'ajoutes ni morale, ni publicité, ni remplissage, ni répétition."
+            : chars.mode === "shorten"
+              ? "LE TEXTE ACTUEL EST TROP LONG : tu dois le CONDENSER pour revenir dans le budget. Tu coupes les redondances, les adverbes, les reformulations et les mots de liaison. Tu gardes le sens, le ton, tous les chiffres et toute l'information."
+              : "Ajuste dans les deux sens si besoin : condense ce qui dépasse, étoffe ce qui est trop court.",
+        ].join("\n")
+      : `CONTRAINTE DE DURÉE PAR PLAN : chaque narration traduite doit pouvoir être lue à voix haute en moins de ${maxSeconds} secondes, soit ${maxWordsPerScene} MOTS MAXIMUM par scène. Compte les mots. Si la traduction naturelle dépasse, CONDENSE : supprime les redondances et les mots de liaison, garde TOUS les chiffres et toute l'information.`,
+    !chars && total
       ? `CIBLE DE DURÉE TOTALE (aussi importante que le plafond par plan) : lue à voix haute en ${langName}, la somme de toutes les narrations doit durer entre ${total.minSeconds} et ${total.maxSeconds} secondes, soit entre ${total.minWords} et ${total.maxWords} mots au total. Compte les mots de l'ensemble avant de répondre. Si tu es en dessous, ÉTOFFE légèrement les scènes (précisions concrètes déjà présentes dans le sens du texte) ; si tu es au-dessus, CONDENSE. Dans les deux cas : même nombre de scènes, mêmes index, tous les chiffres conservés.`
       : "",
     "Le mot « Sophia » reste « Sophia » dans toutes les langues.",
