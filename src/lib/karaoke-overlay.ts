@@ -25,9 +25,25 @@ export const CAPTION_SIZE_RATIO = 0.081;
 /** Largeur maximale d'une ligne, relative au côté du carré (0.86 / 0.88). */
 export const CAPTION_MAX_WIDTH_RATIO = 0.86 / 0.88;
 
+/**
+ * PONCTUATION : on retire la ponctuation COLLÉE au bord d'un mot (« : son »,
+ * « pluie. », « — alors »). L'apostrophe et le trait d'union À L'INTÉRIEUR d'un
+ * mot sont conservés (l'été, au-dessus), car ils ne sont jamais en bordure.
+ */
+const EDGE_PUNCT = /^[\p{P}\p{S}\s]+|[\p{P}\p{S}\s]+$/gu;
+
+/** Mot nettoyé de sa ponctuation de bord. Peut renvoyer une chaîne vide. */
+export function cleanToken(word: string) {
+  return String(word ?? "").replace(EDGE_PUNCT, "").replace(/\s+/g, " ").trim();
+}
+
+/** Un token sans lettre ni chiffre n'est jamais affiché seul. */
+export const hasLetterOrDigit = (word: string) => /[\p{L}\p{N}]/u.test(word ?? "");
+
 /** On garde la casse d'origine (majuscule de début de phrase, noms propres). */
 const cleanWord = (w: string) =>
-  w.replace(/[«»"]/g, "").replace(/\s+/g, " ").trim();
+  cleanToken(w.replace(/[«»"]/g, ""));
+
 
 /**
  * Dessine la phrase sur une seule ligne, en blanc uni, sans zoom.
