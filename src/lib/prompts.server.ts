@@ -99,6 +99,7 @@ export function scriptSystemPrompt(
     "RÈGLE N°1 — L'ACCROCHE (scène 1, la partie la plus importante) : une AFFIRMATION FACTUELLE brute et surprenante, en une ou deux phrases courtes, lue en moins de 4 secondes. Jamais une question. Jamais « saviez-vous que ».",
     "L'accroche s'appuie sur quelque chose que TOUT LE MONDE connaît déjà : un film, un personnage célèbre, un animal, un objet du quotidien, un mythe. On doit pouvoir se représenter la scène instantanément, sans explication.",
     "TEST DES 2 SECONDES : l'accroche doit être comprise SANS la moindre connaissance préalable. Interdits absolus : un nom propre inconnu du grand public, un lieu obscur, un pronom sans référent (« il », « ce », « cette »), une formule vague (« ce jour-là », « cet objet »). Si on doit attendre la scène 2 pour comprendre de QUOI on parle, l'accroche est ratée : réécris-la.",
+    "PREMIÈRE PHRASE — ELLE DÉCRIT UN ÉVÉNEMENT OU UNE IMAGE CONCRÈTE ET FRAPPANTE, quelque chose qui se voit : un geste, un choc, un objet, une scène précise. Jamais une mise en contexte, jamais une présentation de sujet, jamais un cadre général (« à telle époque, en tel lieu, on pensait que… »). Si la première phrase ne peut pas être dessinée telle quelle, réécris-la.",
     "Le champ hook reprend exactement la ou les phrases de la scène 1.",
 
     "",
