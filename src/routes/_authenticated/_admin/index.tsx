@@ -2164,6 +2164,20 @@ function Studio() {
       .map((s) => ({ scene: s, st: (snapshot[s.index] ?? {}) as SceneState }))
       .filter((x) => Boolean(x.st.videoUrl || x.st.image));
     if (!all.length) throw new Error("Aucune scène à assembler.");
+    // CONTRÔLE DE COMPLÉTUDE : on ne monte jamais une vidéo amputée en
+    // silence. Les plans sans aucun média sont nommés (numéro = index + 1).
+    const absent = (doc?.scenes ?? [])
+      .filter((s) => !all.some((x) => x.scene.index === s.index))
+      .map((s) => s.index + 1);
+    if (absent.length) {
+      throw new Error(
+        `Montage annulé : ${absent.length > 1 ? "les plans" : "le plan"} ${absent.join(
+          ", ",
+        )} n'${absent.length > 1 ? "ont" : "a"} ni image ni clip enregistré (${all.length}/${
+          doc?.scenes.length ?? 0
+        } plans présents). Régénère ${absent.length > 1 ? "ces plans" : "ce plan"} avant d'assembler.`,
+      );
+    }
 
     // Un plan sans voix off produirait un blanc silencieux : on tente de
     // refabriquer la voix manquante de CETTE langue avant d'assembler.
