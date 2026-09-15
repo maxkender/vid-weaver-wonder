@@ -126,7 +126,11 @@ export const updateMyProfile = createServerFn({ method: "POST" })
       .parse(d),
   )
   .handler(async ({ context, data }) => {
-    const patch: Record<string, unknown> = {};
+    const patch: {
+      full_name?: string;
+      country?: string | null;
+      language?: string;
+    } = {};
     if (data.fullName !== undefined) patch["full_name"] = data.fullName.trim();
     if (data.country !== undefined) patch["country"] = data.country.trim().toUpperCase();
     if (data.language !== undefined) patch["language"] = data.language;
