@@ -142,7 +142,7 @@ export async function generateElevenSpeechWithTimings(
   language = "fr",
   context?: string,
   speed = DEFAULT_VOICE_SPEED,
-): Promise<{ audioDataUrl: string; words: WordTiming[] }> {
+): Promise<{ audioDataUrl: string; words: WordTiming[]; characters: number }> {
   const apiKey = apiKeyOrThrow();
   const where = `${context ? `${context} — ` : ""}langue « ${language} »`;
 
@@ -151,6 +151,9 @@ export async function generateElevenSpeechWithTimings(
     alignment?: Alignment;
     normalized_alignment?: Alignment;
   };
+  // Coût réel : ElevenLabs facture au CARACTÈRE (1 crédit par caractère) et
+  // renvoie son propre décompte dans un en-tête quand il est disponible.
+  let characters = text.length;
   try {
     const res = await callEleven(
       `/v1/text-to-speech/${voiceId}/with-timestamps`,
@@ -160,6 +163,10 @@ export async function generateElevenSpeechWithTimings(
       voiceId,
       speed,
     );
+    const reported = Number(
+      res.headers.get("character-cost") ?? res.headers.get("x-character-cost") ?? "",
+    );
+    if (Number.isFinite(reported) && reported > 0) characters = reported;
     json = (await res.json()) as typeof json;
   } catch (e) {
     throw new Error(
@@ -178,7 +185,7 @@ export async function generateElevenSpeechWithTimings(
       `Alignement mot à mot vide (${where}). Aucune vidéo n'est montée sans sous-titres calés sur la voix réelle.`,
     );
   }
-  return { audioDataUrl: `data:audio/mpeg;base64,${json.audio_base64}`, words };
+  return { audioDataUrl: `data:audio/mpeg;base64,${json.audio_base64}`, words, characters };
 }
 
 /** Voix FR recommandées, épinglées en tête de liste quand la langue active est le français. */
