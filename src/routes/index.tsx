@@ -660,6 +660,7 @@ function Studio() {
   const onConfirmLaunch = () => {
     const resolve = confirmResolverRef.current;
     confirmResolverRef.current = null;
+    confirmOpenRef.current = false;
     setConfirmOpen(false);
     resolve?.(true);
   };
@@ -667,6 +668,7 @@ function Studio() {
   const onCancelLaunch = () => {
     const resolve = confirmResolverRef.current;
     confirmResolverRef.current = null;
+    confirmOpenRef.current = false;
     setConfirmOpen(false);
     resolve?.(false);
   };
