@@ -32,6 +32,14 @@ export type BuildScriptInput = {
   includeCta?: boolean | undefined;
   /** Faits vérifiés : seule source de chiffres et d'affirmations autorisée. */
   facts?: string[] | undefined;
+  /**
+   * Débit MESURÉ de la voix source (caractères par seconde à la vitesse 1,0).
+   * C'est lui qui fixe la longueur du script : une estimation en mots fait
+   * dériver le français de plus de dix secondes.
+   */
+  sourceCharsPerSecond?: number | undefined;
+  /** Vitesse de synthèse prévue pour la voix source. */
+  voiceSpeed?: number | undefined;
 };
 
 /**
