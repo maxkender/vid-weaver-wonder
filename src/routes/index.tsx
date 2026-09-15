@@ -3274,6 +3274,11 @@ function Studio() {
                         . Ajuste le script avant d'animer les plans.
                       </span>
                     )}
+                    {durationOverflow.length > 0 && (
+                      <span className="w-full font-medium text-destructive">
+                        {durationBlockMessage}
+                      </span>
+                    )}
                   </div>
                 );
               })()}
