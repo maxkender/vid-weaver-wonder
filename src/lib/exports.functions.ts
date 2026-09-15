@@ -8,6 +8,25 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+
+/** Date du jour au format AAAA-MM-JJ. */
+function isoDay(d: Date) {
+  return d.toISOString().slice(0, 10);
+}
+
+/** Garde-fou : seul un administrateur range une vidéo dans la diffusion. */
+async function requireAdmin(context: unknown) {
+  const ctx = context as { supabase: any; userId: string };
+  const { data } = await ctx.supabase.rpc("has_role", {
+    _user_id: ctx.userId,
+    _role: "admin",
+  });
+  if (!data) throw new Error("Accès réservé à l'administrateur.");
+  return ctx.userId;
+}
+
+
 /** Chemin d'un export : studio/{projet}/{langue}.mp4 */
 function exportPath(projectId: string, language: string) {
   const safe = (s: string) => s.replace(/[^A-Za-z0-9_-]/g, "").slice(0, 64);
