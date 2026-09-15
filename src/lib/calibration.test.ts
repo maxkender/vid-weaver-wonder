@@ -45,7 +45,7 @@ describe("budget de caractères", () => {
 
   it("un budget en MOTS par seconde serait cinq fois trop petit", () => {
     // Garde-fou d'unité : 63 s × 3,2 mots/s = 202 « caractères » — absurde.
-    const w = charWindow(LO, HI, MEASURED.fr!, 1);
+    const w = charWindow(LO, HI, MEASURED['fr']!, 1);
     expect(w.target).toBeGreaterThan(3 * Math.round(MID * 3.2));
   });
 });
