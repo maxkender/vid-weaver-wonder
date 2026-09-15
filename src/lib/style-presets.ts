@@ -83,6 +83,8 @@ export type StudioSettings = {
     VisualStyleId,
     { brief: string; quality: string; motion: string; square: boolean }
   >;
+  /** Consignes propres au plan 1 (accroche), appliquées à tous les styles. */
+  opening: { motion: string; image: string };
   /** Cohérence visuelle : réutiliser la 1ʳᵉ image comme référence des suivantes. */
   useReferenceImage: boolean;
   /** Volume de la musique de fond dans l'export. */
