@@ -1893,14 +1893,23 @@ function Studio() {
         "Aucune musique dans la banque : ajoute des MP3 dans « Musiques » pour qu'elles soient mixées.",
       );
 
+    // Niveau de la voix mesuré ICI, dans le navigateur (quelques millisecondes)
+    // au lieu d'une passe `loudnorm` dans ffmpeg, qui faisait tourner tout le
+    // graphe audio à 192 kHz et triplait la durée du montage.
+    const { measureVoiceGainDb } = await import("@/lib/audio-gain");
+    const voiceGainDb = await measureVoiceGainDb(withDurations.map((s) => s.audio));
+
     const blob = await assembleVideo(withDurations, {
       ...dims,
       music: track?.blob ?? undefined,
       musicVolume: settings.musicVolume,
+      musicGainDb: track?.gainDb ?? 0,
+      voiceGainDb,
       langLabel: languageLabel(lang),
       onStretchWarning: (message) => toast.warning(message),
       onProgress: (step) => setAssembleStep(`${languageLabel(lang)} — ${step}`),
     });
+
 
     if (projectId && lang === sourceLang) {
       const { saveFinalVideo } = await import("@/lib/project-store");
@@ -2003,14 +2012,33 @@ function Studio() {
     if (readyScenes.length === 0) return;
     setAssembling(true);
     setAssembleStep("Préparation…");
+    const failedLangs: string[] = [];
     try {
       for (const lang of langs) {
         if (cancelledRef.current) break; // arrêt vérifié entre chaque langue
-        await buildFinalVideo(states, false, undefined, lang);
+        // Une langue en échec est signalée, les suivantes continuent.
+        try {
+          await buildFinalVideo(states, false, undefined, lang);
+        } catch (e) {
+          console.error(e);
+          failedLangs.push(languageLabel(lang));
+          toast.error(
+            `Montage ${languageLabel(lang)} échoué : ${e instanceof Error ? e.message : String(e)}`,
+          );
+        }
+        try {
+          (await loadAssembler()).assemble.resetFFmpeg();
+        } catch {
+          /* sans gravité */
+        }
+      }
+      if (failedLangs.length) {
+        toast.warning(`Langues non montées : ${failedLangs.join(", ")}`);
       }
     } catch (e) {
       console.error(e);
       toast.error(e instanceof Error ? e.message : "Échec de l'assemblage");
+
     } finally {
       setAssembling(false);
       setCurrentStep(cancelledRef.current ? "Pipeline arrêté" : "");
@@ -2119,11 +2147,32 @@ function Studio() {
       for (const [i, st] of results) snapshot[i] = st as SceneState;
 
       // g — montage : une vidéo par langue, avec les MÊMES clips.
+      // Chaque langue est isolée : une langue en échec n'annule plus les autres.
+      const failedLangs: string[] = [];
       for (const lang of langs) {
         if (cancelledRef.current) break; // arrêt vérifié entre chaque langue
         setCurrentStep(`Montage — ${languageLabel(lang)}…`);
-        await buildFinalVideo(snapshot, true, doc, lang);
+        try {
+          await buildFinalVideo(snapshot, true, doc, lang);
+        } catch (e) {
+          console.error(e);
+          failedLangs.push(languageLabel(lang));
+          toast.error(
+            `Montage ${languageLabel(lang)} échoué : ${e instanceof Error ? e.message : String(e)}`,
+          );
+        }
+        // Moteur de montage recyclé entre deux langues : sa mémoire ne
+        // s'accumule plus au fil du rendu.
+        try {
+          (await loadAssembler()).assemble.resetFFmpeg();
+        } catch {
+          /* sans gravité */
+        }
       }
+      if (failedLangs.length) {
+        toast.warning(`Langues non montées : ${failedLangs.join(", ")}`);
+      }
+
     } catch (e) {
       console.error(e);
       toast.error(e instanceof Error ? e.message : "Échec de l'export complet");

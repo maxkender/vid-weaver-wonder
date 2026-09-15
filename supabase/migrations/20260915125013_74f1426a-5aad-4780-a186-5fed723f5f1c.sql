@@ -1,0 +1,1 @@
+ALTER TABLE public.music_tracks ADD COLUMN IF NOT EXISTS gain_db double precision;

@@ -124,12 +124,18 @@ function StationPage() {
 
     // Même banque musicale que le studio : pilotée par le style de NARRATION.
     const track = await randomTrack(task.narrationStyle);
+    // Niveaux mesurés dans le navigateur, appliqués comme gain statique.
+    const { measureVoiceGainDb } = await import("@/lib/audio-gain");
+    const voiceGainDb = await measureVoiceGainDb(scenes.map((s) => s.audio));
     const blob = await assembleVideo(scenes, {
       ...dims,
       music: track?.blob ?? undefined,
       musicVolume: 0.22,
+      musicGainDb: track?.gainDb ?? 0,
+      voiceGainDb,
       onProgress: (s) => setStep(s),
     });
+
 
     setStep("Envoi de la vidéo…");
     const { error } = await supabase.storage

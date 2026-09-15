@@ -10,8 +10,10 @@ import {
   deleteMusicTrack,
   listMusicTracks,
   registerMusicTrack,
+  setMusicTrackGain,
   type MusicTrackRow,
 } from "./music.functions";
+import { TARGET_MUSIC_DBFS, measureGainDb } from "./audio-gain";
 
 export type MusicTrack = {
   id: string;
@@ -21,6 +23,8 @@ export type MusicTrack = {
   path: string;
   url: string;
   durationSec: number;
+  /** Gain de normalisation mesuré une seule fois (dB). */
+  gainDb: number | null;
 };
 
 function toTrack(r: MusicTrackRow): MusicTrack {
@@ -31,6 +35,7 @@ function toTrack(r: MusicTrackRow): MusicTrack {
     path: r.path,
     url: r.url,
     durationSec: r.durationSec,
+    gainDb: r.gainDb,
   };
 }
 
@@ -63,8 +68,11 @@ async function uploadTrack(style: string, file: File, durationSec: number) {
     .from(bucket)
     .uploadToSignedUrl(path, token, file, { contentType: file.type || "audio/mpeg" });
   if (error) throw new Error(error.message);
+  // Niveau mesuré UNE SEULE FOIS, à l'ajout : plus aucune normalisation
+  // au montage, donc plus de passe ffmpeg coûteuse par langue.
+  const gainDb = await measureGainDb(file, TARGET_MUSIC_DBFS);
   await registerMusicTrack({
-    data: { name: file.name, path, durationSec, styles: [style] },
+    data: { name: file.name, path, durationSec, styles: [style], gainDb },
   });
 }
 
@@ -73,6 +81,7 @@ export async function addTracks(style: string, files: File[]): Promise<void> {
     await uploadTrack(style, file, await fileDuration(file));
   }
 }
+
 
 export async function listTracks(): Promise<MusicTrack[]> {
   const rows = (await listMusicTracks()) as MusicTrackRow[];
@@ -107,8 +116,23 @@ export async function randomTrack(
   const source = pool.length > 0 ? pool : all;
   if (source.length === 0) return null;
   const pick = source[Math.floor(Math.random() * source.length)]!;
-  return { ...pick, blob: await fetchTrackBlob(pick) };
+  const blob = await fetchTrackBlob(pick);
+  let gainDb = pick.gainDb;
+  // Morceau ajouté avant la mesure : on le mesure à la volée, une seule fois,
+  // et on enregistre le résultat pour tous les montages suivants.
+  if (gainDb === null && blob) {
+    gainDb = await measureGainDb(blob, TARGET_MUSIC_DBFS);
+    if (gainDb !== null) {
+      try {
+        await setMusicTrackGain({ data: { id: pick.id, gainDb } });
+      } catch {
+        /* sans gravité : on remesurera au prochain usage */
+      }
+    }
+  }
+  return { ...pick, gainDb, blob };
 }
+
 
 /** Nombre de musiques du style demandé et nombre total, pour l'affichage. */
 export async function countTracks(style: string): Promise<{ forStyle: number; total: number }> {

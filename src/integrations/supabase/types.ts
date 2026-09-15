@@ -322,6 +322,7 @@ export type Database = {
         Row: {
           created_at: string
           duration_sec: number
+          gain_db: number | null
           id: string
           name: string
           path: string
@@ -331,6 +332,7 @@ export type Database = {
         Insert: {
           created_at?: string
           duration_sec?: number
+          gain_db?: number | null
           id?: string
           name: string
           path: string
@@ -340,6 +342,7 @@ export type Database = {
         Update: {
           created_at?: string
           duration_sec?: number
+          gain_db?: number | null
           id?: string
           name?: string
           path?: string

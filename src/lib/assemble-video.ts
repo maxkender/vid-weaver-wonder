@@ -3,7 +3,9 @@ import { fetchFile } from "@ffmpeg/util";
 import coreURL from "@ffmpeg/core?url";
 import wasmURL from "@ffmpeg/core/wasm?url";
 import { videoDuration } from "./duration";
+import { linearToDb } from "./audio-gain";
 import type { CaptionCue } from "./karaoke-overlay";
+
 
 /** Cadence unique de tout le pipeline (studio ET service de rendu). */
 export const OUTPUT_FPS = 30;
@@ -13,12 +15,12 @@ export const OUTPUT_FPS = 30;
  */
 const MAX_STRETCH = 1.2;
 /**
- * Normalisation de sonie (EBU R128), une passe. Voix ET musique passent par la
- * même cible : la musique est ensuite posée à un niveau FIXE sous la voix,
- * au lieu d'un pourcentage d'un signal dont le niveau varie selon le narrateur.
+ * PAS de `loudnorm` ici : en passe unique il bascule en mode dynamique, ce qui
+ * force tout le graphe audio à 192 kHz et multipliait par trois la durée du
+ * montage. Le niveau est mesuré dans le navigateur (src/lib/audio-gain.ts) et
+ * appliqué comme un simple gain statique, plan par plan.
  */
-const LOUDNORM = "loudnorm=I=-16:TP=-1.5:LRA=11";
-const VOICE_LOUDNORM = LOUDNORM;
+
 /** Au-delà de cet étirement, on accélère d'abord un peu la voix. */
 const STRETCH_BEFORE_TEMPO = 1.25;
 /** Accélération maximale de la voix (inaudible à ce niveau). */
@@ -75,11 +77,12 @@ async function getFFmpeg() {
   return ffmpeg;
 }
 
-function lastErrors() {
+/** Lignes du log qui ressemblent vraiment à une erreur, sinon null. */
+function lastErrors(): string | null {
   const errs = logLines.filter((l) =>
     /error|invalid|no such|failed|unable|abort|memory|exit code/i.test(l),
   );
-  return (errs.length ? errs : logLines).slice(-8).join(" | ");
+  return errs.length ? errs.slice(-6).join(" | ") : null;
 }
 
 /** Repart d'une instance propre : une instance en échec (mémoire saturée) reste inutilisable. */
@@ -92,18 +95,27 @@ export function resetFFmpeg() {
   ffmpegInstance = null;
 }
 
+function failure(label: string, detail: string | null) {
+  return new Error(
+    detail
+      ? `${label} : ${detail}`
+      : `${label} : ffmpeg s'est arrêté sans message — probablement un manque de mémoire.`,
+  );
+}
+
 async function run(ffmpeg: FFmpeg, args: string[], label: string) {
   logLines.length = 0;
   let code: number;
   try {
     code = await ffmpeg.exec(args);
   } catch (e) {
-    throw new Error(`${label} : ${lastErrors() || (e as Error)?.message || "échec ffmpeg"}`);
+    throw failure(label, lastErrors() ?? (e as Error)?.message ?? null);
   }
   if (code !== 0) {
-    throw new Error(`${label} : ${lastErrors() || `ffmpeg code ${code}`}`);
+    throw failure(label, lastErrors());
   }
 }
+
 
 /**
  * Assemble every scene (video + optional voiceover) into a single MP4,
@@ -116,6 +128,10 @@ async function assembleVideoInner(
     height: number;
     music?: Blob | undefined;
     musicVolume?: number | undefined;
+    /** Gain statique appliqué à la voix de cette langue (dB), mesuré en amont. */
+    voiceGainDb?: number | undefined;
+    /** Gain statique du morceau de musique (dB), mesuré une seule fois. */
+    musicGainDb?: number | undefined;
     /** Langue du montage, pour nommer la langue dans les avertissements. */
     langLabel?: string | undefined;
     /** Signalé quand un plan doit être ralenti au-delà du plafond. */
@@ -128,10 +144,13 @@ async function assembleVideoInner(
     height,
     music,
     musicVolume = 0.22,
+    voiceGainDb = 0,
+    musicGainDb = 0,
     langLabel,
     onStretchWarning,
     onProgress,
   } = opts;
+
   const ffmpeg = await getFFmpeg();
   const parts: string[] = [];
 
@@ -163,31 +182,38 @@ async function assembleVideoInner(
           : 4;
 
     const clipLen = stillOnly ? 0 : await videoDuration(scene.videoUrl!);
+    if (!stillOnly && !(clipLen > 0.2)) {
+      // Durée illisible = clip non chargé. Continuer produirait une dernière
+      // image figée en silence : on préfère une erreur explicite.
+      throw new Error(
+        `Plan ${i + 1}${langLabel ? ` (${langLabel})` : ""} : la durée du clip animé n'a pas pu être lue (fichier introuvable ou illisible). Montage interrompu.`,
+      );
+    }
     let tempo = 1; // accélération de la voix
     let stretch = 1; // ralentissement du clip
-    if (!stillOnly && clipLen > 0.2 && target > clipLen) {
+    if (!stillOnly && target > clipLen) {
       const needed = target / clipLen;
       if (needed > STRETCH_BEFORE_TEMPO) {
         // On gagne d'abord un peu sur la voix (inaudible), puis on étire le clip.
         tempo = Math.min(MAX_TEMPO, needed / STRETCH_BEFORE_TEMPO);
       }
-      stretch = Math.min(MAX_STRETCH, target / tempo / clipLen);
-      // Filet de sécurité : si les plafonds (étirement 1,2 / voix 1,12) laissent
-      // la piste vidéo plus courte que la voix, le lecteur figerait la dernière
-      // image — exactement ce qu'on veut supprimer. On dépasse donc volontairement
-      // le plafond d'étirement : un plan très ralenti reste bien préférable à
-      // une image gelée en fin de plan. Mais ce n'est plus masqué : on le signale,
-      // c'est un défaut de calibrage du script, pas un aléa de montage.
       const needTotal = target / tempo / clipLen;
-      if (needTotal > stretch) {
-        stretch = needTotal;
+      // Le plafond est RÉELLEMENT appliqué : au-delà de 1,2× l'image devient
+      // molle. On ne ralentit pas davantage, on signale le plan et la langue —
+      // c'est un défaut de calibrage du script, à corriger en amont.
+      stretch = Math.min(MAX_STRETCH, needTotal);
+      if (needTotal > MAX_STRETCH + 0.001) {
         onStretchWarning?.(
-          `Plan ${i + 1}${langLabel ? ` (${langLabel})` : ""} : la voix dure ${target.toFixed(1)} s pour un clip de ${clipLen.toFixed(1)} s. L'image est ralentie ×${needTotal.toFixed(2)} et paraîtra molle — le texte de ce plan est trop long pour un clip de 8 s.`,
+          `Plan ${i + 1}${langLabel ? ` (${langLabel})` : ""} : la voix dure ${target.toFixed(1)} s pour un clip de ${clipLen.toFixed(1)} s. Il faudrait ralentir ×${needTotal.toFixed(2)}, au-delà du plafond ×${MAX_STRETCH} : le plan est coupé à la durée de l'image. Le texte de ce plan doit être raccourci.`,
         );
       }
     }
-    // Durée finale du plan, une fois la voix éventuellement accélérée.
-    const outDur = target / tempo;
+    // Durée finale du plan. Jamais d'image figée : quand le plafond d'étirement
+    // ne suffit pas, c'est la durée de l'image qui fait foi (la voix doit avoir
+    // été condensée en amont).
+    const videoSpan = stillOnly ? Infinity : clipLen * stretch;
+    const outDur = Math.min(target / tempo, videoSpan);
+
 
     const base = `scale=${width}:${height}:force_original_aspect_ratio=decrease,pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2:black,setsar=1`;
     const vf = stillOnly
@@ -212,9 +238,13 @@ async function assembleVideoInner(
     const fadeOutAt = Math.max(0, outDur - AUDIO_FADE);
     const fades = `afade=t=in:st=0:d=${AUDIO_FADE},afade=t=out:st=${fadeOutAt.toFixed(3)}:d=${AUDIO_FADE}`;
     const trim = `atrim=start=${tStart.toFixed(3)}${tEnd ? `:end=${tEnd.toFixed(3)}` : ""},asetpts=PTS-STARTPTS`;
+    // Gain statique mesuré dans le navigateur : remplace `loudnorm` (qui
+    // imposait un rééchantillonnage à 192 kHz de tout le graphe audio).
+    const gain = Math.abs(voiceGainDb) > 0.05 ? `,volume=${voiceGainDb.toFixed(2)}dB` : "";
     const af = hasVoice
-      ? `[1:a]${trim}${tempo > 1.001 ? `,atempo=${tempo.toFixed(4)}` : ""},${fades},aresample=44100,aformat=sample_fmts=fltp:channel_layouts=stereo[a]`
+      ? `[1:a]${trim}${tempo > 1.001 ? `,atempo=${tempo.toFixed(4)}` : ""}${gain},${fades},aresample=44100,aformat=sample_fmts=fltp:channel_layouts=stereo[a]`
       : `[1:a]atrim=0:${outDur.toFixed(3)},${fades},aresample=44100,aformat=sample_fmts=fltp:channel_layouts=stereo[a]`;
+
 
     const rawCues = scene.cues;
     let cues: CaptionCue[] | null =
@@ -324,11 +354,8 @@ async function assembleVideoInner(
       "list.txt",
       "-vf",
       `fps=${OUTPUT_FPS},scale=${width}:${height},setsar=1,format=yuv420p`,
-      // Normalisation de la VOIX assemblée : chaque narrateur ElevenLabs sort à
-      // un niveau différent, la musique serait donc tantôt noyée tantôt dominante.
-      // Après ce filtre, toutes les langues sortent au même niveau perçu.
-      "-af",
-      VOICE_LOUDNORM,
+      // Aucun filtre audio ici : la voix est déjà au bon niveau, plan par plan.
+
       "-r",
       String(OUTPUT_FPS),
       "-c:v",
@@ -373,10 +400,9 @@ async function assembleVideoInner(
         // normalize=0 : sans ça, amix divise chaque entrée par 2 et la voix off
         // perd 6 dB dès qu'une musique est présente. Seule la musique est
         // atténuée, par son propre filtre volume.
-        // La musique est elle aussi normalisée (même cible que la voix) AVANT
-        // d'être atténuée : elle est donc posée à un niveau fixe sous la voix,
-        // et non à un pourcentage d'un signal brut au niveau imprévisible.
-        `[1:a]${LOUDNORM},volume=${musicVolume}[bg];[0:a][bg]amix=inputs=2:duration=first:dropout_transition=0:normalize=0[a]`,
+        // Gain du morceau mesuré UNE SEULE FOIS (banque musicale) + atténuation
+        // sous la voix : une simple multiplication, sans rééchantillonnage.
+        `[1:a]volume=${(musicGainDb + linearToDb(musicVolume)).toFixed(2)}dB[bg];[0:a][bg]amix=inputs=2:duration=first:dropout_transition=0:normalize=0[a]`,
         "-map",
         "0:v:0",
         "-map",
@@ -387,6 +413,13 @@ async function assembleVideoInner(
         "aac",
         "-b:a",
         "160k",
+        // Fréquence et canaux imposés : sinon la sortie dépend de ce que le
+        // graphe a négocié (on est déjà sorti en 96 kHz par accident).
+        "-ar",
+        "44100",
+        "-ac",
+        "2",
+
         "-movflags",
         "+faststart",
         "-y",
