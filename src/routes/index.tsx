@@ -885,6 +885,11 @@ function Studio() {
       return null;
     }
     if (factCheckRef.current?.topic === current) return factCheckRef.current.data;
+    // Appel payant : on refuse de partir si l'arrêt a été demandé.
+    if (cancelledRef.current) {
+      toast.warning("Pipeline arrêté");
+      return null;
+    }
     setCheckingFacts(true);
     setCurrentStep("Vérification des faits…");
     try {
@@ -928,6 +933,11 @@ function Studio() {
     // Aucune écriture (ni dépense ensuite) sur des faits non vérifiés.
     const checked = await ensureFactCheck();
     if (!checked || checked.verdict === "revoir") return undefined;
+    // Appel payant : arrêt vérifié juste avant l'écriture du script.
+    if (cancelledRef.current) {
+      toast.warning("Pipeline arrêté");
+      return undefined;
+    }
     setLoadingScript(true);
     // Le sujet de la file est consommé au moment où la vidéo part réellement.
     if (queuedTopicId) {
