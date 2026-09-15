@@ -201,6 +201,15 @@ async function renderScene(scene, dir, opts) {
   );
 
   await run(args, dir);
+
+  // CONTRÔLE DE SORTIE : mieux vaut un rendu en échec qu'une vidéo à moitié
+  // noire livrée en silence. La piste vidéo doit couvrir toute la durée du plan.
+  const madeDur = await probeDuration(out, dir);
+  if (!(madeDur >= outDur - 0.15)) {
+    throw new Error(
+      `Plan ${i + 1} : la piste vidéo ne dure que ${madeDur.toFixed(2)} s pour une voix de ${outDur.toFixed(2)} s — rendu interrompu pour éviter une vidéo noire.`,
+    );
+  }
   return { name: out, duration: outDur };
 }
 
