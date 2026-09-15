@@ -2199,7 +2199,9 @@ function Studio() {
         // Silences de tête/queue retirés : la voix démarre tout de suite et le
         // plan s'arrête au dernier mot.
         const win = raw ? voiceWindow(take?.words ?? null, raw) : null;
-        const duration = win ? win.end - win.start : raw;
+        // Sans voix, le plan garde la durée prévue de son clip : il est muet
+        // mais présent, plutôt que d'empêcher tout le montage.
+        const duration = win ? win.end - win.start : (raw ?? clipSecondsFor(st));
         const words = win ? shiftTimings(take?.words ?? null, win.start) : (take?.words ?? []);
         const narration = scene.narration;
         return {
