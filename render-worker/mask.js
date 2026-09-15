@@ -89,5 +89,7 @@ export function buildMaskPng(width, height) {
       rgba[i + 3] = Math.round(255 * (1 - cover));
     }
   }
-  return encodePng(width, height, rgba);
+  const png = encodePng(width, height, rgba);
+  cache.set(key, png);
+  return png;
 }
