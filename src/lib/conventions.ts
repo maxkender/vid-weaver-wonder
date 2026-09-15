@@ -88,11 +88,11 @@ const WORDS = [
 
 export function generatePlatformPassword() {
   const pick = () => WORDS[Math.floor(Math.random() * WORDS.length)]!;
-  let a = pick();
+  const a = pick();
   let b = pick();
-  let c = pick();
   while (b === a) b = pick();
+  let c = pick();
   while (c === a || c === b) c = pick();
-  const digits = String(Math.floor(1000 + Math.random() * 9000));
-  return `${a}-${b}-${c}-${digits}`.replace(/-(\d{4})$/, "-$1");
+  const digits = String(Math.floor(10 + Math.random() * 90));
+  return `${a}-${b}-${c}-${digits}`;
 }
