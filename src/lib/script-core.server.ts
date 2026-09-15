@@ -114,6 +114,12 @@ export async function buildScript(data: BuildScriptInput): Promise<Script> {
       langName,
       includeCta,
       data.facts ?? [],
+      {
+        min: charsWindow.min,
+        target: charsWindow.target,
+        max: charsWindow.max,
+        perScene: Math.max(40, Math.round(charsWindow.target / sceneCount)),
+      },
     ),
     `${scriptUserPrompt(data.kind, data.topic)}\nÉcris tout le script en ${langName}.`,
   );
