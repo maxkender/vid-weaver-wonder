@@ -211,8 +211,17 @@ export const Route = createFileRoute("/_authenticated/_admin/")({
       { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
-  component: Studio,
+  component: StudioPage,
 });
+
+/** La page complète, protégée par une frontière d'erreur. */
+function StudioPage() {
+  return (
+    <StudioErrorBoundary>
+      <Studio />
+    </StudioErrorBoundary>
+  );
+}
 
 /** Phrase d'exemple pour l'aperçu de voix, dans la langue de l'onglet actif. */
 const VOICE_SAMPLE_TEXT: Record<string, string> = {
