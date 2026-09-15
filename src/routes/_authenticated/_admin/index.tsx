@@ -669,15 +669,22 @@ function Studio() {
         const speed = speedByLang[l] ?? baseVoiceSpeed;
         const cps = cpsFor(l);
         let measured = false;
+        // SOURCE UNIQUE : on somme plan par plan. `estimated` est toujours la
+        // somme des estimations de texte, `total` la somme des durées réelles
+        // quand elles existent. Les deux sont affichés côte à côte : un écart
+        // signale immédiatement un plan tronqué.
+        let estimated = 0;
         const total = (s.scenes ?? []).reduce((sum, sc) => {
           const take = states[sc.index]?.voices?.[l];
           const matchesText = take?.text === (sc.narration ?? "").trim();
           const real = take?.speaking ?? take?.duration ?? 0;
+          const guess = predictSeconds((sc.narration ?? "").trim().length, cps, speed);
+          estimated += guess;
           if (real > 0 && matchesText) {
             measured = true;
             return sum + real;
           }
-          return sum + predictSeconds((sc.narration ?? "").trim().length, cps, speed);
+          return sum + guess;
         }, 0);
         const actualChars = scriptChars(s);
         const charsPerShot = targetCharsPerShot(
@@ -690,6 +697,7 @@ function Studio() {
         return {
           lang: l,
           seconds: total,
+          estimatedSeconds: estimated,
           speed,
           measured,
           actualChars,
@@ -702,6 +710,7 @@ function Studio() {
         ): x is {
           lang: LanguageId;
           seconds: number;
+          estimatedSeconds: number;
           speed: number;
           measured: boolean;
           actualChars: number;
@@ -3734,7 +3743,7 @@ function Studio() {
                       {anyMeasured ? "Durée mesurée" : "Durée prédite (débit réel des voix)"}{" "}
                       (cible {lo}-{hi} s)
                     </span>
-                     {langDurations.map(({ lang: l, seconds, speed, actualChars, targetChars }) => {
+                     {langDurations.map(({ lang: l, seconds, estimatedSeconds, measured, speed, actualChars, targetChars }) => {
                       const bad = seconds < lo || seconds > hi;
                       const boosted = speed > baseVoiceSpeed + 0.001;
                       return (
@@ -3751,7 +3760,10 @@ function Studio() {
                                 : undefined
                           }
                         >
-                           {l.toUpperCase()} ≈ {Math.round(seconds)} s · cible {targetChars.toLocaleString("fr-FR")} car. · obtenu {actualChars.toLocaleString("fr-FR")} car.
+                           {l.toUpperCase()} ≈ {Math.round(seconds)} s
+                          {measured ? ` (texte ≈ ${Math.round(estimatedSeconds)} s)` : ""} · cible{" "}
+                          {targetChars.toLocaleString("fr-FR")} car. · obtenu{" "}
+                          {actualChars.toLocaleString("fr-FR")} car.
                           {boosted ? ` · voix ×${speed.toFixed(2).replace(".", ",")}` : ""}
                           {bad ? " ⚠" : ""}
                         </span>
