@@ -1889,6 +1889,8 @@ function Studio() {
       ...dims,
       music: track?.blob ?? undefined,
       musicVolume: settings.musicVolume,
+      langLabel: languageLabel(lang),
+      onStretchWarning: (message) => toast.warning(message),
       onProgress: (step) => setAssembleStep(`${languageLabel(lang)} — ${step}`),
     });
 
@@ -2379,7 +2381,7 @@ function Studio() {
         ],
 
 
-        dims,
+        { ...dims, onStretchWarning: (message: string) => toast.warning(message) },
       );
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
