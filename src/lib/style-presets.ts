@@ -73,6 +73,102 @@ export const DEFAULT_MOTION: Record<VisualStyleId, string> = {
 export const DEFAULT_OPENING_MOTION =
   "OPENING SHOT — this is the very first second of the video and it must stop the scroll. A visual event STARTS ON THE VERY FIRST FRAME and is finished before the end of the first second: an element drops, slides or bursts into frame, or a paper layer swings aside to reveal the subject, or a fast camera push that settles immediately after. No slow build-up, no still or contemplative opening, nothing that waits. After that first second the shot can settle and stay calm. The motion stays smooth and continuous, never stepped or jittery.";
 
+/**
+ * NIVEAU DE LANGUE — contrainte commune à l'écriture ET à la traduction.
+ * Le public a quinze à vingt-cinq ans et regarde au pouce : un mot savant
+ * coûte un spectateur.
+ */
+export const DEFAULT_LANGUAGE_BRIEF = [
+  "NIVEAU DE LANGUE (règle éliminatoire, à vérifier phrase par phrase) : tu écris comme tu parles à un ami de quinze ans. Mots du quotidien UNIQUEMENT.",
+  "Remplacements obligatoires, et tous les mots du même registre : « déterrer » et jamais « exhumer » · « os » et jamais « ossements » · « prouver » et jamais « corroborer » · « découvrir » et jamais « mettre au jour » · « montrer » et jamais « attester » · « se servir de » et jamais « utiliser à des fins de ».",
+  "INTERDIT : le vocabulaire savant, littéraire, scientifique ou administratif, les mots qu'on ne dit jamais à l'oral, et toutes les tournures passives (« fut découvert par », « a été mis en évidence »). On écrit à la voix active.",
+  "Phrases courtes. UNE idée par phrase. Sujet, verbe, complément. Pas de subordonnées empilées, pas d'incises, pas de participes présents.",
+  "Aucune date, aucun nom propre difficile à prononcer, aucun terme technique sans qu'il soit expliqué DANS LA MÊME PHRASE par une image concrète que tout le monde a déjà vue.",
+  "Si un mot technique est vraiment indispensable au sujet, il est traduit en langage courant dès la phrase suivante (« des trichobothries. Des poils si fins qu'ils sentent l'air bouger. »).",
+].join("\n");
+
+/** ACCROCHE — le plan 1 a ses propres règles, ce sont les plus importantes. */
+export const DEFAULT_HOOK_BRIEF = [
+  "L'ACCROCHE (plan 1) : c'est la phrase la plus importante des soixante secondes, elle décide si la personne arrête de scroller.",
+  "DOUZE MOTS MAXIMUM. On attaque DIRECTEMENT par la chose étrange. Jamais de mise en contexte, jamais « saviez-vous que », jamais une date, jamais un lieu en ouverture.",
+  "Elle crée un MANQUE : le spectateur doit sentir qu'il lui manque une information et vouloir la suite. On AFFIRME d'abord, on explique après.",
+  "On s'adresse à la personne, avec « tu », dès que le sujet le permet.",
+  "Elle se comprend SANS l'image ; l'image la renforce sans la répéter.",
+  "TU PROPOSES TROIS accroches différentes dans hookOptions, puis tu choisis la meilleure selon ces critères : elle devient le champ hook ET la narration du plan 1, mot pour mot. Tu justifies ton choix en UNE ligne dans hookChoice.",
+].join("\n");
+
+/**
+ * TYPES DE PLAN — ce qui doit CHANGER d'un plan à l'autre. La signature de la
+ * chaîne (papier découpé, palette, lumière, unique élément rouge) ne bouge
+ * jamais ; le sujet, l'échelle et le cadrage, eux, changent à chaque plan.
+ */
+export const SHOT_TYPES = [
+  {
+    id: "macro",
+    label: "Très gros plan sur un détail",
+    prompt:
+      "SHOT TYPE — EXTREME CLOSE-UP on a single small detail (a texture, a crack, an edge, a tiny object), the detail fills almost the whole square, no wide context visible",
+    keywords: ["détail", "minuscule", "poil", "grain", "fissure", "trace", "micro", "fin"],
+  },
+  {
+    id: "wide",
+    label: "Plan large sur un lieu",
+    prompt:
+      "SHOT TYPE — WIDE ESTABLISHING SHOT of a place, the environment fills the square, subjects are small inside the landscape, clear horizon line",
+    keywords: ["lieu", "ville", "île", "grotte", "paysage", "désert", "mer", "forêt", "montagne"],
+  },
+  {
+    id: "object",
+    label: "Objet seul sur fond uni",
+    prompt:
+      "SHOT TYPE — SINGLE OBJECT ISOLATED on a plain flat one-colour paper background, centred, studio-like, nothing else in the frame, no scenery",
+    keywords: ["objet", "outil", "machine", "crâne", "pièce", "arme", "instrument", "os"],
+  },
+  {
+    id: "hands",
+    label: "Mains qui manipulent",
+    prompt:
+      "SHOT TYPE — A PAIR OF HANDS holding or manipulating the object, seen from just above, close framing on the hands and the object only, no full body, no face",
+    keywords: ["main", "tenir", "fabriquer", "creuser", "toucher", "geste", "poser", "ouvrir"],
+  },
+  {
+    id: "diagram",
+    label: "Coupe ou schéma papier",
+    prompt:
+      "SHOT TYPE — CROSS-SECTION DIAGRAM built out of cut paper layers, flat graphic explanatory view with simple arrows made of paper strips, no words, no letters, no numbers",
+    keywords: ["mécanisme", "fonctionne", "étape", "couche", "intérieur", "coupe", "système"],
+  },
+  {
+    id: "silhouette",
+    label: "Silhouette à contre-jour",
+    prompt:
+      "SHOT TYPE — BACKLIT SILHOUETTE, the subject is a dark flat paper shape against a bright glowing paper background, strong graphic contrast, no facial detail",
+    keywords: ["nuit", "peur", "mystère", "ombre", "seul", "disparaît", "danger", "fuite"],
+  },
+  {
+    id: "map",
+    label: "Carte vue du dessus",
+    prompt:
+      "SHOT TYPE — TOP-DOWN MAP VIEW, the scene seen straight from above like a paper map or a floor plan, flat overhead perspective, no words, no letters, no place names",
+    keywords: ["carte", "région", "trajet", "distance", "route", "pays", "territoire", "position"],
+  },
+  {
+    id: "face",
+    label: "Visage en gros plan",
+    prompt:
+      "SHOT TYPE — CLOSE-UP ON ONE FACE made of cut paper, head and shoulders only, filling the square, simple expressive features, plain background",
+    keywords: ["homme", "femme", "enfant", "visage", "regard", "chercheur", "témoin", "roi"],
+  },
+] as const;
+
+export type ShotTypeId = (typeof SHOT_TYPES)[number]["id"];
+
+export const DEFAULT_SHOT_BRIEF = [
+  "ROTATION DES PLANS (ce qui doit CHANGER à chaque plan) : le style papier découpé, la palette, la lumière et l'unique élément rouge vif restent EXACTEMENT les mêmes d'un plan à l'autre — c'est la signature de la chaîne.",
+  "En revanche le SUJET, l'ÉCHELLE et le CADRAGE changent à chaque plan. Deux plans qui se suivent ne montrent JAMAIS le même sujet, dans le même décor, à la même distance.",
+  "Chaque plan reçoit un TYPE DE PLAN imposé, choisi selon ce que raconte son texte, et deux plans voisins ne peuvent jamais partager le même type : très gros plan sur un détail · plan large sur un lieu · objet seul sur fond uni · mains qui tiennent ou manipulent · coupe ou schéma en papier découpé · silhouette à contre-jour · carte vue du dessus · visage en gros plan.",
+].join("\n");
+
 export const DEFAULT_OPENING_IMAGE =
   "OPENING SHOT COMPOSITION — treat this like a poster, not an ambient illustration. ONE single subject, huge in the frame, filling most of the square, instantly readable on a phone in a third of a second. The red accent element is clearly visible on or right next to that subject. No empty scenery, no wide establishing shot, no crowded or talkative composition, no small distant subject.";
 
