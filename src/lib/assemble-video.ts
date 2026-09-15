@@ -181,7 +181,14 @@ async function assembleVideoInner(
           ? scene.duration
           : 4;
 
-    const clipLen = stillOnly ? 0 : await videoDuration(scene.videoUrl!);
+    const rawClipLen = stillOnly ? 0 : await videoDuration(scene.videoUrl!);
+    // PLAN 1 UNIQUEMENT : Veo pose souvent un temps mort quasi immobile au
+    // début du clip. On entre dans le clip 0,6 s plus loin pour ouvrir la
+    // vidéo sur du mouvement déjà en cours. Jamais de suppression du plan :
+    // c'est un décalage INTERNE au clip. Si le reste devient trop court
+    // (< 2 s), on garde le comportement actuel.
+    const clipStart = !stillOnly && i === 0 && rawClipLen - OPENING_CLIP_OFFSET >= 2 ? OPENING_CLIP_OFFSET : 0;
+    const clipLen = stillOnly ? 0 : rawClipLen - clipStart;
     if (!stillOnly && !(clipLen > 0.2)) {
       // Durée illisible = clip non chargé. Continuer produirait une dernière
       // image figée en silence : on préfère une erreur explicite.
