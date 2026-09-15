@@ -122,7 +122,11 @@ import {
   setTopicStatus,
   type QueuedTopic,
 } from "@/lib/topics.functions";
-import { createExportUpload, getExportDownloadUrl } from "@/lib/exports.functions";
+import {
+  createExportUpload,
+  getExportDownloadUrl,
+  saveDailyExport,
+} from "@/lib/exports.functions";
 import { pipelineState, resumePipeline, stopPipeline } from "@/lib/jobs/control.functions";
 
 
@@ -754,6 +758,12 @@ function Studio() {
   const [finalUrls, setFinalUrls] = useState<Record<string, string>>({});
   /** Vidéos sauvegardées en ligne, par langue (liens signés 7 jours). */
   const [exportInfos, setExportInfos] = useState<Record<string, ExportInfo>>({});
+  /** Échec de sauvegarde en ligne, par langue : permet de réessayer sans remonter. */
+  const [exportErrors, setExportErrors] = useState<Record<string, string>>({});
+  /** Langue en cours de sauvegarde en ligne. */
+  const [savingOnline, setSavingOnline] = useState<string | null>(null);
+  /** Fichiers montés, gardés en mémoire pour rattraper un envoi raté. */
+  const exportBlobs = useRef<Record<string, Blob>>({});
   const [translating, setTranslating] = useState(false);
 
   // MODE MANUEL : portes de validation. Rien de payant ne part sans un clic.
