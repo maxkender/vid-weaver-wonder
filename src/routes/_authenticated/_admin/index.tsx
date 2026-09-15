@@ -2499,12 +2499,17 @@ function Studio() {
     if (!skipConfirm && !(await confirmWithStep(() => confirmCost(doc)))) return;
     if (!skipConfirm) beginRun();
     setAssembling(true);
+    // Le pipeline enchaîne toutes les phases : les portes de validation du mode
+    // manuel sont ouvertes au fur et à mesure, plus aucun clic n'est attendu
+    // entre deux étapes. Seul un contrôle de DÉPENSE peut encore interrompre.
+    setTopicValidated(true);
     try {
       // b — traductions.
       setCurrentStep("Traductions…");
       // Réutilise les traductions déjà obtenues depuis CE même texte source :
       // on ne repaie pas 5 traductions pour un résultat identique.
       await onTranslateAll(doc, true);
+      setScriptValidated(true);
       if (cancelledRef.current) {
         setAssembleStep("Pipeline arrêté");
         return;
