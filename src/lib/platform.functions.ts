@@ -1,13 +1,25 @@
 /**
- * Plateforme de diffusion : profils, comptes des posteurs, contrats et vidéo du jour.
- * Aucun mot de passe de compte tiers (Gmail, Instagram, TikTok) n'est jamais reçu,
- * transmis ni stocké par ces fonctions.
+ * Plateforme de diffusion : profils, comptes des posteurs, parcours d'accueil,
+ * contrats et vidéo du jour.
+ *
+ * L'unité de travail est le COMPTE, pas le posteur : un posteur peut gérer un
+ * compte français et un compte espagnol, chacun avec sa vidéo, sa légende, son
+ * parcours d'installation et son suivi de publication.
+ *
+ * Le mot de passe des comptes sociaux n'est jamais stocké par posteur : il vit
+ * uniquement dans la table des conventions, comme un gabarit.
  */
 import { createServerFn } from "@tanstack/react-start";
 import { getRequest } from "@tanstack/react-start/server";
 import { z } from "zod";
 
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import {
+  DEFAULT_CONVENTIONS,
+  conventionGmail,
+  conventionHandle,
+  type ConventionRow,
+} from "@/lib/conventions";
 
 export type PlatformRole = "admin" | "poster";
 
@@ -23,15 +35,28 @@ export type PlatformProfile = {
   created_at: string;
 };
 
+export type WarmupChecks = Record<string, boolean>;
+
 export type PosterAccount = {
   id: string;
   platform: "instagram" | "tiktok" | "youtube";
+  language: string;
+  country_code: string;
   handle: string;
   gmail_address: string | null;
   status: string;
   followers: number;
   profile_url: string | null;
   created_at: string;
+  /** Valeurs attendues par la convention, pour signaler un écart. */
+  expected_handle: string;
+  expected_gmail: string;
+  gmail_done_at: string | null;
+  handle_done_at: string | null;
+  photo_done_at: string | null;
+  warmup_started_at: string | null;
+  warmup_done_at: string | null;
+  warmup_checks: WarmupChecks;
 };
 
 export type SignedContract = {
@@ -51,10 +76,22 @@ export type DailyVideo = {
   hashtags: string[];
   duration_sec: number;
   storage_path: string | null;
+  account_id: string;
   downloaded_at: string | null;
   posted_url: string | null;
   posted_at: string | null;
 };
+
+/** Actions de chauffe cochables par le posteur pendant les 24 premières heures. */
+export const WARMUP_TASKS: { id: string; label: string }[] = [
+  { id: "scroll", label: "Scroller le fil et les Reels 15 à 20 minutes, 2 ou 3 fois dans la journée" },
+  { id: "follow", label: "S'abonner à 30 ou 40 comptes de culture générale, sciences, histoire ou faits insolites, dans ta langue" },
+  { id: "engage", label: "Aimer et commenter sincèrement quelques publications" },
+  { id: "watch", label: "Regarder plusieurs Reels jusqu'au bout" },
+  { id: "slow", label: "Ne jamais s'abonner à 100 comptes d'un coup : étaler dans la journée" },
+];
+
+export const WARMUP_HOURS = 24;
 
 const RENDER_BUCKET = "renders";
 
@@ -78,6 +115,63 @@ async function logAudit(
     target_id: targetId,
     payload: payload as never,
   });
+}
+
+/** Conventions globales, lues avec les droits serveur (jamais exposées en table au posteur). */
+async function readConventions(): Promise<ConventionRow> {
+  const db = await admin();
+  const { data } = await db.from("account_conventions").select("*").eq("id", 1).maybeSingle();
+  if (!data) return DEFAULT_CONVENTIONS;
+  return {
+    instagram_template: data.instagram_template,
+    gmail_template: data.gmail_template,
+    social_password: data.social_password,
+    bio_text: data.bio_text,
+    upwork_message_fr: data.upwork_message_fr,
+    upwork_message_en: data.upwork_message_en,
+  };
+}
+
+type AccountRow = {
+  id: string;
+  platform: string;
+  language: string;
+  country_code: string;
+  handle: string;
+  gmail_address: string | null;
+  status: string;
+  followers: number;
+  profile_url: string | null;
+  created_at: string;
+  gmail_done_at: string | null;
+  handle_done_at: string | null;
+  photo_done_at: string | null;
+  warmup_started_at: string | null;
+  warmup_done_at: string | null;
+  warmup_checks: unknown;
+};
+
+export function decorateAccount(row: AccountRow, conv: ConventionRow): PosterAccount {
+  return {
+    id: row.id,
+    platform: row.platform as PosterAccount["platform"],
+    language: row.language,
+    country_code: row.country_code,
+    handle: row.handle,
+    gmail_address: row.gmail_address,
+    status: row.status,
+    followers: row.followers,
+    profile_url: row.profile_url,
+    created_at: row.created_at,
+    expected_handle: conventionHandle(conv, row.country_code),
+    expected_gmail: conventionGmail(conv, row.country_code),
+    gmail_done_at: row.gmail_done_at,
+    handle_done_at: row.handle_done_at,
+    photo_done_at: row.photo_done_at,
+    warmup_started_at: row.warmup_started_at,
+    warmup_done_at: row.warmup_done_at,
+    warmup_checks: (row.warmup_checks ?? {}) as WarmupChecks,
+  };
 }
 
 /**
@@ -121,99 +215,175 @@ export const updateMyProfile = createServerFn({ method: "POST" })
       .object({
         fullName: z.string().max(120).optional(),
         country: z.string().max(4).optional(),
-        language: z.enum(["fr", "en", "es", "de", "it"]).optional(),
       })
       .parse(d),
   )
   .handler(async ({ context, data }) => {
-    const patch: {
-      full_name?: string;
-      country?: string | null;
-      language?: string;
-    } = {};
+    const patch: { full_name?: string; country?: string | null } = {};
     if (data.fullName !== undefined) patch["full_name"] = data.fullName.trim();
     if (data.country !== undefined) patch["country"] = data.country.trim().toUpperCase();
-    if (data.language !== undefined) patch["language"] = data.language;
     const { error } = await context.supabase.from("profiles").update(patch).eq("id", context.userId);
     if (error) throw new Error(error.message);
     return { ok: true };
   });
 
-/** Étape 1 du parcours : adresse Gmail dédiée. Jamais de mot de passe. */
-export const saveGmailAddress = createServerFn({ method: "POST" })
+/* --------------------------------------------------------- mes comptes */
+
+/** Tout ce dont l'espace posteur a besoin : comptes, valeurs à recopier, contrat. */
+export const getMySpace = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: unknown) =>
-    z.object({ gmail: z.string().email().max(160) }).parse(d),
-  )
-  .handler(async ({ context, data }) => {
-    const gmail = data.gmail.trim().toLowerCase();
-    const { error } = await context.supabase
-      .from("profiles")
-      .update({ gmail_address: gmail })
-      .eq("id", context.userId);
+  .handler(async ({ context }) => {
+    const conv = await readConventions();
+    const { data, error } = await context.supabase
+      .from("poster_accounts")
+      .select("*")
+      .eq("poster_id", context.userId)
+      .order("created_at", { ascending: true });
     if (error) throw new Error(error.message);
-    await logAudit(context.userId, "profile.gmail_saved", "profiles", context.userId, { gmail });
-    return { ok: true };
+
+    const accounts = ((data ?? []) as unknown as AccountRow[]).map((r) => decorateAccount(r, conv));
+    return {
+      accounts,
+      socialPassword: conv.social_password,
+      bio: conv.bio_text,
+      warmupHours: WARMUP_HOURS,
+    };
   });
 
 export const listMyAccounts = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
+    const conv = await readConventions();
     const { data, error } = await context.supabase
       .from("poster_accounts")
-      .select("id, platform, handle, gmail_address, status, followers, profile_url, created_at")
+      .select("*")
       .eq("poster_id", context.userId)
       .order("created_at", { ascending: true });
     if (error) throw new Error(error.message);
-    return { accounts: (data ?? []) as PosterAccount[] };
+    return { accounts: ((data ?? []) as unknown as AccountRow[]).map((r) => decorateAccount(r, conv)) };
   });
 
-export const addMyAccount = createServerFn({ method: "POST" })
+/**
+ * Le posteur corrige une valeur (pseudo déjà pris, adresse refusée…).
+ * L'écart avec la convention est visible immédiatement côté administration.
+ */
+export const updateMyAccountIdentity = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) =>
     z
       .object({
-        platform: z.enum(["instagram", "tiktok", "youtube"]),
-        handle: z.string().min(2).max(80),
+        accountId: z.string().uuid(),
+        handle: z.string().min(2).max(80).optional(),
+        gmail: z.string().email().max(160).optional(),
         profileUrl: z.string().max(300).optional(),
       })
       .parse(d),
   )
   .handler(async ({ context, data }) => {
-    const profile = await context.supabase
-      .from("profiles")
-      .select("gmail_address")
-      .eq("id", context.userId)
-      .maybeSingle();
-    const { error } = await context.supabase.from("poster_accounts").insert({
-      poster_id: context.userId,
-      platform: data.platform,
-      handle: data.handle.trim().replace(/^@/, ""),
-      gmail_address: profile.data?.gmail_address ?? null,
-      profile_url: data.profileUrl?.trim() || null,
-      status: "pending",
-    });
+    const patch: Record<string, unknown> = {};
+    if (data.handle !== undefined) patch["handle"] = data.handle.trim().replace(/^@/, "");
+    if (data.gmail !== undefined) patch["gmail_address"] = data.gmail.trim().toLowerCase();
+    if (data.profileUrl !== undefined) patch["profile_url"] = data.profileUrl.trim() || null;
+    const { error } = await context.supabase
+      .from("poster_accounts")
+      .update(patch as never)
+      .eq("id", data.accountId)
+      .eq("poster_id", context.userId);
     if (error) throw new Error(error.message);
-    await logAudit(context.userId, "poster_account.created", "poster_accounts", null, {
-      platform: data.platform,
-      handle: data.handle,
-    });
+    await logAudit(context.userId, "account.identity_updated", "poster_accounts", data.accountId, patch);
     return { ok: true };
   });
 
-export const deleteMyAccount = createServerFn({ method: "POST" })
+/** Validation d'une étape du parcours, compte par compte. */
+export const confirmAccountStep = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
+  .inputValidator((d: unknown) =>
+    z
+      .object({
+        accountId: z.string().uuid(),
+        step: z.enum(["gmail", "handle", "photo", "warmup"]),
+      })
+      .parse(d),
+  )
   .handler(async ({ context, data }) => {
+    const current = await context.supabase
+      .from("poster_accounts")
+      .select("*")
+      .eq("id", data.accountId)
+      .eq("poster_id", context.userId)
+      .maybeSingle();
+    if (current.error) throw new Error(current.error.message);
+    if (!current.data) throw new Error("Ce compte est introuvable.");
+    const row = current.data as unknown as AccountRow;
+
+    const now = new Date().toISOString();
+    const patch: Record<string, unknown> = {};
+
+    if (data.step === "gmail") {
+      if (!row.gmail_address) throw new Error("Renseigne d'abord l'adresse Gmail utilisée.");
+      patch["gmail_done_at"] = now;
+    }
+    if (data.step === "handle") {
+      if (!row.gmail_done_at) throw new Error("Termine d'abord l'étape 1.");
+      if (!row.handle) throw new Error("Renseigne d'abord le pseudo du compte.");
+      patch["handle_done_at"] = now;
+    }
+    if (data.step === "photo") {
+      if (!row.handle_done_at) throw new Error("Termine d'abord l'étape 2.");
+      patch["photo_done_at"] = now;
+      // La chauffe de 24 heures démarre à la validation de l'étape 3.
+      patch["warmup_started_at"] = row.warmup_started_at ?? now;
+    }
+    if (data.step === "warmup") {
+      const started = row.warmup_started_at ? new Date(row.warmup_started_at).getTime() : 0;
+      if (!started) throw new Error("Termine d'abord l'étape 3.");
+      if (Date.now() - started < WARMUP_HOURS * 3600_000) {
+        throw new Error("Les 24 heures de chauffe ne sont pas terminées.");
+      }
+      patch["warmup_done_at"] = now;
+      patch["status"] = "active";
+    }
+
     const { error } = await context.supabase
       .from("poster_accounts")
-      .delete()
-      .eq("id", data.id)
+      .update(patch as never)
+      .eq("id", data.accountId)
       .eq("poster_id", context.userId);
     if (error) throw new Error(error.message);
-    await logAudit(context.userId, "poster_account.deleted", "poster_accounts", data.id);
+    await logAudit(context.userId, `onboarding.${data.step}_done`, "poster_accounts", data.accountId);
     return { ok: true };
   });
+
+export const setWarmupCheck = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z
+      .object({
+        accountId: z.string().uuid(),
+        key: z.string().max(40),
+        value: z.boolean(),
+      })
+      .parse(d),
+  )
+  .handler(async ({ context, data }) => {
+    const current = await context.supabase
+      .from("poster_accounts")
+      .select("warmup_checks")
+      .eq("id", data.accountId)
+      .eq("poster_id", context.userId)
+      .maybeSingle();
+    if (current.error) throw new Error(current.error.message);
+    const checks = { ...((current.data?.warmup_checks ?? {}) as WarmupChecks), [data.key]: data.value };
+    const { error } = await context.supabase
+      .from("poster_accounts")
+      .update({ warmup_checks: checks as never })
+      .eq("id", data.accountId)
+      .eq("poster_id", context.userId);
+    if (error) throw new Error(error.message);
+    return { checks };
+  });
+
+/* ------------------------------------------------------------- contrat */
 
 export const getActiveContractTemplate = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -283,77 +453,128 @@ export const signContract = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+/* --------------------------------------------------------- vidéo du jour */
+
 function isoDay(d: Date) {
   return d.toISOString().slice(0, 10);
 }
 
-/** Vidéo du jour dans la langue du posteur + historique des 30 derniers jours. */
+/**
+ * Une vidéo par COMPTE : un posteur avec un compte français et un compte
+ * espagnol voit deux vidéos, chacune avec sa légende dans sa langue.
+ */
 export const listMyVideos = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const profile = await context.supabase
-      .from("profiles")
-      .select("language")
-      .eq("id", context.userId)
-      .maybeSingle();
-    const language = profile.data?.language ?? "fr";
+    const accounts = await context.supabase
+      .from("poster_accounts")
+      .select("id, language, handle, platform, warmup_done_at")
+      .eq("poster_id", context.userId)
+      .order("created_at", { ascending: true });
+    if (accounts.error) throw new Error(accounts.error.message);
+    const rows = (accounts.data ?? []) as {
+      id: string;
+      language: string;
+      handle: string;
+      platform: string;
+      warmup_done_at: string | null;
+    }[];
+    const ready = rows.filter((a) => a.warmup_done_at);
+    const languages = Array.from(new Set(ready.map((a) => a.language)));
 
     const since = new Date();
     since.setDate(since.getDate() - 30);
 
-    const { data, error } = await context.supabase
-      .from("daily_videos")
-      .select(
-        "id, publish_date, language, title, caption, hashtags, duration_sec, storage_path, status",
-      )
-      .eq("language", language)
-      .eq("status", "published")
-      .gte("publish_date", isoDay(since))
-      .order("publish_date", { ascending: false });
-    if (error) throw new Error(error.message);
+    const videos =
+      languages.length === 0
+        ? []
+        : ((
+            await context.supabase
+              .from("daily_videos")
+              .select(
+                "id, publish_date, language, title, caption, hashtags, duration_sec, storage_path, status",
+              )
+              .in("language", languages)
+              .eq("status", "published")
+              .gte("publish_date", isoDay(since))
+              .order("publish_date", { ascending: false })
+          ).data ?? []);
 
-    const rows = data ?? [];
     const downloads = await context.supabase
       .from("video_downloads")
-      .select("daily_video_id, downloaded_at, posted_url, posted_at")
+      .select("daily_video_id, account_id, downloaded_at, posted_url, posted_at")
       .eq("poster_id", context.userId);
 
-    const byVideo = new Map<string, { downloaded_at: string; posted_url: string | null; posted_at: string | null }>();
+    const key = (videoId: string, accountId: string) => `${videoId}:${accountId}`;
+    const byKey = new Map<
+      string,
+      { downloaded_at: string; posted_url: string | null; posted_at: string | null }
+    >();
     for (const d of downloads.data ?? []) {
-      const prev = byVideo.get(d.daily_video_id);
-      if (!prev || (d.posted_url && !prev.posted_url)) {
-        byVideo.set(d.daily_video_id, {
-          downloaded_at: d.downloaded_at,
-          posted_url: d.posted_url,
-          posted_at: d.posted_at,
+      if (!d.account_id) continue;
+      byKey.set(key(d.daily_video_id, d.account_id), {
+        downloaded_at: d.downloaded_at,
+        posted_url: d.posted_url,
+        posted_at: d.posted_at,
+      });
+    }
+
+    const list: DailyVideo[] = [];
+    for (const account of ready) {
+      for (const v of videos) {
+        if (v.language !== account.language) continue;
+        const tracked = byKey.get(key(v.id, account.id));
+        list.push({
+          id: v.id,
+          publish_date: v.publish_date,
+          language: v.language,
+          title: v.title,
+          caption: v.caption,
+          hashtags: v.hashtags ?? [],
+          duration_sec: Number(v.duration_sec ?? 0),
+          storage_path: v.storage_path,
+          account_id: account.id,
+          downloaded_at: tracked?.downloaded_at ?? null,
+          posted_url: tracked?.posted_url ?? null,
+          posted_at: tracked?.posted_at ?? null,
         });
       }
     }
 
-    const videos: DailyVideo[] = rows.map((r) => ({
-      id: r.id,
-      publish_date: r.publish_date,
-      language: r.language,
-      title: r.title,
-      caption: r.caption,
-      hashtags: r.hashtags ?? [],
-      duration_sec: Number(r.duration_sec ?? 0),
-      storage_path: r.storage_path,
-      downloaded_at: byVideo.get(r.id)?.downloaded_at ?? null,
-      posted_url: byVideo.get(r.id)?.posted_url ?? null,
-      posted_at: byVideo.get(r.id)?.posted_at ?? null,
-    }));
-
-    return { language, today: isoDay(new Date()), videos };
+    return {
+      today: isoDay(new Date()),
+      accounts: rows.map((a) => ({
+        id: a.id,
+        language: a.language,
+        handle: a.handle,
+        platform: a.platform,
+        ready: Boolean(a.warmup_done_at),
+      })),
+      videos: list,
+    };
   });
 
-/** Lien de lecture/téléchargement signé + trace du téléchargement. */
+/** Lien de lecture/téléchargement signé + trace du téléchargement, par compte. */
 export const getVideoLink = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) =>
-    z.object({ videoId: z.string().uuid(), track: z.boolean().optional() }).parse(d),
+    z
+      .object({
+        videoId: z.string().uuid(),
+        accountId: z.string().uuid(),
+        track: z.boolean().optional(),
+      })
+      .parse(d),
   )
   .handler(async ({ context, data }) => {
+    const account = await context.supabase
+      .from("poster_accounts")
+      .select("id")
+      .eq("id", data.accountId)
+      .eq("poster_id", context.userId)
+      .maybeSingle();
+    if (!account.data) throw new Error("Ce compte n'est pas le tien.");
+
     const video = await context.supabase
       .from("daily_videos")
       .select("id, storage_path, status")
@@ -369,10 +590,22 @@ export const getVideoLink = createServerFn({ method: "POST" })
     if (signed.error) throw new Error(signed.error.message);
 
     if (data.track) {
-      await context.supabase
+      const existing = await context.supabase
         .from("video_downloads")
-        .insert({ daily_video_id: data.videoId, poster_id: context.userId });
-      await logAudit(context.userId, "video.downloaded", "daily_videos", data.videoId);
+        .select("id")
+        .eq("daily_video_id", data.videoId)
+        .eq("account_id", data.accountId)
+        .maybeSingle();
+      if (!existing.data) {
+        await context.supabase.from("video_downloads").insert({
+          daily_video_id: data.videoId,
+          account_id: data.accountId,
+          poster_id: context.userId,
+        });
+      }
+      await logAudit(context.userId, "video.downloaded", "daily_videos", data.videoId, {
+        account_id: data.accountId,
+      });
     }
 
     return { url: signed.data.signedUrl };
@@ -381,16 +614,28 @@ export const getVideoLink = createServerFn({ method: "POST" })
 export const markPosted = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) =>
-    z.object({ videoId: z.string().uuid(), url: z.string().url().max(500) }).parse(d),
+    z
+      .object({
+        videoId: z.string().uuid(),
+        accountId: z.string().uuid(),
+        url: z.string().url().max(500),
+      })
+      .parse(d),
   )
   .handler(async ({ context, data }) => {
+    const account = await context.supabase
+      .from("poster_accounts")
+      .select("id")
+      .eq("id", data.accountId)
+      .eq("poster_id", context.userId)
+      .maybeSingle();
+    if (!account.data) throw new Error("Ce compte n'est pas le tien.");
+
     const existing = await context.supabase
       .from("video_downloads")
       .select("id")
       .eq("daily_video_id", data.videoId)
-      .eq("poster_id", context.userId)
-      .order("downloaded_at", { ascending: false })
-      .limit(1)
+      .eq("account_id", data.accountId)
       .maybeSingle();
 
     if (existing.data) {
@@ -402,12 +647,16 @@ export const markPosted = createServerFn({ method: "POST" })
     } else {
       const { error } = await context.supabase.from("video_downloads").insert({
         daily_video_id: data.videoId,
+        account_id: data.accountId,
         poster_id: context.userId,
         posted_url: data.url,
         posted_at: new Date().toISOString(),
       });
       if (error) throw new Error(error.message);
     }
-    await logAudit(context.userId, "video.posted", "daily_videos", data.videoId, { url: data.url });
+    await logAudit(context.userId, "video.posted", "daily_videos", data.videoId, {
+      url: data.url,
+      account_id: data.accountId,
+    });
     return { ok: true };
   });
