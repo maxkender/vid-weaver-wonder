@@ -159,6 +159,8 @@ type SpeechResult = {
   words: WordTiming[];
   characters: number;
   textChars: number;
+  /** Avertissement non bloquant (débit anormal accepté faute de mieux). */
+  rateWarning?: string;
 };
 
 /** Prise refusée pour débit anormal : c'est un aléa, on peut relancer. */
