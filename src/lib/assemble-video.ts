@@ -236,9 +236,13 @@ async function assembleVideoInner(
     const fadeOutAt = Math.max(0, outDur - AUDIO_FADE);
     const fades = `afade=t=in:st=0:d=${AUDIO_FADE},afade=t=out:st=${fadeOutAt.toFixed(3)}:d=${AUDIO_FADE}`;
     const trim = `atrim=start=${tStart.toFixed(3)}${tEnd ? `:end=${tEnd.toFixed(3)}` : ""},asetpts=PTS-STARTPTS`;
+    // Gain statique mesuré dans le navigateur : remplace `loudnorm` (qui
+    // imposait un rééchantillonnage à 192 kHz de tout le graphe audio).
+    const gain = Math.abs(voiceGainDb) > 0.05 ? `,volume=${voiceGainDb.toFixed(2)}dB` : "";
     const af = hasVoice
-      ? `[1:a]${trim}${tempo > 1.001 ? `,atempo=${tempo.toFixed(4)}` : ""},${fades},aresample=44100,aformat=sample_fmts=fltp:channel_layouts=stereo[a]`
+      ? `[1:a]${trim}${tempo > 1.001 ? `,atempo=${tempo.toFixed(4)}` : ""}${gain},${fades},aresample=44100,aformat=sample_fmts=fltp:channel_layouts=stereo[a]`
       : `[1:a]atrim=0:${outDur.toFixed(3)},${fades},aresample=44100,aformat=sample_fmts=fltp:channel_layouts=stereo[a]`;
+
 
     const rawCues = scene.cues;
     let cues: CaptionCue[] | null =
