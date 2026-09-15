@@ -181,6 +181,11 @@ export type StudioSettings = {
   >;
   /** Consignes propres au plan 1 (accroche), appliquées à tous les styles. */
   opening: { motion: string; image: string };
+  /**
+   * Consignes éditoriales communes : niveau de langue, accroche, rotation des
+   * types de plan. Elles s'appliquent à l'écriture, à la traduction et aux images.
+   */
+  guides: { language: string; hook: string; shots: string };
   /** Cohérence visuelle : réutiliser la 1ʳᵉ image comme référence des suivantes. */
   useReferenceImage: boolean;
   /** Volume de la musique de fond dans l'export. */
