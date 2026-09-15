@@ -81,6 +81,12 @@ export function scriptSystemPrompt(
   includeCta = true,
   /** Faits établis par l'étape de vérification : seule source autorisée. */
   verifiedFacts: string[] = [],
+  /**
+   * BUDGET DE CARACTÈRES du script source, calculé sur le débit réel de la voix
+   * (caractères par seconde). Quand il est fourni, il remplace toute consigne
+   * en MOTS : deux unités concurrentes font dériver la durée.
+   */
+  chars?: { min: number; target: number; max: number; perScene: number },
 ) {
   // Fourchette resserrée : la borne basse ne doit jamais autoriser un plan de 3 s.
   const lo = Math.max(14, Math.round(wordsPerScene - 2));
@@ -91,9 +97,11 @@ export function scriptSystemPrompt(
     KIND_BRIEF[kind],
     styleBriefOverride?.trim() || DEFAULT_STYLE_BRIEF[style],
     `Produis exactement ${sceneCount} scènes.`,
-    totalWords
-      ? `RÈGLE N°0 — DURÉE : le script complet${includeCta ? " (scènes + CTA)" : ""} doit faire environ ${totalWords} mots au total, avec une marge de 5 % maximum. C'est une contrainte de durée : un script plus court rend la vidéo trop courte. Compte les mots avant de répondre et complète si tu es en dessous.`
-      : "",
+    chars
+      ? `RÈGLE N°0 — DURÉE, EN CARACTÈRES (unique mesure de longueur, calculée sur le débit réel de la voix) : la somme de toutes les narrations${includeCta ? " (CTA exclu, il est ajouté après)" : ""} doit faire ${chars.target} CARACTÈRES espaces compris, avec une marge de ±5 % — jamais moins de ${chars.min}, jamais plus de ${chars.max}. Soit environ ${chars.perScene} caractères par scène. Compte réellement les caractères avant de répondre et complète si tu es en dessous : un script plus court rend la vidéo deux fois trop courte.`
+      : totalWords
+        ? `RÈGLE N°0 — DURÉE : le script complet${includeCta ? " (scènes + CTA)" : ""} doit faire environ ${totalWords} mots au total, avec une marge de 5 % maximum. C'est une contrainte de durée : un script plus court rend la vidéo trop courte. Compte les mots avant de répondre et complète si tu es en dessous.`
+        : "",
 
     "",
     "RÈGLE N°1 — L'ACCROCHE (scène 1, la partie la plus importante) : une AFFIRMATION FACTUELLE brute et surprenante, en une ou deux phrases courtes, lue en moins de 4 secondes. Jamais une question. Jamais « saviez-vous que ».",
@@ -129,7 +137,9 @@ export function scriptSystemPrompt(
     "",
     "RÈGLE N°4 — CONTINUITÉ : écris d'abord la narration comme UN SEUL TEXTE SUIVI qui se lit d'une traite, puis découpe-le en scènes aux frontières naturelles. Le découpage en plans est VISUEL, pas narratif : une scène n'est pas un paragraphe autonome, c'est un plan qui illustre un morceau du texte continu. C'est ce qui donne la fluidité.",
     "CLARTÉ : on doit comprendre même sans les images. Nomme explicitement de qui et de quoi on parle (jamais « il », « ça », « cette chose » sans que le nom ait été dit juste avant). Le lieu, l'époque et les protagonistes sont nommés dès qu'ils entrent dans le récit.",
-    `LONGUEUR PAR SCÈNE : chaque scène correspond à UN plan vidéo qui dure entre 6 et 8 SECONDES de parole, jamais moins. La narration d'une scène fait entre ${lo} et ${hi} MOTS. Une scène trop COURTE est une erreur aussi grave qu'une scène trop longue : elle produit une coupe toutes les 4 secondes et hache la vidéo. Compte réellement les mots de chaque scène avant de répondre et rallonge celles qui sont sous ${lo} mots.`,
+    chars
+      ? `LONGUEUR PAR SCÈNE : chaque scène correspond à UN plan vidéo qui dure entre 6 et 8 SECONDES de parole, jamais moins. La narration d'une scène fait environ ${chars.perScene} CARACTÈRES espaces compris (entre ${Math.round(chars.perScene * 0.8)} et ${Math.round(chars.perScene * 1.2)}). Une scène trop COURTE est une erreur aussi grave qu'une scène trop longue : elle produit une coupe toutes les 4 secondes et hache la vidéo. Compte réellement les caractères de chaque scène avant de répondre et rallonge celles qui sont sous ${Math.round(chars.perScene * 0.8)} caractères.`
+      : `LONGUEUR PAR SCÈNE : chaque scène correspond à UN plan vidéo qui dure entre 6 et 8 SECONDES de parole, jamais moins. La narration d'une scène fait entre ${lo} et ${hi} MOTS. Une scène trop COURTE est une erreur aussi grave qu'une scène trop longue : elle produit une coupe toutes les 4 secondes et hache la vidéo. Compte réellement les mots de chaque scène avant de répondre et rallonge celles qui sont sous ${lo} mots.`,
     "PAS DE PLAN DE REMPLISSAGE : aucun plan ne se contente de définir un terme, de reformuler le plan précédent ou de faire une transition. Chaque plan apporte une information nouvelle et fait avancer l'explication. Si une idée tient en trois secondes, fusionne-la avec la scène suivante plutôt que d'en faire un plan à part.",
     "Le champ overlay est le texte incrusté à l'écran : 3 à 6 mots, percutant.",
 
@@ -190,7 +200,14 @@ export function translationSystemPrompt(
    * contrainte la plus fiable, car le débit d'une voix ne se déduit pas du
    * nombre de mots (à caractères égaux, l'espagnol met 6 s de plus que l'allemand).
    */
-  chars?: { total: number; perScene: number },
+  chars?: {
+    min: number;
+    target: number;
+    max: number;
+    perScene: number;
+    /** Sens de la correction : le texte actuel est trop long, trop court, ou bon. */
+    mode?: "ok" | "shorten" | "lengthen";
+  },
 ) {
   return [
     adjust
@@ -200,11 +217,21 @@ export function translationSystemPrompt(
     "Ce n'est PAS du mot à mot : écris comme un natif écrirait, avec le rythme et les tournures naturelles de la langue.",
     "Tous les CHIFFRES, dates, proportions, unités et noms propres sont repris à l'identique.",
     "STYLE CONSERVÉ : phrases très courtes, phrases nominales et fragments autorisés, tutoiement (ou l'équivalent naturel et familier de la langue), ton oral et direct, jamais publicitaire. Aucun emoji, aucun point d'exclamation.",
-    `CONTRAINTE DE DURÉE PAR PLAN : chaque narration traduite doit pouvoir être lue à voix haute en moins de ${maxSeconds} secondes, soit ${maxWordsPerScene} MOTS MAXIMUM par scène. Compte les mots. Si la traduction naturelle dépasse, CONDENSE : supprime les redondances et les mots de liaison, garde TOUS les chiffres et toute l'information.`,
+    // Quand le budget de CARACTÈRES est fourni (débit réel de la voix), il
+    // remplace toutes les consignes en MOTS : deux unités concurrentes dans le
+    // même prompt, c'est la garantie d'un texte deux fois trop court.
     chars
-      ? `BUDGET DE CARACTÈRES — CONTRAINTE PRIORITAIRE, mesurée sur la voix réelle de cette langue : le script complet (somme de toutes les narrations, hook et cta inclus s'ils existent) doit tenir en ${chars.total} CARACTÈRES AU MAXIMUM, soit environ ${chars.perScene} caractères par scène. Compte les caractères, espaces compris, avant de répondre. Une traduction n'est pas un calque : si tu dépasses, coupe les redondances, les adverbes, les reformulations et les mots de liaison. Garde le sens, le ton, tous les chiffres et toute l'information. Ne descends pas sous 80 % de ce budget.`
-      : "",
-    total
+      ? [
+          `BUDGET DE CARACTÈRES — CONTRAINTE PRIORITAIRE ET UNIQUE MESURE DE LONGUEUR, calculée sur le débit réel de la voix de cette langue : le script complet (somme de toutes les narrations) doit faire ${chars.target} CARACTÈRES, espaces compris, avec une marge de ±5 %. Jamais moins de ${chars.min}, jamais plus de ${chars.max}. Soit environ ${chars.perScene} caractères par scène.`,
+          "Compte réellement les caractères de l'ensemble AVANT de répondre. Un script trop COURT est une faute aussi grave qu'un script trop long : la vidéo dure alors deux fois moins que le format visé.",
+          chars.mode === "lengthen"
+            ? "LE TEXTE ACTUEL EST TROP COURT : tu dois l'ALLONGER pour atteindre le budget. Tu étoffes avec du détail CONCRET déjà impliqué par le sens (date, lieu, nom, chiffre, conséquence matérielle, précision sensorielle). Tu n'inventes aucun fait, tu n'ajoutes ni morale, ni publicité, ni remplissage, ni répétition."
+            : chars.mode === "shorten"
+              ? "LE TEXTE ACTUEL EST TROP LONG : tu dois le CONDENSER pour revenir dans le budget. Tu coupes les redondances, les adverbes, les reformulations et les mots de liaison. Tu gardes le sens, le ton, tous les chiffres et toute l'information."
+              : "Ajuste dans les deux sens si besoin : condense ce qui dépasse, étoffe ce qui est trop court.",
+        ].join("\n")
+      : `CONTRAINTE DE DURÉE PAR PLAN : chaque narration traduite doit pouvoir être lue à voix haute en moins de ${maxSeconds} secondes, soit ${maxWordsPerScene} MOTS MAXIMUM par scène. Compte les mots. Si la traduction naturelle dépasse, CONDENSE : supprime les redondances et les mots de liaison, garde TOUS les chiffres et toute l'information.`,
+    !chars && total
       ? `CIBLE DE DURÉE TOTALE (aussi importante que le plafond par plan) : lue à voix haute en ${langName}, la somme de toutes les narrations doit durer entre ${total.minSeconds} et ${total.maxSeconds} secondes, soit entre ${total.minWords} et ${total.maxWords} mots au total. Compte les mots de l'ensemble avant de répondre. Si tu es en dessous, ÉTOFFE légèrement les scènes (précisions concrètes déjà présentes dans le sens du texte) ; si tu es au-dessus, CONDENSE. Dans les deux cas : même nombre de scènes, mêmes index, tous les chiffres conservés.`
       : "",
     "Le mot « Sophia » reste « Sophia » dans toutes les langues.",

@@ -8,10 +8,11 @@ import {
 import { languageName } from "./languages";
 import {
   durationRange,
-  estimateSpeechSeconds,
   fastestWordsPerSecond,
   wordsPerSecond as speechRate,
 } from "./duration";
+import { calibrationMode, charWindow, narrationChars } from "./calibration";
+import { defaultCharsPerSecond, predictSeconds } from "./voice-rate";
 
 export type BuildScriptInput = {
   topic: string;
@@ -32,6 +33,14 @@ export type BuildScriptInput = {
   includeCta?: boolean | undefined;
   /** Faits vérifiés : seule source de chiffres et d'affirmations autorisée. */
   facts?: string[] | undefined;
+  /**
+   * Débit MESURÉ de la voix source (caractères par seconde à la vitesse 1,0).
+   * C'est lui qui fixe la longueur du script : une estimation en mots fait
+   * dériver le français de plus de dix secondes.
+   */
+  sourceCharsPerSecond?: number | undefined;
+  /** Vitesse de synthèse prévue pour la voix source. */
+  voiceSpeed?: number | undefined;
 };
 
 /**
@@ -63,6 +72,23 @@ export async function buildScript(data: BuildScriptInput): Promise<Script> {
   );
   const wordsBias = data.wordsBias ?? 0;
 
+  // FENÊTRE DE CARACTÈRES DU SCRIPT SOURCE — l'unique mesure de longueur qui
+  // tienne : caractères ÷ débit MESURÉ de la voix source. La borne haute est
+  // la durée demandée + 10 %, CTA déduit.
+  const sourceCps = data.sourceCharsPerSecond ?? defaultCharsPerSecond(data.language);
+  const sourceSpeed = data.voiceSpeed ?? 1;
+  const loNarrationSeconds = narrationSeconds;
+  const hiNarrationSeconds = Math.max(
+    loNarrationSeconds + 2,
+    maxTotalSeconds - (includeCta ? 6 : 0),
+  );
+  const charsWindow = charWindow(
+    loNarrationSeconds,
+    hiNarrationSeconds,
+    sourceCps,
+    sourceSpeed,
+  );
+
   // Le nombre de plans vient de l'interface : il correspond à la durée choisie.
   // On ne le gonfle JAMAIS (chaque plan en plus = un clip animé payant en plus).
   const sceneCount = Math.max(2, data.sceneCount);
@@ -88,6 +114,12 @@ export async function buildScript(data: BuildScriptInput): Promise<Script> {
       langName,
       includeCta,
       data.facts ?? [],
+      {
+        min: charsWindow.min,
+        target: charsWindow.target,
+        max: charsWindow.max,
+        perScene: Math.max(40, Math.round(charsWindow.target / sceneCount)),
+      },
     ),
     `${scriptUserPrompt(data.kind, data.topic)}\nÉcris tout le script en ${langName}.`,
   );
@@ -103,61 +135,29 @@ export async function buildScript(data: BuildScriptInput): Promise<Script> {
     script.scenes.pop();
   }
 
-  // Rallonge automatique si le script est trop court pour la durée demandée.
-  const countWords = (t: string) => t.trim().split(/\s+/).filter(Boolean).length;
-  const words = () => script.scenes.reduce((n, s) => n + countWords(s.narration ?? ""), 0);
-  // Une vidéo trop courte est le défaut n°1 : on vise 100 % du budget et on
-  // n'accepte pas moins de 98 %.
-  if (words() < totalWords * 0.98 && script.scenes.length) {
-    const missing = totalWords - words();
-    try {
-      // On ALLONGE les scènes existantes : ajouter des scènes ajouterait des
-      // clips animés payants et hacherait le montage.
-      const longer = await chatJSON<{ scenes: { index: number; narration: string }[] }>(
-        "google/gemini-3.7-flash",
-        [
-          `Tu réécris les narrations d'un script vidéo existant, en ${langName}.`,
-          `Tu renvoies EXACTEMENT ${script.scenes.length} scènes, avec les MÊMES index, dans le même ordre. Tu n'ajoutes, ne supprimes et ne fusionnes AUCUNE scène.`,
-          `Chaque narration doit faire entre ${minWords} et ${maxWords} mots (soit 6 à 8 secondes de parole). Allonge en priorité les scènes les plus courtes avec des détails concrets : date exacte, lieu, nom, chiffre précis, conséquence matérielle. N'invente aucun fait douteux, n'ajoute ni morale ni publicité, ne répète pas ce qui est déjà dit.`,
-          `Le script complet doit gagner environ ${missing} mots.`,
-          'Réponds uniquement en JSON: {"scenes":[{"index":number,"narration":string}]}',
-        ].join("\n"),
-        `Scènes actuelles (JSON) : ${JSON.stringify(
-          script.scenes.map((s) => ({ index: s.index, narration: s.narration })),
-        )}`,
-      );
-      for (const s of longer.scenes ?? []) {
-        const target = script.scenes[s.index];
-        const text = (s.narration ?? "").trim();
-        if (target && text && countWords(text) >= countWords(target.narration ?? "")) {
-          target.narration = text;
-        }
-      }
-    } catch {
-      // Rallonge best-effort : on garde le script d'origine en cas d'échec.
-    }
-  }
-
-  // CONTRÔLE DU TOTAL (langue source) : le script d'origine doit lui aussi
-  // atterrir dans la fenêtre de durée AVANT toute traduction, sinon toutes les
-  // versions dérivent. Deux passes de correction au maximum.
-  const loSec = narrationSeconds;
-  const hiSec = Math.max(loSec + 2, maxTotalSeconds - (includeCta ? 6 : 0));
-  const estTotal = () =>
-    script.scenes.reduce((n, s) => n + estimateSpeechSeconds(s.narration ?? "", data.language), 0);
+  // CONTRÔLE DE LONGUEUR (langue source), EN CARACTÈRES et SYMÉTRIQUE : le
+  // script doit atterrir dans la fenêtre AVANT toute traduction, sinon toutes
+  // les versions dérivent. Trop court est une faute aussi grave que trop long.
+  const totalChars = () => narrationChars(script.scenes.map((s) => s.narration));
+  const perSceneChars = Math.max(
+    40,
+    Math.round(charsWindow.target / Math.max(1, script.scenes.length)),
+  );
   for (let pass = 0; pass < 2; pass++) {
-    const sec = estTotal();
-    if (sec >= loSec && sec <= hiSec) break;
-    const tooLong = sec > hiSec;
+    const chars = totalChars();
+    const mode = calibrationMode(chars, charsWindow);
+    if (mode === "ok") break;
+    const sec = predictSeconds(chars, sourceCps, sourceSpeed);
     try {
       const fixed = await chatJSON<{ scenes: { index: number; narration: string }[] }>(
         "google/gemini-3.7-flash",
         [
           `Tu ajustes la LONGUEUR des narrations d'un script vidéo en ${langName}. Tu ne changes ni le sens, ni le ton, ni l'ordre.`,
           `Tu renvoies EXACTEMENT ${script.scenes.length} scènes, avec les MÊMES index. Tu n'ajoutes, ne supprimes et ne fusionnes AUCUNE scène.`,
-          tooLong
-            ? `Le script est trop LONG (${Math.round(sec)} s lues à voix haute). CONDENSE pour atteindre entre ${loSec} et ${hiSec} secondes, soit environ ${Math.round(hiSec * speechRate(data.language))} mots au total : supprime les redondances et les mots de liaison. Tu gardes TOUS les chiffres et toute l'information.`
-            : `Le script est trop COURT (${Math.round(sec)} s lues à voix haute). ÉTOFFE pour atteindre entre ${loSec} et ${hiSec} secondes, soit environ ${Math.round(loSec * speechRate(data.language))} mots au total, avec des détails concrets (lieu, nom, conséquence matérielle). N'invente aucun fait douteux.`,
+          `BUDGET DE CARACTÈRES (unique mesure de longueur, calculée sur le débit réel de la voix) : la somme de toutes les narrations doit faire ${charsWindow.target} caractères espaces compris, jamais moins de ${charsWindow.min}, jamais plus de ${charsWindow.max}. Soit environ ${perSceneChars} caractères par scène.`,
+          mode === "shorten"
+            ? `Le script est trop LONG (${chars} caractères, soit environ ${Math.round(sec)} s lues à voix haute). CONDENSE : supprime les redondances, les adverbes et les mots de liaison. Tu gardes TOUS les chiffres et toute l'information.`
+            : `Le script est trop COURT (${chars} caractères, soit environ ${Math.round(sec)} s lues à voix haute). ÉTOFFE avec des détails concrets (date exacte, lieu, nom, chiffre précis, conséquence matérielle). N'invente aucun fait douteux, n'ajoute ni morale, ni publicité, ni remplissage, ne répète rien.`,
           'Réponds uniquement en JSON: {"scenes":[{"index":number,"narration":string}]}',
         ].join("\n"),
         `Scènes actuelles (JSON) : ${JSON.stringify(

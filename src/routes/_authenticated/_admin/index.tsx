@@ -65,8 +65,8 @@ import {
   SQUARE_RADIUS_RATIO,
   voiceWindow,
 } from "@/lib/karaoke-overlay";
+import { calibrationMode, charWindow, narrationChars } from "@/lib/calibration";
 import {
-  charBudget,
   charsPerSecond,
   MAX_CONDENSE_PASSES,
   MIN_VOICE_SPEED,
@@ -479,9 +479,18 @@ function Studio() {
       .then((r) => setVoiceRates(((r as { rates?: Record<string, VoiceRate> }).rates) ?? {}))
       .catch(() => undefined);
   }, [runListRates]);
+  const voiceRatesRef = useRef<Record<string, VoiceRate>>({});
+  useEffect(() => {
+    voiceRatesRef.current = voiceRates;
+  }, [voiceRates]);
   /** Caractères par seconde (à la vitesse 1,0) de la voix de cette langue. */
   const cpsFor = useCallback(
-    (l: string) => charsPerSecond(l, voiceRates[rateKey(voiceForLang(l), l)]),
+    (l: string) => {
+      const k = rateKey(voiceForLang(l), l);
+      // La référence est mise à jour dès la prise de calibration, sans attendre
+      // le prochain rendu React.
+      return charsPerSecond(l, voiceRates[k] ?? voiceRatesRef.current[k]);
+    },
     [voiceRates, voiceForLang],
   );
 
@@ -1113,6 +1122,9 @@ function Studio() {
           includeCta: settings.sophiaCta !== false,
           styleBrief: settings.narration[style].brief,
           wordsBias: settings.narration[style].wordsBias,
+          // Longueur du script SOURCE calculée sur le débit mesuré de sa voix.
+          sourceCharsPerSecond: cpsFor(language),
+          voiceSpeed: baseVoiceSpeed,
         },
       })) as Script;
       setScript(result);
@@ -1162,6 +1174,56 @@ function Studio() {
   const translationSourceRef = useRef<Record<string, string>>({});
 
   /**
+   * DÉBIT DE DÉPART D'UNE VOIX JAMAIS ENTENDUE : une seule prise COURTE de
+   * calibration (deux phrases), mesurée puis mémorisée. Tout le calibrage des
+   * longueurs se fait ensuite sur le texte seul, sans appeler ElevenLabs.
+   */
+  const ensureVoiceRates = async (targets: string[], doc: Script | null) => {
+    for (const lang of targets) {
+      if (cancelledRef.current) return;
+      const voiceId = voiceForLang(lang);
+      if (!voiceId) continue;
+      if (voiceRatesRef.current[rateKey(voiceId, lang)]) continue;
+      const src = scriptsRef.current[lang] ?? (lang === sourceLang ? doc : null);
+      const sample = (src?.scenes?.[0]?.narration ?? "").trim().slice(0, 200);
+      if (sample.length < 40) continue;
+      setCurrentStep(`Calibration de la voix — ${languageLabel(lang)}…`);
+      try {
+        const { audioDataUrl, words, characters } = (await runVoice({
+          data: { text: sample, voice: voiceId, engine, language: lang as LanguageId, speed: 1 },
+        })) as { audioDataUrl: string; words?: WordTiming[]; characters?: number };
+        bumpUsage((u) => ({
+          ...u,
+          voiceChars: {
+            ...u.voiceChars,
+            [lang]: (u.voiceChars[lang] ?? 0) + (characters ?? sample.length),
+          },
+        }));
+        const duration = await audioDuration(audioDataUrl);
+        const win = voiceWindow(words ?? [], duration);
+        const speaking = Math.max(0.3, win ? win.end - win.start : duration);
+        const r = (await runRecordRate({
+          data: {
+            voiceId,
+            language: lang,
+            chars: characters ?? sample.length,
+            seconds: speaking,
+          },
+        })) as { rate?: VoiceRate | null };
+        if (r.rate) {
+          voiceRatesRef.current = {
+            ...voiceRatesRef.current,
+            [rateKey(voiceId, lang)]: r.rate,
+          };
+          setVoiceRates((p) => ({ ...p, [rateKey(voiceId, lang)]: r.rate as VoiceRate }));
+        }
+      } catch {
+        // Pas de mesure possible : on garde le débit par défaut de la langue.
+      }
+    }
+  };
+
+  /**
    * MASTER : traduit le script source dans chaque autre langue cochée.
    * Les visuels ne sont jamais régénérés — seuls les textes parlés changent.
    * `reuse` : une langue déjà traduite depuis CE texte source n'est pas refaite.
@@ -1187,8 +1249,10 @@ function Studio() {
       return next;
     }
     setTranslating(true);
+    // Une voix jamais entendue n'a pas de débit : UNE prise courte suffit à le
+    // mesurer, tout le reste du calibrage se fait ensuite sur le texte.
+    await ensureVoiceRates([sourceLang, ...others], doc);
     const { lo: loSec, hi: hiSec } = durationRange(targetSeconds);
-    const midSec = (loSec + hiSec) / 2;
     /** Écart à la fenêtre de durée : 0 quand la langue est dans la cible. */
     const gap = (sec: number) => (sec < loSec ? loSec - sec : sec > hiSec ? sec - hiSec : 0);
 
@@ -1208,16 +1272,15 @@ function Studio() {
           // réel de SA voix, pas du nombre de mots français. À 6,8 c/s, une
           // cible de 63 s ne laisse pas le même texte qu'à 10,4 c/s.
           const cps = cpsFor(lang);
-          const budget = charBudget(midSec, cps, baseVoiceSpeed);
+          const window = charWindow(loSec, hiSec, cps, baseVoiceSpeed);
+          const charsOf = (scenes: { narration: string }[]) =>
+            narrationChars(scenes.map((s) => s.narration));
           const predicted = (scenes: { narration: string }[]) =>
-            predictSeconds(
-              scenes.reduce((n, s) => n + (s.narration ?? "").trim().length, 0),
-              cps,
-              baseVoiceSpeed,
-            );
+            predictSeconds(charsOf(scenes), cps, baseVoiceSpeed);
           const callTranslate = (
             src: { title: string; hook: string; cta: string; scenes: TransRes["scenes"] },
             adjust: boolean,
+            mode: "ok" | "shorten" | "lengthen" = "ok",
           ) =>
             runTranslate({
               data: {
@@ -1236,7 +1299,10 @@ function Studio() {
                 minTotalSeconds: loSec,
                 maxTotalSeconds: hiSec,
                 adjust,
-                charBudget: budget,
+                charTarget: window.target,
+                charMin: window.min,
+                charMax: window.max,
+                charMode: mode,
               },
             }).then((r) => {
               bumpUsage((u) => ({
@@ -1261,8 +1327,10 @@ function Studio() {
             },
             Boolean(existing),
           );
-          // CONTRÔLE DU TOTAL : jusqu'à trois passes de condensation sur CETTE
-          // langue uniquement, puis on garde le résultat le plus proche.
+          // CONTRÔLE DU TOTAL, SYMÉTRIQUE ET SUR LE TEXTE SEUL (aucune voix
+          // n'est synthétisée ici) : jusqu'à trois passes sur CETTE langue,
+          // qui RACCOURCISSENT ou RALLONGENT selon le sens de l'écart, puis on
+          // garde le résultat le plus proche de la fenêtre.
           let best = res;
           let bestGap = gap(predicted(res.scenes));
           for (
@@ -1270,8 +1338,12 @@ function Studio() {
             pass < MAX_CONDENSE_PASSES && bestGap > 0 && !cancelledRef.current;
             pass++
           ) {
-            setCurrentStep(`Condensation — ${languageLabel(lang)}…`);
-            res = await callTranslate(res, true);
+            const mode = calibrationMode(charsOf(res.scenes), window);
+            if (mode === "ok") break;
+            setCurrentStep(
+              `${mode === "shorten" ? "Condensation" : "Étoffement"} — ${languageLabel(lang)}…`,
+            );
+            res = await callTranslate(res, true, mode);
             const g = gap(predicted(res.scenes));
             if (g < bestGap) {
               best = res;
@@ -1669,8 +1741,8 @@ function Studio() {
    * qui est en retard au milieu d'un pipeline). Durée réellement parlée dès
    * qu'une voix existe, prédiction par le débit mesuré sinon.
    */
-  const overflowFrom = (doc: Script, snapshot: Record<number, SceneState>) => {
-    const hi = durationRange(targetSeconds).hi;
+  const outOfWindowFrom = (doc: Script, snapshot: Record<number, SceneState>) => {
+    const { lo, hi } = durationRange(targetSeconds);
     const out: { lang: LanguageId; over: number }[] = [];
     for (const l of langs) {
       const s = l === sourceLang ? doc : scriptsRef.current[l];
@@ -1686,13 +1758,22 @@ function Studio() {
           (real > 0 ? real : predictSeconds((sc.narration ?? "").trim().length, cps, speed))
         );
       }, 0);
+      // SYMÉTRIQUE : une version trop COURTE est un échec au même titre qu'une
+      // version trop longue (écart négatif).
       if (total > hi + 0.5) out.push({ lang: l, over: Math.round(total - hi) });
+      else if (total < lo - 0.5) out.push({ lang: l, over: -Math.round(lo - total) });
     }
     return out;
   };
 
+  /** Conservé : ne signale que les langues qui DÉPASSENT (avant animation). */
+  const overflowFrom = (doc: Script, snapshot: Record<number, SceneState>) =>
+    outOfWindowFrom(doc, snapshot).filter((o) => o.over > 0);
+
   const overflowLabel = (over: { lang: LanguageId; over: number }[]) =>
-    over.map((o) => `${o.lang.toUpperCase()} +${o.over} s`).join(" · ");
+    over
+      .map((o) => `${o.lang.toUpperCase()} ${o.over > 0 ? "+" : "−"}${Math.abs(o.over)} s`)
+      .join(" · ");
 
   const onGenerateAll = async () => {
     if (!script) return;
@@ -1718,18 +1799,25 @@ function Studio() {
       }
       if (cancelledRef.current) return;
 
-      // d — voix off de TOUTES les langues.
+      // d — CONTRÔLE SUR LE TEXTE, AVANT TOUTE VOIX : une langue hors fenêtre
+      // fige le défaut dans toutes les versions, puisque les clips sont communs.
+      const textOver = outOfWindowFrom(script, snapshot);
+      if (textOver.length) {
+        toast.error(
+          `Production bloquée — ${overflowLabel(textOver)}. Recalibre ces versions (bouton Traduire) : aucune voix off ni aucun plan animé n'a été commandé.`,
+        );
+        return;
+      }
+
+      // e — voix off de TOUTES les langues, une seule fois par plan et par langue.
       snapshot = await generateAllVoices(script, snapshot);
       if (cancelledRef.current) return;
 
-      // MESURE AVANT DE PAYER : une langue hors fenêtre fige le défaut dans
-      // toutes les versions, puisque les clips sont communs. On n'anime pas.
       const over = overflowFrom(script, snapshot);
       if (over.length) {
         toast.error(
-          `Animation bloquée — ${overflowLabel(over)}. Condense ces versions (bouton Traduire) avant d'animer : les plans sont payés une seule fois pour toutes les langues.`,
+          `Animation bloquée — ${overflowLabel(over)}. Durées mesurées hors cible : le débit des voix vient d'être recalé, relance le calibrage avant d'animer.`,
         );
-        
         return;
       }
 
@@ -2081,36 +2169,19 @@ function Studio() {
         return;
       }
 
-      // d — voix off de toutes les langues (c'est elles qui donnent les durées).
-      snapshot = await generateAllVoices(doc, snapshot);
-      if (cancelledRef.current) {
-        setAssembleStep("Pipeline arrêté");
-        return;
-      }
-
-      // BOUCLE FERMÉE : mesuré, corrigé, remesuré — et seulement ensuite animé.
-      // Deux tours de condensation maximum sur les seules langues qui débordent
-      // (la voix off est peu coûteuse ; les plans animés, eux, sont définitifs).
-      let over = overflowFrom(doc, snapshot);
+      // d — CALIBRAGE DES DURÉES SUR LE TEXTE SEUL. Aucune voix n'est
+      // synthétisée ici : on se sert du débit MESURÉ de chaque voix. Régénérer
+      // les voix à chaque passe revenait à payer trois fois la même prise, et
+      // cinq fois plus avec cinq langues.
+      let over = outOfWindowFrom(doc, snapshot);
       for (let round = 0; round < 2 && over.length && !cancelledRef.current; round++) {
-        const bad = over.map((o) => o.lang);
-        setAssembleStep(`Condensation — ${bad.map((l) => languageLabel(l)).join(", ")}…`);
-        setCurrentStep(`Condensation — ${overflowLabel(over)}`);
+        const bad = over.map((o) => o.lang).filter((l) => l !== sourceLang);
+        if (!bad.length) break;
+        setAssembleStep(`Calibrage — ${bad.map((l) => languageLabel(l)).join(", ")}…`);
+        setCurrentStep(`Calibrage — ${overflowLabel(over)}`);
         await onTranslateAll(doc, false, bad);
         if (cancelledRef.current) break;
-        // Les voix de ces langues ne correspondent plus au texte : on les refait.
-        for (const l of bad) {
-          for (const sc of doc.scenes) {
-            const st = snapshot[sc.index];
-            if (st?.voices?.[l]) {
-              const voices = { ...st.voices };
-              delete voices[l];
-              snapshot[sc.index] = { ...st, voices };
-            }
-          }
-        }
-        snapshot = await generateAllVoices(doc, snapshot);
-        over = overflowFrom(doc, snapshot);
+        over = outOfWindowFrom(doc, snapshot);
       }
       if (cancelledRef.current) {
         setAssembleStep("Pipeline arrêté");
@@ -2118,9 +2189,26 @@ function Studio() {
       }
       if (over.length) {
         toast.error(
-          `Animation bloquée — ${overflowLabel(over)}. Ces versions restent hors de la cible après condensation et accélération de la voix : aucun plan animé n'a été commandé.`,
+          `Animation bloquée — ${overflowLabel(over)}. Ces versions restent hors de la cible après calibrage du texte et accélération de la voix : aucune voix off ni aucun plan animé n'a été commandé.`,
         );
         setAssembleStep("Durée hors cible : animation bloquée");
+        return;
+      }
+
+      // e — voix off, UNE SEULE FOIS par plan et par langue, maintenant que
+      // toutes les langues sont dans la fenêtre. La durée réellement entendue
+      // corrige ensuite le débit mémorisé pour les prochaines vidéos.
+      snapshot = await generateAllVoices(doc, snapshot);
+      if (cancelledRef.current) {
+        setAssembleStep("Pipeline arrêté");
+        return;
+      }
+      const realOver = outOfWindowFrom(doc, snapshot);
+      if (realOver.length) {
+        toast.warning(
+          `Durées mesurées hors cible — ${overflowLabel(realOver)}. Le débit des voix vient d'être recalé : relance le calibrage avant d'animer.`,
+        );
+        setAssembleStep("Durée mesurée hors cible : animation bloquée");
         return;
       }
 

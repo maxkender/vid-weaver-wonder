@@ -49,6 +49,14 @@ export const generateScript = createServerFn({ method: "POST" })
         includeCta: z.boolean().default(true),
         /** Faits établis par la vérification : seule source autorisée. */
         facts: z.array(z.string().max(600)).max(20).default([]),
+        /**
+         * Débit MESURÉ de la voix de la langue source (caractères par seconde à
+         * la vitesse 1,0). C'est lui qui fixe la longueur du script, pas une
+         * estimation en mots.
+         */
+        sourceCharsPerSecond: z.number().min(3).max(25).optional(),
+        /** Vitesse de synthèse prévue pour la voix source. */
+        voiceSpeed: z.number().min(0.8).max(1.3).optional(),
       })
       .parse(input),
   )
@@ -88,8 +96,16 @@ export const translateScript = createServerFn({ method: "POST" })
         maxTotalSeconds: z.number().min(10).max(180).default(66),
         /** Passe de correction de durée : le texte est déjà dans la langue cible. */
         adjust: z.boolean().default(false),
-        /** Budget de caractères total, calculé sur le débit mesuré de la voix. */
-        charBudget: z.number().int().min(80).max(6000).optional(),
+        /**
+         * FENÊTRE DE CARACTÈRES calculée sur le débit MESURÉ de la voix de cette
+         * langue (caractères par seconde, jamais des mots). C'est la contrainte
+         * de longueur prioritaire : cible + bornes basse et haute.
+         */
+        charTarget: z.number().int().min(80).max(6000).optional(),
+        charMin: z.number().int().min(80).max(6000).optional(),
+        charMax: z.number().int().min(80).max(6000).optional(),
+        /** Sens de la correction demandée quand le texte est hors fenêtre. */
+        charMode: z.enum(["ok", "shorten", "lengthen"]).optional(),
       })
       .parse(input),
   )
@@ -117,10 +133,13 @@ export const translateScript = createServerFn({ method: "POST" })
           maxWords: maxWordsForSeconds(data.maxTotalSeconds, data.language),
         },
         data.adjust,
-        data.charBudget
+        data.charTarget
           ? {
-              total: data.charBudget,
-              perScene: Math.max(20, Math.round(data.charBudget / Math.max(1, data.scenes.length))),
+              target: data.charTarget,
+              min: data.charMin ?? Math.round(data.charTarget * 0.95),
+              max: data.charMax ?? Math.round(data.charTarget * 1.05),
+              perScene: Math.max(20, Math.round(data.charTarget / Math.max(1, data.scenes.length))),
+              ...(data.charMode ? { mode: data.charMode } : {}),
             }
           : undefined,
       ),
