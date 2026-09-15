@@ -10,6 +10,7 @@ import {
   type Script,
 } from "./prompts.server";
 import { languageName } from "./languages";
+import { normalizeScript } from "./script-shape";
 import {
   durationRange,
   fastestWordsPerSecond,
