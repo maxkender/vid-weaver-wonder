@@ -1185,7 +1185,7 @@ function Studio() {
         .catch(() => undefined);
     }
     try {
-      const result = (await runScript({
+      const raw = (await runScript({
         data: {
           topic: checked.correctedTopic || topic,
           facts: checked.facts,
