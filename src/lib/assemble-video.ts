@@ -180,31 +180,38 @@ async function assembleVideoInner(
           : 4;
 
     const clipLen = stillOnly ? 0 : await videoDuration(scene.videoUrl!);
+    if (!stillOnly && !(clipLen > 0.2)) {
+      // Durée illisible = clip non chargé. Continuer produirait une dernière
+      // image figée en silence : on préfère une erreur explicite.
+      throw new Error(
+        `Plan ${i + 1}${langLabel ? ` (${langLabel})` : ""} : la durée du clip animé n'a pas pu être lue (fichier introuvable ou illisible). Montage interrompu.`,
+      );
+    }
     let tempo = 1; // accélération de la voix
     let stretch = 1; // ralentissement du clip
-    if (!stillOnly && clipLen > 0.2 && target > clipLen) {
+    if (!stillOnly && target > clipLen) {
       const needed = target / clipLen;
       if (needed > STRETCH_BEFORE_TEMPO) {
         // On gagne d'abord un peu sur la voix (inaudible), puis on étire le clip.
         tempo = Math.min(MAX_TEMPO, needed / STRETCH_BEFORE_TEMPO);
       }
-      stretch = Math.min(MAX_STRETCH, target / tempo / clipLen);
-      // Filet de sécurité : si les plafonds (étirement 1,2 / voix 1,12) laissent
-      // la piste vidéo plus courte que la voix, le lecteur figerait la dernière
-      // image — exactement ce qu'on veut supprimer. On dépasse donc volontairement
-      // le plafond d'étirement : un plan très ralenti reste bien préférable à
-      // une image gelée en fin de plan. Mais ce n'est plus masqué : on le signale,
-      // c'est un défaut de calibrage du script, pas un aléa de montage.
       const needTotal = target / tempo / clipLen;
-      if (needTotal > stretch) {
-        stretch = needTotal;
+      // Le plafond est RÉELLEMENT appliqué : au-delà de 1,2× l'image devient
+      // molle. On ne ralentit pas davantage, on signale le plan et la langue —
+      // c'est un défaut de calibrage du script, à corriger en amont.
+      stretch = Math.min(MAX_STRETCH, needTotal);
+      if (needTotal > MAX_STRETCH + 0.001) {
         onStretchWarning?.(
-          `Plan ${i + 1}${langLabel ? ` (${langLabel})` : ""} : la voix dure ${target.toFixed(1)} s pour un clip de ${clipLen.toFixed(1)} s. L'image est ralentie ×${needTotal.toFixed(2)} et paraîtra molle — le texte de ce plan est trop long pour un clip de 8 s.`,
+          `Plan ${i + 1}${langLabel ? ` (${langLabel})` : ""} : la voix dure ${target.toFixed(1)} s pour un clip de ${clipLen.toFixed(1)} s. Il faudrait ralentir ×${needTotal.toFixed(2)}, au-delà du plafond ×${MAX_STRETCH} : le plan est coupé à la durée de l'image. Le texte de ce plan doit être raccourci.`,
         );
       }
     }
-    // Durée finale du plan, une fois la voix éventuellement accélérée.
-    const outDur = target / tempo;
+    // Durée finale du plan. Jamais d'image figée : quand le plafond d'étirement
+    // ne suffit pas, c'est la durée de l'image qui fait foi (la voix doit avoir
+    // été condensée en amont).
+    const videoSpan = stillOnly ? Infinity : clipLen * stretch;
+    const outDur = Math.min(target / tempo, videoSpan);
+
 
     const base = `scale=${width}:${height}:force_original_aspect_ratio=decrease,pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2:black,setsar=1`;
     const vf = stillOnly
