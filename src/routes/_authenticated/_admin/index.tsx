@@ -1735,18 +1735,25 @@ function Studio() {
       }
       if (cancelledRef.current) return;
 
-      // d — voix off de TOUTES les langues.
+      // d — CONTRÔLE SUR LE TEXTE, AVANT TOUTE VOIX : une langue hors fenêtre
+      // fige le défaut dans toutes les versions, puisque les clips sont communs.
+      const textOver = outOfWindowFrom(script, snapshot);
+      if (textOver.length) {
+        toast.error(
+          `Production bloquée — ${overflowLabel(textOver)}. Recalibre ces versions (bouton Traduire) : aucune voix off ni aucun plan animé n'a été commandé.`,
+        );
+        return;
+      }
+
+      // e — voix off de TOUTES les langues, une seule fois par plan et par langue.
       snapshot = await generateAllVoices(script, snapshot);
       if (cancelledRef.current) return;
 
-      // MESURE AVANT DE PAYER : une langue hors fenêtre fige le défaut dans
-      // toutes les versions, puisque les clips sont communs. On n'anime pas.
       const over = overflowFrom(script, snapshot);
       if (over.length) {
         toast.error(
-          `Animation bloquée — ${overflowLabel(over)}. Condense ces versions (bouton Traduire) avant d'animer : les plans sont payés une seule fois pour toutes les langues.`,
+          `Animation bloquée — ${overflowLabel(over)}. Durées mesurées hors cible : le débit des voix vient d'être recalé, relance le calibrage avant d'animer.`,
         );
-        
         return;
       }
 
