@@ -220,6 +220,11 @@ export type PromptOverrides = {
   visualBrief?: string | undefined;
   quality?: string | undefined;
   motion?: string | undefined;
+  /**
+   * Consigne propre au PLAN 1 (accroche). Pour l'image elle s'ajoute au brief,
+   * pour l'animation elle REMPLACE la consigne de mouvement des autres plans.
+   */
+  opening?: string | undefined;
   /** Bible visuelle (personnages + palette) à répéter sur chaque plan. */
   bible?: string | undefined;
   /** Contexte narratif : plans précédents et plan suivant. */
