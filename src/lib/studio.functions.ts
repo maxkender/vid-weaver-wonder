@@ -95,6 +95,7 @@ export const translateScript = createServerFn({ method: "POST" })
     const { translationSystemPrompt } = await import("./prompts.server");
     const { maxWordsForSeconds } = await import("./duration");
     const maxWords = maxWordsForSeconds(data.maxSceneSeconds, data.language);
+    const usageOut: { usage?: import("./usage").TokenUsage | undefined } = {};
     const res = await chatJSON<{
       title?: string;
       hook?: string;
@@ -122,6 +123,7 @@ export const translateScript = createServerFn({ method: "POST" })
         scenes: data.scenes,
       }),
       0.4,
+      usageOut,
     );
     // Sécurité : on réaligne sur les index source, jamais sur l'ordre du modèle.
     const byIndex = new Map((res.scenes ?? []).map((s) => [s.index, s]));
@@ -138,6 +140,7 @@ export const translateScript = createServerFn({ method: "POST" })
       hook: res.hook?.trim() || data.hook,
       cta: data.cta ? (res.cta?.trim() || data.cta) : "",
       scenes,
+      usage: usageOut.usage ?? null,
     };
   });
 
@@ -181,8 +184,9 @@ export const generateSceneImage = createServerFn({ method: "POST" })
             : ""
         }: keep EXACTLY the same characters (same faces, same hair, same clothing shapes and colours), the same materials and paper textures, the same colour palette, the same lighting and the same art direction, so the video reads as one single illustrated story. Do not copy the composition — render the new scene described above as the next shot of that same story.`
       : base;
-    const dataUrl = await generateImageDataUrl(prompt, unique);
-    return { dataUrl };
+    const usageOut: { usage?: import("./usage").TokenUsage | undefined } = {};
+    const dataUrl = await generateImageDataUrl(prompt, unique, usageOut);
+    return { dataUrl, usage: usageOut.usage ?? null };
   });
 
 
@@ -436,7 +440,11 @@ export const generateSceneVoice = createServerFn({ method: "POST" })
       data.voice,
       languageName(data.language),
     );
-    return { audioDataUrl, words: [] as { word: string; start: number; end: number }[] };
+    return {
+      audioDataUrl,
+      words: [] as { word: string; start: number; end: number }[],
+      characters: data.text.length,
+    };
   });
 
 

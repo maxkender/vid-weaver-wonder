@@ -44,6 +44,16 @@ import {
 import { KaraokeCaption } from "@/components/karaoke-caption";
 import { MusicLibrary } from "@/components/music-library";
 import { audioDuration, estimateSpeechSeconds } from "@/lib/duration";
+import {
+  addTokens,
+  emptyUsage,
+  formatEuros,
+  hasUsage,
+  moneyTotal,
+  totalVoiceChars,
+  type TokenUsage,
+  type UsageReport,
+} from "@/lib/usage";
 import { SQUARE_MARGIN_RATIO, SQUARE_RADIUS_RATIO } from "@/lib/karaoke-overlay";
 import {
   
@@ -81,6 +91,76 @@ import { createExportUpload, getExportDownloadUrl } from "@/lib/exports.function
 import { pipelineState, resumePipeline, stopPipeline } from "@/lib/jobs/control.functions";
 
 
+
+
+/**
+ * Récapitulatif du coût RÉEL d'une vidéo. Les quantités sont toujours
+ * affichées ; un montant n'apparaît que si l'utilisateur a renseigné ses
+ * tarifs dans Paramètres — aucun prix n'est inventé.
+ */
+function UsageRecap({
+  usage,
+  priceVideoSecond,
+  priceImage,
+  compact,
+}: {
+  usage: UsageReport;
+  priceVideoSecond: number | null;
+  priceImage: number | null;
+  compact?: boolean;
+}) {
+  const chars = totalVoiceChars(usage);
+  const money = moneyTotal(usage, { perVideoSecond: priceVideoSecond, perImage: priceImage });
+  const calls =
+    usage.textCalls.script + usage.textCalls.factCheck + usage.textCalls.translation;
+  if (compact) {
+    return (
+      <span className="text-[11px] text-muted-foreground">
+        {usage.clips.count} clips / {usage.clips.seconds} s · {usage.images} images ·{" "}
+        {chars.toLocaleString("fr-FR")} car.
+        {money !== null ? ` · ${formatEuros(money)}` : ""}
+      </span>
+    );
+  }
+  return (
+    <div className="surface-card space-y-2 p-3 text-xs">
+      <div className="text-sm font-medium">Coût réel de cette vidéo</div>
+      <div className="grid gap-1 text-muted-foreground sm:grid-cols-2">
+        <span>
+          Clips animés : {usage.clips.count} ({usage.clips.seconds} s commandées)
+        </span>
+        <span>Images générées : {usage.images}</span>
+        <span>
+          Voix off : {chars.toLocaleString("fr-FR")} caractères (1 crédit ElevenLabs par
+          caractère)
+        </span>
+        <span>
+          Appels de texte : {calls} (script {usage.textCalls.script}, vérification{" "}
+          {usage.textCalls.factCheck}, traductions {usage.textCalls.translation})
+        </span>
+      </div>
+      {Object.keys(usage.voiceChars).length > 0 && (
+        <div className="flex flex-wrap gap-2 text-muted-foreground">
+          {Object.entries(usage.voiceChars).map(([l, n]) => (
+            <span key={l}>
+              {l.toUpperCase()} {n.toLocaleString("fr-FR")} car.
+            </span>
+          ))}
+        </div>
+      )}
+      {usage.tokens && (
+        <div className="text-muted-foreground">
+          Jetons IA relevés : {usage.tokens.totalTokens?.toLocaleString("fr-FR") ?? "—"}
+        </div>
+      )}
+      <div className={money !== null ? "font-medium text-foreground" : "text-muted-foreground"}>
+        {money !== null
+          ? `Total vidéo + images : ${formatEuros(money)} (hors crédits voix)`
+          : "Renseigne tes tarifs dans Paramètres pour voir un montant en euros."}
+      </div>
+    </div>
+  );
+}
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -217,6 +297,8 @@ type HistoryItem = {
   langs?: string[];
   /** Narrateur retenu par langue. */
   voices?: Record<string, string>;
+  /** Coût réellement consommé par cette vidéo. */
+  usage?: UsageReport;
 };
 
 const HISTORY_KEY = "studio-history-v1";
@@ -414,22 +496,57 @@ function Studio() {
   );
 
   /**
+   * RATTRAPAGE DE DURÉE PAR LA VITESSE DE VOIX.
+   * Quand une langue dépasse encore la cible APRÈS la condensation du texte,
+   * on accélère la voix off de CETTE langue uniquement, plafonnée à 1,15 :
+   * au-delà la diction se dégrade. La vitesse est appliquée à la SYNTHÈSE, donc
+   * les repères mot à mot renvoyés par ElevenLabs restent justes — on ne
+   * recalcule jamais les sous-titres et on ne touche pas à atempo au montage.
+   */
+  const baseVoiceSpeed = settings.voiceSpeed ?? 1.05;
+  const speedByLang = useMemo(() => {
+    const hi = Math.round(targetSeconds * 1.1);
+    const out: Record<string, number> = {};
+    for (const l of langs) {
+      const s = scripts[l] ?? (l === sourceLang ? script : null);
+      if (!s) continue;
+      const est = (s.scenes ?? []).reduce(
+        (sum, sc) => sum + estimateSpeechSeconds(sc.narration ?? "", l),
+        0,
+      );
+      const needed = est > hi ? (baseVoiceSpeed * est) / hi : baseVoiceSpeed;
+      out[l] = Math.min(1.15, Math.round(needed * 100) / 100);
+    }
+    return out;
+  }, [langs, scripts, script, sourceLang, targetSeconds, baseVoiceSpeed]);
+
+  const speedFor = useCallback(
+    (lang: string) => speedByLang[lang] ?? baseVoiceSpeed,
+    [speedByLang, baseVoiceSpeed],
+  );
+
+  /**
    * Durée totale estimée par langue produite : durée réelle de la voix off dès
-   * qu'elle existe, estimation par le débit de la langue sinon.
+   * qu'elle existe, estimation par le débit de la langue (corrigée de la
+   * vitesse retenue pour cette langue) sinon.
    */
   const langDurations = useMemo(() => {
     return langs
       .map((l) => {
         const s = scripts[l] ?? (l === sourceLang ? script : null);
         if (!s) return null;
+        const speed = speedByLang[l] ?? baseVoiceSpeed;
         const total = (s.scenes ?? []).reduce((sum, sc, i) => {
           const real = states[i]?.voices?.[l]?.duration ?? 0;
-          return sum + (real > 0 ? real : estimateSpeechSeconds(sc.narration ?? "", l));
+          if (real > 0) return sum + real;
+          return sum + (estimateSpeechSeconds(sc.narration ?? "", l) * baseVoiceSpeed) / speed;
         }, 0);
-        return { lang: l, seconds: total };
+        return { lang: l, seconds: total, speed };
       })
-      .filter((x): x is { lang: LanguageId; seconds: number } => x !== null);
-  }, [langs, scripts, script, sourceLang, states]);
+      .filter(
+        (x): x is { lang: LanguageId; seconds: number; speed: number } => x !== null,
+      );
+  }, [langs, scripts, script, sourceLang, states, speedByLang, baseVoiceSpeed]);
 
   /** MP4 final par langue. */
   const [finalUrls, setFinalUrls] = useState<Record<string, string>>({});
@@ -491,8 +608,16 @@ function Studio() {
   };
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [confirmPayload, setConfirmPayload] = useState<LaunchCost | null>(null);
-  /** Coût réellement commandé depuis le début de la session (clips payants). */
-  const [spent, setSpent] = useState({ clips: 0, seconds: 0 });
+  /** COÛT RÉEL de la vidéo en cours : quantités effectivement commandées. */
+  const [usage, setUsage] = useState<UsageReport>(emptyUsage);
+  const usageRef = useRef<UsageReport>(usage);
+  const bumpUsage = useCallback((fn: (u: UsageReport) => UsageReport) => {
+    setUsage((prev) => {
+      const next = fn(prev);
+      usageRef.current = next;
+      return next;
+    });
+  }, []);
   const confirmResolverRef = useRef<((value: boolean) => void) | null>(null);
 
   const requestCostConfirmation = (payload: LaunchCost): Promise<boolean> => {
@@ -582,6 +707,16 @@ function Studio() {
     },
     [sourceLang, langs, voiceByLang],
   );
+
+  /** Le coût consommé suit le projet : il reste lisible dans l'historique. */
+  useEffect(() => {
+    if (!projectId || !hasUsage(usage)) return;
+    const items = readHistory();
+    if (!items.some((h) => h.id === projectId)) return;
+    const updated = items.map((h) => (h.id === projectId ? { ...h, usage } : h));
+    writeHistory(updated);
+    setHistory(updated);
+  }, [projectId, usage]);
 
   /** Range le lien d'une vidéo exportée avec le projet (survit au rechargement). */
   const saveExportToHistory = useCallback((id: string, lang: string, info: ExportInfo) => {
@@ -751,6 +886,10 @@ function Studio() {
       const res = (await runVerifyFacts({
         data: { topic: current, angle, language },
       })) as FactCheck;
+      bumpUsage((u) => ({
+        ...u,
+        textCalls: { ...u.textCalls, factCheck: u.textCalls.factCheck + 1 },
+      }));
       setFactCheck(res);
       const corrected = res.correctedTopic.trim() || current;
       factCheckRef.current = { topic: corrected, data: res };
@@ -808,6 +947,14 @@ function Studio() {
         },
       })) as Script;
       setScript(result);
+      // Nouveau script = nouvelle vidéo : le compteur de coût repart de zéro,
+      // en conservant la vérification des faits déjà payée pour ce sujet.
+      const alreadyChecked = usageRef.current.textCalls.factCheck;
+      usageRef.current = {
+        ...emptyUsage(),
+        textCalls: { script: 1, factCheck: alreadyChecked, translation: 0 },
+      };
+      setUsage(usageRef.current);
       setStates({});
       setScripts({ [sourceLang]: result });
       scriptsRef.current = { [sourceLang]: result };
@@ -893,6 +1040,12 @@ function Studio() {
                 maxTotalSeconds: hiSec,
                 adjust,
               },
+            }).then((r) => {
+              bumpUsage((u) => ({
+                ...u,
+                textCalls: { ...u.textCalls, translation: u.textCalls.translation + 1 },
+              }));
+              return r;
             }) as Promise<TransRes>;
 
           let res = await callTranslate(
@@ -1004,7 +1157,7 @@ function Studio() {
       const prev = consistent ? (previousImage.current ?? null) : null;
       const story = storyContext(scene, doc);
       const sceneVisualOpts = { ...visualOpts, bible: bibleFor(doc) };
-      const { dataUrl } = (await runImage({
+      const { dataUrl, usage: imgUsage } = (await runImage({
         data: {
           imagePrompt: scene.imagePrompt,
           visual,
@@ -1014,7 +1167,8 @@ function Studio() {
           ...(ref ? { referenceImage: ref } : {}),
           ...(prev && prev !== ref ? { previousImage: prev } : {}),
         },
-      })) as { dataUrl: string };
+      })) as { dataUrl: string; usage?: TokenUsage | null };
+      bumpUsage((u) => ({ ...u, images: u.images + 1, tokens: addTokens(u.tokens, imgUsage) }));
 
       if (scene.index === 0 || !referenceImage.current) referenceImage.current = dataUrl;
       previousImage.current = dataUrl;
@@ -1088,9 +1242,9 @@ function Studio() {
       })) as { id: string };
       patch(scene.index, { videoId: id });
       // Coût RÉELLEMENT commandé (à comparer avec l'estimation d'avant départ).
-      setSpent((s) => ({
-        clips: s.clips + 1,
-        seconds: s.seconds + Number(seconds ?? 8),
+      bumpUsage((u) => ({
+        ...u,
+        clips: { count: u.clips.count + 1, seconds: u.clips.seconds + Number(seconds ?? 8) },
       }));
 
       for (let attempt = 0; attempt < 90; attempt++) {
@@ -1179,15 +1333,24 @@ function Studio() {
     const text = doc?.scenes.find((s) => s.index === scene.index)?.narration ?? scene.narration;
     patch(scene.index, { audioLoading: true });
     try {
-      const { audioDataUrl, words } = (await runVoice({
+      const { audioDataUrl, words, characters } = (await runVoice({
         data: {
           text,
           voice: voiceForLang(lang),
           engine,
           language: lang as LanguageId,
-          speed: settings.voiceSpeed ?? 1.05,
+          // Vitesse propre à cette langue : rattrapage de durée appliqué à la
+          // synthèse, donc les repères mot à mot restent calés sur l'audio réel.
+          speed: speedFor(lang),
         },
-      })) as { audioDataUrl: string; words?: WordTiming[] };
+      })) as { audioDataUrl: string; words?: WordTiming[]; characters?: number };
+      bumpUsage((u) => ({
+        ...u,
+        voiceChars: {
+          ...u.voiceChars,
+          [lang]: (u.voiceChars[lang] ?? 0) + (characters ?? text.length),
+        },
+      }));
       const duration = await audioDuration(audioDataUrl);
       const take: VoiceTake = { audio: audioDataUrl, words: words ?? [], duration };
       setStates((prev) => ({
@@ -1297,7 +1460,7 @@ function Studio() {
   const onPreviewVoice = async () => {
     setPreviewVoice(true);
     try {
-      const sampleKey = `${engine}:${voice}:${voiceLangTab}`;
+      const sampleKey = `${engine}:${voice}:${voiceLangTab}:${speedFor(voiceLangTab)}`;
       let src = voiceSamples.current[sampleKey];
       if (!src) {
         const { audioDataUrl } = (await runVoice({
@@ -1306,7 +1469,7 @@ function Studio() {
             voice,
             engine,
             language: voiceLangTab,
-            speed: settings.voiceSpeed ?? 1.05,
+            speed: speedFor(voiceLangTab),
           },
         })) as { audioDataUrl: string };
         src = audioDataUrl;
@@ -1936,9 +2099,10 @@ function Studio() {
             seule fois + {cost.voices} voix off ({cost.languages} langue
             {cost.languages > 1 ? "s" : ""})
           </span>
-          {spent.clips > 0 && (
+          {usage.clips.count > 0 && (
             <span className="hidden text-xs text-foreground md:inline">
-              · Consommé : {spent.clips} clip{spent.clips > 1 ? "s" : ""} / {spent.seconds} s
+              · Consommé : {usage.clips.count} clip{usage.clips.count > 1 ? "s" : ""} /{" "}
+              {usage.clips.seconds} s
             </span>
           )}
 
@@ -1974,7 +2138,9 @@ function Studio() {
           <span className="text-xs text-muted-foreground">
             Coût estimé : {cost.clips} clip{cost.clips > 1 ? "s" : ""} × {cost.perClip} s + {cost.voices}{" "}
             voix off
-            {spent.clips > 0 ? ` · Consommé : ${spent.clips} clips / ${spent.seconds} s` : ""}
+            {usage.clips.count > 0
+              ? ` · Consommé : ${usage.clips.count} clips / ${usage.clips.seconds} s`
+              : ""}
           </span>
         </div>
       </header>
@@ -2046,6 +2212,14 @@ function Studio() {
                   </span>
                 </button>
                 <span className="flex flex-wrap items-center gap-2">
+                  {h.usage && (
+                    <UsageRecap
+                      usage={h.usage}
+                      priceVideoSecond={settings.priceVideoSecond ?? null}
+                      priceImage={settings.priceImage ?? null}
+                      compact
+                    />
+                  )}
                   {Object.entries(h.exports ?? {}).map(([l, info]) => (
                     <a
                       key={l}
@@ -2724,8 +2898,9 @@ function Studio() {
                     <span className="text-muted-foreground">
                       Durée estimée (cible {lo}-{hi} s)
                     </span>
-                    {langDurations.map(({ lang: l, seconds }) => {
+                    {langDurations.map(({ lang: l, seconds, speed }) => {
                       const bad = seconds < lo || seconds > hi;
+                      const boosted = speed > baseVoiceSpeed + 0.001;
                       return (
                         <span
                           key={l}
@@ -2735,10 +2910,14 @@ function Studio() {
                           title={
                             bad
                               ? `Hors de la cible ${lo}-${hi} secondes`
-                              : undefined
+                              : boosted
+                                ? "Voix accélérée pour tenir dans la durée cible"
+                                : undefined
                           }
                         >
-                          {l.toUpperCase()} ≈ {Math.round(seconds)} s{bad ? " ⚠" : ""}
+                          {l.toUpperCase()} ≈ {Math.round(seconds)} s
+                          {boosted ? ` · voix ×${speed.toFixed(2).replace(".", ",")}` : ""}
+                          {bad ? " ⚠" : ""}
                         </span>
                       );
                     })}
@@ -2759,6 +2938,15 @@ function Studio() {
                   </div>
                 );
               })()}
+
+            {hasUsage(usage) && (
+              <UsageRecap
+                usage={usage}
+                priceVideoSecond={settings.priceVideoSecond ?? null}
+                priceImage={settings.priceImage ?? null}
+              />
+            )}
+
 
             {langs.length > 1 && (
               <div className="flex flex-wrap items-center gap-2">

@@ -1,4 +1,17 @@
+import type { TokenUsage } from "./usage";
+
 const GATEWAY = "https://ai.gateway.lovable.dev/v1";
+
+/** Consommation rapportée par la passerelle, conservée telle quelle. */
+function readUsage(body: unknown): TokenUsage | undefined {
+  const u = (body as { usage?: Record<string, number> } | null)?.usage;
+  if (!u) return undefined;
+  const out: TokenUsage = {};
+  if (typeof u["prompt_tokens"] === "number") out.promptTokens = u["prompt_tokens"];
+  if (typeof u["completion_tokens"] === "number") out.completionTokens = u["completion_tokens"];
+  if (typeof u["total_tokens"] === "number") out.totalTokens = u["total_tokens"];
+  return out;
+}
 
 function key() {
   const k = process.env["LOVABLE_API_KEY"];
@@ -25,6 +38,8 @@ export async function chatJSON<T>(
   system: string,
   user: string,
   temperature?: number,
+  /** Réceptacle facultatif : la consommation rapportée par la passerelle. */
+  usageOut?: { usage?: TokenUsage | undefined },
 ): Promise<T> {
   const res = await fetch(`${GATEWAY}/chat/completions`, {
     method: "POST",
@@ -42,6 +57,7 @@ export async function chatJSON<T>(
 
   if (!res.ok) throw new Error(await readError(res));
   const data = (await res.json()) as { choices: { message: { content: string } }[] };
+  if (usageOut) usageOut.usage = readUsage(data);
   const raw = data.choices?.[0]?.message?.content ?? "{}";
   const cleaned = raw
     .trim()
@@ -54,6 +70,7 @@ export async function chatJSON<T>(
 export async function generateImageDataUrl(
   prompt: string,
   referenceImages: string[] = [],
+  usageOut?: { usage?: TokenUsage | undefined },
 ): Promise<string> {
   const content = referenceImages.length
     ? [
@@ -75,6 +92,7 @@ export async function generateImageDataUrl(
   const data = (await res.json()) as {
     choices: { message: { images?: { image_url?: { url?: string } }[] } }[];
   };
+  if (usageOut) usageOut.usage = readUsage(data);
   const url = data.choices?.[0]?.message?.images?.[0]?.image_url?.url;
   if (!url) throw new Error("Aucune image générée.");
   return url;

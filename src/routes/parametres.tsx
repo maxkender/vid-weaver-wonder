@@ -318,9 +318,57 @@ function SettingsPage() {
             <span className="mt-1 block text-xs text-muted-foreground">
               Un débit soutenu retient bien mieux l'attention sur TikTok. 1,05 par défaut ;
               au-delà de 1,10 la diction commence à se dégrader. Le réglage s'applique à toutes
-              les langues.
+              les langues. Une langue qui dépasse encore la durée cible après condensation du
+              texte est accélérée automatiquement, sans jamais dépasser 1,15.
             </span>
           </div>
+
+          <div className="flex flex-wrap gap-4">
+            <div>
+              <label className="label-x" htmlFor="price-video">
+                Tarif d'une seconde de vidéo IA (€)
+              </label>
+              <input
+                id="price-video"
+                type="number"
+                min={0}
+                step={0.001}
+                placeholder="—"
+                value={settings.priceVideoSecond ?? ""}
+                onChange={(e) =>
+                  persist({
+                    ...settings,
+                    priceVideoSecond: e.target.value === "" ? null : Number(e.target.value),
+                  })
+                }
+                className="field mt-1 w-40"
+              />
+            </div>
+            <div>
+              <label className="label-x" htmlFor="price-image">
+                Tarif d'une image générée (€)
+              </label>
+              <input
+                id="price-image"
+                type="number"
+                min={0}
+                step={0.001}
+                placeholder="—"
+                value={settings.priceImage ?? ""}
+                onChange={(e) =>
+                  persist({
+                    ...settings,
+                    priceImage: e.target.value === "" ? null : Number(e.target.value),
+                  })
+                }
+                className="field mt-1 w-40"
+              />
+            </div>
+          </div>
+          <span className="-mt-2 block text-xs text-muted-foreground">
+            Sert au récapitulatif de coût affiché après chaque vidéo. Tant que ces champs sont
+            vides, seules les quantités sont affichées : aucun prix n'est inventé.
+          </span>
 
           <label className="flex items-start gap-3 text-sm">
             <input
