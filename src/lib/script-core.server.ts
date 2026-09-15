@@ -167,25 +167,33 @@ export async function buildScript(data: BuildScriptInput): Promise<Script> {
   // script doit atterrir dans la fenêtre AVANT toute traduction, sinon toutes
   // les versions dérivent. Trop court est une faute aussi grave que trop long.
   const totalChars = () => narrationChars(script.scenes.map((s) => s.narration));
-  const perSceneChars = Math.max(
-    40,
-    Math.round(charsWindow.target / Math.max(1, script.scenes.length)),
-  );
-  for (let pass = 0; pass < 2; pass++) {
+  const budgetPerScene = perSceneChars(charsWindow, script.scenes.length);
+  for (let pass = 0; pass < MAX_LENGTH_PASSES; pass++) {
     const chars = totalChars();
     const mode = calibrationMode(chars, charsWindow);
     if (mode === "ok") break;
     const sec = predictSeconds(chars, sourceCps, sourceSpeed);
+    // Écart PLAN PAR PLAN : on dit au modèle combien de caractères il manque ou
+    // sont en trop dans chaque narration, au lieu d'un total qu'il ignore.
+    const deltas = sceneDeltas(script.scenes.map((s) => s.narration), charsWindow);
     try {
       const fixed = await chatJSON<{ scenes: { index: number; narration: string }[] }>(
         "google/gemini-3.7-flash",
         [
           `Tu ajustes la LONGUEUR des narrations d'un script vidéo en ${langName}. Tu ne changes ni le sens, ni le ton, ni l'ordre.`,
           `Tu renvoies EXACTEMENT ${script.scenes.length} scènes, avec les MÊMES index. Tu n'ajoutes, ne supprimes et ne fusionnes AUCUNE scène.`,
-          `BUDGET DE CARACTÈRES (unique mesure de longueur, calculée sur le débit réel de la voix) : la somme de toutes les narrations doit faire ${charsWindow.target} caractères espaces compris, jamais moins de ${charsWindow.min}, jamais plus de ${charsWindow.max}. Soit environ ${perSceneChars} caractères par scène.`,
+          `BUDGET DE CARACTÈRES (unique mesure de longueur, calculée sur le débit réel de la voix) : la somme de toutes les narrations doit faire ${charsWindow.target} caractères espaces compris, jamais moins de ${charsWindow.min}, jamais plus de ${charsWindow.max}. Soit environ ${budgetPerScene} caractères par scène.`,
+          "CORRECTION EXACTE À APPLIQUER, PLAN PAR PLAN (un nombre positif = caractères MANQUANTS à ajouter, négatif = caractères EN TROP à retirer) :",
+          ...deltas.map(
+            (d) =>
+              `- plan ${d.index} : ${d.chars} caractères, cible ${d.target} → ${
+                d.delta >= 0 ? `+${d.delta}` : `${d.delta}`
+              }`,
+          ),
           mode === "shorten"
-            ? `Le script est trop LONG (${chars} caractères, soit environ ${Math.round(sec)} s lues à voix haute). CONDENSE : supprime les redondances, les adverbes et les mots de liaison. Tu gardes TOUS les chiffres et toute l'information.`
-            : `Le script est trop COURT (${chars} caractères, soit environ ${Math.round(sec)} s lues à voix haute). ÉTOFFE avec des détails concrets (date exacte, lieu, nom, chiffre précis, conséquence matérielle). N'invente aucun fait douteux, n'ajoute ni morale, ni publicité, ni remplissage, ne répète rien.`,
+            ? `Le script est trop LONG (${chars} caractères, soit environ ${Math.round(sec)} s lues à voix haute). CONDENSE : supprime les redondances, les adjectifs de remplissage, les adverbes et les mots de liaison. Tu gardes TOUS les chiffres et toute l'information.`
+            : `Le script est trop COURT (${chars} caractères, soit environ ${Math.round(sec)} s lues à voix haute). ALLONGE EN AJOUTANT DE L'INFORMATION, jamais des mots : un chiffre, un lieu, une date, un geste précis, une conséquence concrète. INTERDIT d'ajouter un adjectif, un superlatif ou une reformulation de ce qui est déjà dit. N'invente aucun fait douteux, n'ajoute ni morale, ni publicité.`,
+          "RÈGLE ABSOLUE, DANS LES DEUX SENS : aucune redondance, un seul qualificatif par idée. « un trou rond au milieu du front » et jamais « un immense trou géant, tout rond et complètement unique ».",
           'Réponds uniquement en JSON: {"scenes":[{"index":number,"narration":string}]}',
         ].join("\n"),
         `Scènes actuelles (JSON) : ${JSON.stringify(
@@ -205,6 +213,17 @@ export async function buildScript(data: BuildScriptInput): Promise<Script> {
     } catch {
       break; // ajustement best-effort : on garde le script en l'état
     }
+  }
+
+  // BILAN DE LONGUEUR : on ne boucle jamais au-delà de MAX_LENGTH_PASSES. Si le
+  // script reste hors fenêtre, on le dit clairement au lieu de faire semblant.
+  const finalChars = totalChars();
+  if (calibrationMode(finalChars, charsWindow) !== "ok") {
+    const finalSeconds = predictSeconds(finalChars, sourceCps, sourceSpeed);
+    script.lengthNote = `Longueur hors cible après ${MAX_LENGTH_PASSES} tentatives : ${finalChars} caractères, soit environ ${finalSeconds.toFixed(
+      1,
+    )} s de narration (fenêtre visée ${loNarrationSeconds}-${Math.round(hiNarrationSeconds)} s). Reformule le sujet ou ajuste le nombre de plans.`;
+    console.warn("[script]", script.lengthNote);
   }
 
   // PASSE DE RELECTURE : on remplace les mots savants par des mots du
