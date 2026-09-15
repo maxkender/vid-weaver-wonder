@@ -57,6 +57,10 @@ export const generateScript = createServerFn({ method: "POST" })
         sourceCharsPerSecond: z.number().min(3).max(25).optional(),
         /** Vitesse de synthèse prévue pour la voix source. */
         voiceSpeed: z.number().min(0.8).max(1.3).optional(),
+        /** Niveau de langue imposé (page Paramètres). */
+        languageBrief: z.string().max(4000).optional(),
+        /** Règles de l'accroche (page Paramètres). */
+        hookBrief: z.string().max(4000).optional(),
       })
       .parse(input),
   )
