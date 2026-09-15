@@ -594,6 +594,7 @@ export const updateConventions = createServerFn({ method: "POST" })
     if (data.instagramTemplate !== undefined) patch["instagram_template"] = data.instagramTemplate.trim();
     if (data.gmailTemplate !== undefined) patch["gmail_template"] = data.gmailTemplate.trim();
     if (data.socialPassword !== undefined) patch["social_password"] = data.socialPassword;
+    if (data.platformPassword !== undefined) patch["platform_password"] = data.platformPassword;
     if (data.bioText !== undefined) patch["bio_text"] = data.bioText;
     if (data.upworkMessageFr !== undefined) patch["upwork_message_fr"] = data.upworkMessageFr;
     if (data.upworkMessageEn !== undefined) patch["upwork_message_en"] = data.upworkMessageEn;
