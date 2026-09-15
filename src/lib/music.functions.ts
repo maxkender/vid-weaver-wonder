@@ -61,6 +61,8 @@ export const registerMusicTrack = createServerFn({ method: "POST" })
         path: z.string().min(1).max(300),
         durationSec: z.number().min(0).max(3600).default(0),
         styles: z.array(z.string().min(1).max(40)).min(1).max(10),
+        /** Niveau mesuré à l'ajout : on ne le recalcule plus jamais. */
+        gainDb: z.number().min(-24).max(24).nullable().default(null),
       })
       .parse(input),
   )
@@ -73,10 +75,27 @@ export const registerMusicTrack = createServerFn({ method: "POST" })
         path: data.path,
         duration_sec: data.durationSec,
         styles: data.styles,
+        gain_db: data.gainDb,
       },
       { onConflict: "path" },
     );
     if (error) throw new Error(`Enregistrement impossible : ${error.message}`);
+    return { ok: true };
+  });
+
+/** Mémorise le gain d'un morceau déjà présent, mesuré à sa première utilisation. */
+export const setMusicTrackGain = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) =>
+    z.object({ id: z.string().uuid(), gainDb: z.number().min(-24).max(24) }).parse(input),
+  )
+  .handler(async ({ data }) => {
+    const { admin } = await import("./jobs/store.server");
+    const db = await admin();
+    const { error } = await db
+      .from("music_tracks")
+      .update({ gain_db: data.gainDb })
+      .eq("id", data.id);
+    if (error) throw new Error(`Mise à jour impossible : ${error.message}`);
     return { ok: true };
   });
 
@@ -86,7 +105,7 @@ export const listMusicTracks = createServerFn({ method: "GET" }).handler(async (
   const db = await admin();
   const { data, error } = await db
     .from("music_tracks")
-    .select("id, name, path, duration_sec, styles")
+    .select("id, name, path, duration_sec, styles, gain_db")
     .order("created_at", { ascending: false });
   if (error) throw new Error(`Lecture de la banque impossible : ${error.message}`);
   const rows = (data ?? []) as {
@@ -95,6 +114,7 @@ export const listMusicTracks = createServerFn({ method: "GET" }).handler(async (
     path: string;
     duration_sec: number;
     styles: string[] | null;
+    gain_db: number | null;
   }[];
   if (!rows.length) return [] as MusicTrackRow[];
   const { data: signed } = await db.storage
@@ -107,9 +127,11 @@ export const listMusicTracks = createServerFn({ method: "GET" }).handler(async (
     path: r.path,
     durationSec: Number(r.duration_sec) || 0,
     styles: r.styles ?? [],
+    gainDb: r.gain_db === null || r.gain_db === undefined ? null : Number(r.gain_db),
     url: urlByPath.get(r.path) ?? "",
   }));
 });
+
 
 /** Supprime le morceau du stockage et de la liste. */
 export const deleteMusicTrack = createServerFn({ method: "POST" })
