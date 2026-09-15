@@ -651,11 +651,11 @@ export const getOverview = createServerFn({ method: "POST" })
     const [{ data: profiles }, { data: accounts }, { data: videos }, { data: downloads }, { data: contracts }] =
       await Promise.all([
         db.from("profiles").select("id, role, status, language, full_name, email"),
-        db.from("poster_accounts").select("platform, status"),
+        db.from("poster_accounts").select("id, platform, status, language, warmup_done_at"),
         db.from("daily_videos").select("id, publish_date, language, status"),
         db
           .from("video_downloads")
-          .select("poster_id, daily_video_id, downloaded_at, posted_at")
+          .select("poster_id, account_id, daily_video_id, downloaded_at, posted_at")
           .gte("downloaded_at", `${isoDay(since30)}T00:00:00Z`),
         db.from("contracts").select("poster_id"),
       ]);
@@ -665,8 +665,15 @@ export const getOverview = createServerFn({ method: "POST" })
     );
     const activePosters = posters.filter((p) => p.status === "active");
 
+    const accountRows = (accounts ?? []) as {
+      id: string;
+      platform: string;
+      status: string;
+      language: string;
+      warmup_done_at: string | null;
+    }[];
     const byPlatform: Record<string, number> = {};
-    for (const a of (accounts ?? []) as { platform: string }[]) {
+    for (const a of accountRows) {
       byPlatform[a.platform] = (byPlatform[a.platform] ?? 0) + 1;
     }
 
@@ -680,15 +687,23 @@ export const getOverview = createServerFn({ method: "POST" })
     );
     const dl = (downloads ?? []) as {
       poster_id: string;
+      account_id: string | null;
       daily_video_id: string;
       downloaded_at: string;
       posted_at: string | null;
     }[];
+    // La mesure se fait au niveau du COMPTE : c'est lui qui publie.
+    const todayLanguages = new Set(todayVideos.map((v) => v.language));
+    const expectedAccounts = accountRows.filter(
+      (a) => a.warmup_done_at && todayLanguages.has(a.language),
+    ).length;
     const downloadedToday = new Set(
-      dl.filter((d) => todayIds.has(d.daily_video_id)).map((d) => d.poster_id),
+      dl.filter((d) => todayIds.has(d.daily_video_id) && d.account_id).map((d) => d.account_id!),
     );
     const postedToday = new Set(
-      dl.filter((d) => todayIds.has(d.daily_video_id) && d.posted_at).map((d) => d.poster_id),
+      dl
+        .filter((d) => todayIds.has(d.daily_video_id) && d.posted_at && d.account_id)
+        .map((d) => d.account_id!),
     );
 
     // Publications par jour sur 30 jours.
