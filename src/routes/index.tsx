@@ -43,7 +43,12 @@ import {
 } from "@/components/ui/alert-dialog";
 import { KaraokeCaption } from "@/components/karaoke-caption";
 import { MusicLibrary } from "@/components/music-library";
-import { audioDuration, estimateSpeechSeconds } from "@/lib/duration";
+import {
+  audioDuration,
+  durationRange,
+  estimateSpeechSeconds,
+  MAX_VOICE_SPEED,
+} from "@/lib/duration";
 import {
   addTokens,
   emptyUsage,
@@ -505,7 +510,7 @@ function Studio() {
    */
   const baseVoiceSpeed = settings.voiceSpeed ?? 1.05;
   const speedByLang = useMemo(() => {
-    const hi = Math.round(targetSeconds * 1.1);
+    const hi = durationRange(targetSeconds).hi;
     const out: Record<string, number> = {};
     for (const l of langs) {
       const s = scripts[l] ?? (l === sourceLang ? script : null);
@@ -515,7 +520,7 @@ function Studio() {
         0,
       );
       const needed = est > hi ? (baseVoiceSpeed * est) / hi : baseVoiceSpeed;
-      out[l] = Math.min(1.15, Math.round(needed * 100) / 100);
+      out[l] = Math.min(MAX_VOICE_SPEED, Math.round(needed * 100) / 100);
     }
     return out;
   }, [langs, scripts, script, sourceLang, targetSeconds, baseVoiceSpeed]);
@@ -880,6 +885,11 @@ function Studio() {
       return null;
     }
     if (factCheckRef.current?.topic === current) return factCheckRef.current.data;
+    // Appel payant : on refuse de partir si l'arrêt a été demandé.
+    if (cancelledRef.current) {
+      toast.warning("Pipeline arrêté");
+      return null;
+    }
     setCheckingFacts(true);
     setCurrentStep("Vérification des faits…");
     try {
@@ -923,6 +933,11 @@ function Studio() {
     // Aucune écriture (ni dépense ensuite) sur des faits non vérifiés.
     const checked = await ensureFactCheck();
     if (!checked || checked.verdict === "revoir") return undefined;
+    // Appel payant : arrêt vérifié juste avant l'écriture du script.
+    if (cancelledRef.current) {
+      toast.warning("Pipeline arrêté");
+      return undefined;
+    }
     setLoadingScript(true);
     // Le sujet de la file est consommé au moment où la vidéo part réellement.
     if (queuedTopicId) {
@@ -999,8 +1014,7 @@ function Studio() {
       return next;
     }
     setTranslating(true);
-    const loSec = targetSeconds;
-    const hiSec = Math.round(targetSeconds * 1.1);
+    const { lo: loSec, hi: hiSec } = durationRange(targetSeconds);
     /** Écart à la fenêtre de durée : 0 quand la langue est dans la cible. */
     const gap = (sec: number) => (sec < loSec ? loSec - sec : sec > hiSec ? sec - hiSec : 0);
     const totalSeconds = (scenes: { narration: string }[], lang: string) =>
@@ -2891,7 +2905,7 @@ function Studio() {
             {langDurations.length > 0 &&
               (() => {
                 const lo = targetSeconds;
-                const hi = Math.round(targetSeconds * 1.1);
+                const hi = durationRange(targetSeconds).hi;
                 const off = langDurations.filter((d) => d.seconds < lo || d.seconds > hi);
                 return (
                   <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">

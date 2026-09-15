@@ -97,6 +97,94 @@ export type StudioSettings = {
   priceVideoSecond: number | null;
   /** Tarif d'une image générée, en euros. null = non renseigné. */
   priceImage: number | null;
+  /**
+   * Champs de texte réellement modifiés à la main par l'utilisateur.
+   * Clés de la forme `narration.<style>.brief` ou `visual.<style>.brief|quality|motion`.
+   * Tout champ ABSENT de cette liste est repris du défaut livré à chaque
+   * chargement : une amélioration des consignes profite immédiatement à tous,
+   * sans être écrasée par une vieille copie figée dans le navigateur.
+   */
+  customFields: string[];
+};
+
+/** Chemins de champs texte personnalisables. */
+export type FieldPath = string;
+
+export function narrationPath(id: NarrationStyleId): FieldPath {
+  return `narration.${id}.brief`;
+}
+export function visualPath(id: VisualStyleId, key: "brief" | "quality" | "motion"): FieldPath {
+  return `visual.${id}.${key}`;
+}
+
+/** Valeur livrée (à jour) d'un champ texte. */
+export function defaultFieldValue(path: FieldPath): string {
+  const [group, id, key] = path.split(".");
+  if (group === "narration") return DEFAULT_STYLE_BRIEF[id as NarrationStyleId] ?? "";
+  if (key === "brief") return DEFAULT_VISUAL_BRIEF[id as VisualStyleId] ?? "";
+  if (key === "quality") return DEFAULT_QUALITY[id as VisualStyleId] ?? "";
+  if (key === "motion") return DEFAULT_MOTION[id as VisualStyleId] ?? "";
+  return "";
+}
+
+function readField(settings: StudioSettings, path: FieldPath): string {
+  const [group, id, key] = path.split(".");
+  if (group === "narration") return settings.narration[id as NarrationStyleId]?.brief ?? "";
+  const v = settings.visual[id as VisualStyleId];
+  return (v?.[key as "brief" | "quality" | "motion"] as string) ?? "";
+}
+
+function writeField(settings: StudioSettings, path: FieldPath, value: string): StudioSettings {
+  const [group, id, key] = path.split(".");
+  if (group === "narration") {
+    const k = id as NarrationStyleId;
+    return {
+      ...settings,
+      narration: { ...settings.narration, [k]: { ...settings.narration[k], brief: value } },
+    };
+  }
+  const k = id as VisualStyleId;
+  return {
+    ...settings,
+    visual: { ...settings.visual, [k]: { ...settings.visual[k], [key as string]: value } },
+  };
+}
+
+/** Le champ diverge-t-il du défaut livré ? */
+export function isCustomField(settings: StudioSettings, path: FieldPath) {
+  return (settings.customFields ?? []).includes(path);
+}
+
+/** Écrit un champ et le marque comme personnalisé (ou le démarque s'il redevient identique). */
+export function setField(
+  settings: StudioSettings,
+  path: FieldPath,
+  value: string,
+): StudioSettings {
+  const next = writeField(settings, path, value);
+  const marks = new Set(next.customFields ?? []);
+  if (value.trim() === defaultFieldValue(path).trim()) marks.delete(path);
+  else marks.add(path);
+  return { ...next, customFields: [...marks] };
+}
+
+/** Revient à la valeur livrée et oublie la personnalisation. */
+export function resetField(settings: StudioSettings, path: FieldPath): StudioSettings {
+  const next = writeField(settings, path, defaultFieldValue(path));
+  return { ...next, customFields: (next.customFields ?? []).filter((p) => p !== path) };
+}
+
+/**
+ * Anciennes valeurs par défaut livrées, pour la migration silencieuse des
+ * réglages enregistrés AVANT l'existence de `customFields`. Si la valeur
+ * enregistrée correspond à une ancienne valeur livrée, l'utilisateur ne l'a
+ * jamais éditée : on la remplace par le défaut à jour.
+ */
+const LEGACY_DEFAULTS: Record<FieldPath, string[]> = {
+  // Brief papier découpé d'avant l'accent rouge obligatoire.
+  "visual.papercraft.brief": [
+    DEFAULT_VISUAL_BRIEF.papercraft.split(", and ALWAYS exactly ONE element")[0]!,
+  ],
 };
 
 export function defaultSettings(): StudioSettings {
@@ -131,10 +219,21 @@ export function defaultSettings(): StudioSettings {
     // le récapitulatif n'affiche que des quantités.
     priceVideoSecond: null,
     priceImage: null,
+    customFields: [],
   };
 }
 
 const KEY = "studio-settings-v1";
+
+/** Tous les champs texte personnalisables. */
+export function allFieldPaths(): FieldPath[] {
+  return [
+    ...(Object.keys(DEFAULT_STYLE_BRIEF) as NarrationStyleId[]).map(narrationPath),
+    ...(Object.keys(DEFAULT_VISUAL_BRIEF) as VisualStyleId[]).flatMap((id) =>
+      (["brief", "quality", "motion"] as const).map((k) => visualPath(id, k)),
+    ),
+  ];
+}
 
 export function loadSettings(): StudioSettings {
   const base = defaultSettings();
@@ -143,12 +242,38 @@ export function loadSettings(): StudioSettings {
     const raw = window.localStorage.getItem(KEY);
     if (!raw) return base;
     const saved = JSON.parse(raw) as Partial<StudioSettings>;
-    return {
+    let merged: StudioSettings = {
       ...base,
       ...saved,
       narration: { ...base.narration, ...(saved.narration ?? {}) },
       visual: { ...base.visual, ...(saved.visual ?? {}) },
+      customFields: saved.customFields ?? [],
     };
+
+    const migrating = !Array.isArray(saved.customFields);
+    const marks = new Set(merged.customFields);
+
+    for (const path of allFieldPaths()) {
+      const savedValue = readField(merged, path).trim();
+      const def = defaultFieldValue(path);
+      if (migrating) {
+        // On ne sait pas ce qui a été édité : on compare aux valeurs livrées,
+        // actuelle et anciennes. Identique ⇒ jamais édité ⇒ on reprend le
+        // défaut à jour. Différent ⇒ personnalisation réelle ⇒ on la garde.
+        const known = [def, ...(LEGACY_DEFAULTS[path] ?? [])].map((s) => s.trim());
+        if (!savedValue || known.includes(savedValue)) {
+          merged = writeField(merged, path, def);
+          marks.delete(path);
+        } else {
+          marks.add(path);
+        }
+        continue;
+      }
+      // Fonctionnement normal : un champ jamais édité suit toujours le défaut.
+      if (!marks.has(path)) merged = writeField(merged, path, def);
+    }
+
+    return { ...merged, customFields: [...marks] };
   } catch {
     return base;
   }
@@ -158,3 +283,4 @@ export function saveSettings(settings: StudioSettings) {
   if (typeof window === "undefined") return;
   window.localStorage.setItem(KEY, JSON.stringify(settings));
 }
+

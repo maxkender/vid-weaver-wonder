@@ -7,10 +7,16 @@ import { Toaster } from "@/components/ui/sonner";
 import sophiaLogo from "@/assets/sophia-logo.png.asset.json";
 import {
   defaultSettings,
+  isCustomField,
   loadSettings,
+  narrationPath,
   NARRATION_LABELS,
+  resetField,
   saveSettings,
+  setField,
+  visualPath,
   VISUAL_LABELS,
+  type FieldPath,
   type NarrationStyleId,
   type StudioSettings,
   type VisualStyleId,
@@ -39,6 +45,48 @@ export const Route = createFileRoute("/parametres")({
 });
 
 const field = "field mt-2 resize-y";
+
+/**
+ * Intitulé d'un champ texte + indicateur « Personnalisé » et retour au défaut.
+ * Un champ non personnalisé suit automatiquement les consignes livrées, même
+ * après leur mise à jour : c'est ce qui évite qu'une vieille copie enregistrée
+ * dans le navigateur prive l'utilisateur des améliorations.
+ */
+function FieldHeader({
+  label,
+  path,
+  settings,
+  persist,
+}: {
+  label: string;
+  path: FieldPath;
+  settings: StudioSettings;
+  persist: (next: StudioSettings) => void;
+}) {
+  const custom = isCustomField(settings, path);
+  return (
+    <div className="mt-3 flex flex-wrap items-center gap-2">
+      <label className="label-x">{label}</label>
+      {custom && (
+        <>
+          <span className="rounded border border-border px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-muted-foreground">
+            Personnalisé
+          </span>
+          <button
+            type="button"
+            onClick={() => {
+              persist(resetField(settings, path));
+              toast.success("Champ revenu au réglage livré");
+            }}
+            className="btn-base btn-ghost px-2 py-1 text-[11px]"
+          >
+            <RotateCcw className="h-3 w-3" /> Revenir au défaut
+          </button>
+        </>
+      )}
+    </div>
+  );
+}
 
 function SettingsPage() {
   const [settings, setSettings] = useState<StudioSettings>(defaultSettings());
@@ -92,21 +140,16 @@ function SettingsPage() {
           {(Object.keys(NARRATION_LABELS) as NarrationStyleId[]).map((id) => (
             <section key={id} className="surface-card p-4">
               <h2 className="text-base font-semibold">{NARRATION_LABELS[id]}</h2>
-              <label className="label-x mt-3">
-                Consignes d'écriture
-              </label>
+              <FieldHeader
+                label="Consignes d'écriture"
+                path={narrationPath(id)}
+                settings={settings}
+                persist={persist}
+              />
               <textarea
                 rows={4}
                 value={settings.narration[id].brief}
-                onChange={(e) =>
-                  persist({
-                    ...settings,
-                    narration: {
-                      ...settings.narration,
-                      [id]: { ...settings.narration[id], brief: e.target.value },
-                    },
-                  })
-                }
+                onChange={(e) => persist(setField(settings, narrationPath(id), e.target.value))}
                 className={field}
               />
               <label className="label-x mt-4">
@@ -151,20 +194,17 @@ function SettingsPage() {
                 ] as const
               ).map(([key, label]) => (
                 <div key={key}>
-                  <label className="label-x mt-3">
-                    {label}
-                  </label>
+                  <FieldHeader
+                    label={label}
+                    path={visualPath(id, key)}
+                    settings={settings}
+                    persist={persist}
+                  />
                   <textarea
                     rows={key === "brief" ? 5 : 2}
                     value={settings.visual[id][key]}
                     onChange={(e) =>
-                      persist({
-                        ...settings,
-                        visual: {
-                          ...settings.visual,
-                          [id]: { ...settings.visual[id], [key]: e.target.value },
-                        },
-                      })
+                      persist(setField(settings, visualPath(id, key), e.target.value))
                     }
                     className={field}
                   />
