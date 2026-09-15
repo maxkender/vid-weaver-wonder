@@ -414,22 +414,57 @@ function Studio() {
   );
 
   /**
+   * RATTRAPAGE DE DURÉE PAR LA VITESSE DE VOIX.
+   * Quand une langue dépasse encore la cible APRÈS la condensation du texte,
+   * on accélère la voix off de CETTE langue uniquement, plafonnée à 1,15 :
+   * au-delà la diction se dégrade. La vitesse est appliquée à la SYNTHÈSE, donc
+   * les repères mot à mot renvoyés par ElevenLabs restent justes — on ne
+   * recalcule jamais les sous-titres et on ne touche pas à atempo au montage.
+   */
+  const baseVoiceSpeed = settings.voiceSpeed ?? 1.05;
+  const speedByLang = useMemo(() => {
+    const hi = Math.round(targetSeconds * 1.1);
+    const out: Record<string, number> = {};
+    for (const l of langs) {
+      const s = scripts[l] ?? (l === sourceLang ? script : null);
+      if (!s) continue;
+      const est = (s.scenes ?? []).reduce(
+        (sum, sc) => sum + estimateSpeechSeconds(sc.narration ?? "", l),
+        0,
+      );
+      const needed = est > hi ? (baseVoiceSpeed * est) / hi : baseVoiceSpeed;
+      out[l] = Math.min(1.15, Math.round(needed * 100) / 100);
+    }
+    return out;
+  }, [langs, scripts, script, sourceLang, targetSeconds, baseVoiceSpeed]);
+
+  const speedFor = useCallback(
+    (lang: string) => speedByLang[lang] ?? baseVoiceSpeed,
+    [speedByLang, baseVoiceSpeed],
+  );
+
+  /**
    * Durée totale estimée par langue produite : durée réelle de la voix off dès
-   * qu'elle existe, estimation par le débit de la langue sinon.
+   * qu'elle existe, estimation par le débit de la langue (corrigée de la
+   * vitesse retenue pour cette langue) sinon.
    */
   const langDurations = useMemo(() => {
     return langs
       .map((l) => {
         const s = scripts[l] ?? (l === sourceLang ? script : null);
         if (!s) return null;
+        const speed = speedByLang[l] ?? baseVoiceSpeed;
         const total = (s.scenes ?? []).reduce((sum, sc, i) => {
           const real = states[i]?.voices?.[l]?.duration ?? 0;
-          return sum + (real > 0 ? real : estimateSpeechSeconds(sc.narration ?? "", l));
+          if (real > 0) return sum + real;
+          return sum + (estimateSpeechSeconds(sc.narration ?? "", l) * baseVoiceSpeed) / speed;
         }, 0);
-        return { lang: l, seconds: total };
+        return { lang: l, seconds: total, speed };
       })
-      .filter((x): x is { lang: LanguageId; seconds: number } => x !== null);
-  }, [langs, scripts, script, sourceLang, states]);
+      .filter(
+        (x): x is { lang: LanguageId; seconds: number; speed: number } => x !== null,
+      );
+  }, [langs, scripts, script, sourceLang, states, speedByLang, baseVoiceSpeed]);
 
   /** MP4 final par langue. */
   const [finalUrls, setFinalUrls] = useState<Record<string, string>>({});
