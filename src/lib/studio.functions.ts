@@ -112,6 +112,8 @@ export const translateScript = createServerFn({ method: "POST" })
         charTarget: z.number().int().min(80).max(6000).optional(),
         charMin: z.number().int().min(80).max(6000).optional(),
         charMax: z.number().int().min(80).max(6000).optional(),
+        /** Budget explicite d'UN plan, en caractères espaces compris. */
+        charsPerShot: z.number().int().min(40).max(1000).optional(),
         /** Sens de la correction demandée quand le texte est hors fenêtre. */
         charMode: z.enum(["ok", "shorten", "lengthen"]).optional(),
         /** Niveau de langue imposé : la traduction ne remonte jamais d'un cran. */
@@ -148,7 +150,19 @@ export const translateScript = createServerFn({ method: "POST" })
               target: data.charTarget,
               min: data.charMin ?? Math.round(data.charTarget * 0.95),
               max: data.charMax ?? Math.round(data.charTarget * 1.05),
-              perScene: Math.max(20, Math.round(data.charTarget / Math.max(1, data.scenes.length))),
+              perScene:
+                data.charsPerShot ??
+                Math.max(40, Math.round(data.charTarget / Math.max(1, data.scenes.length))),
+              sceneDeltas: data.scenes.map((scene) => ({
+                index: scene.index,
+                chars: scene.narration.trim().length,
+                target:
+                  data.charsPerShot ??
+                  Math.max(
+                    40,
+                    Math.round((data.charTarget ?? 0) / Math.max(1, data.scenes.length)),
+                  ),
+              })),
               ...(data.charMode ? { mode: data.charMode } : {}),
             }
           : undefined,

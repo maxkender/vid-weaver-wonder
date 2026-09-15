@@ -66,7 +66,12 @@ import {
   SQUARE_RADIUS_RATIO,
   voiceWindow,
 } from "@/lib/karaoke-overlay";
-import { calibrationMode, charWindow, narrationChars } from "@/lib/calibration";
+import {
+  calibrationMode,
+  charWindow,
+  narrationChars,
+  targetCharsPerShot,
+} from "@/lib/calibration";
 import {
   charsPerSecond,
   MAX_CONDENSE_PASSES,
@@ -282,6 +287,8 @@ type WordTiming = { word: string; start: number; end: number };
 type VoiceTake = {
   audio: string;
   words: WordTiming[];
+  /** Texte exact synthétisé : empêche de réutiliser une ancienne voix après retraduction. */
+  text?: string;
   /** Durée BRUTE du fichier audio (silences compris) : base du montage. */
   duration: number;
   /** Durée RÉELLEMENT parlée, silences de tête et de queue retirés. */
@@ -316,7 +323,10 @@ function migrateStates(
     out[Number(k)] = audio
       ? {
           ...rest,
-          voices: { ...(rest.voices ?? {}), [sourceLang]: { audio, words: words ?? [], duration: 0 } },
+          voices: {
+            ...(rest.voices ?? {}),
+            [sourceLang]: { audio, words: words ?? [], duration: 0 },
+          },
         }
       : rest;
   }
@@ -650,6 +660,8 @@ function Studio() {
    * de cette voix et de la vitesse retenue pour cette langue.
    */
   const langDurations = useMemo(() => {
+    const { lo, hi } = durationRange(targetSeconds);
+    const budgetSeconds = (lo + hi) / 2;
     return langs
       .map((l) => {
         const s = scriptOf(l);
@@ -659,22 +671,45 @@ function Studio() {
         let measured = false;
         const total = (s.scenes ?? []).reduce((sum, sc) => {
           const take = states[sc.index]?.voices?.[l];
+          const matchesText = take?.text === (sc.narration ?? "").trim();
           const real = take?.speaking ?? take?.duration ?? 0;
-          if (real > 0) {
+          if (real > 0 && matchesText) {
             measured = true;
             return sum + real;
           }
           return sum + predictSeconds((sc.narration ?? "").trim().length, cps, speed);
         }, 0);
-        return { lang: l, seconds: total, speed, measured };
+        const actualChars = scriptChars(s);
+        const charsPerShot = targetCharsPerShot(
+          l,
+          budgetSeconds,
+          s.scenes.length,
+          cps,
+          baseVoiceSpeed,
+        );
+        return {
+          lang: l,
+          seconds: total,
+          speed,
+          measured,
+          actualChars,
+          targetChars: charsPerShot * s.scenes.length,
+        };
       })
       .filter(
         (
           x,
-        ): x is { lang: LanguageId; seconds: number; speed: number; measured: boolean } =>
+        ): x is {
+          lang: LanguageId;
+          seconds: number;
+          speed: number;
+          measured: boolean;
+          actualChars: number;
+          targetChars: number;
+        } =>
           x !== null,
       );
-  }, [langs, scriptOf, states, speedByLang, baseVoiceSpeed, cpsFor]);
+  }, [langs, scriptOf, states, speedByLang, baseVoiceSpeed, cpsFor, scriptChars, targetSeconds]);
 
   /**
    * Langues encore hors fenêtre APRÈS condensation et accélération : tant qu'il
@@ -1357,6 +1392,14 @@ function Studio() {
           // cible de 63 s ne laisse pas le même texte qu'à 10,4 c/s.
           const cps = cpsFor(lang);
           const window = charWindow(loSec, hiSec, cps, baseVoiceSpeed);
+          const budgetSeconds = (loSec + hiSec) / 2;
+          const charsPerShot = targetCharsPerShot(
+            lang,
+            budgetSeconds,
+            doc.scenes.length,
+            cps,
+            baseVoiceSpeed,
+          );
           const charsOf = (scenes: { narration: string }[]) =>
             narrationChars(scenes.map((s) => s.narration));
           const predicted = (scenes: { narration: string }[]) =>
@@ -1386,6 +1429,7 @@ function Studio() {
                 charTarget: window.target,
                 charMin: window.min,
                 charMax: window.max,
+                charsPerShot,
                 charMode: mode,
                 // Une traduction ne remonte jamais d'un cran en niveau de langue.
                 languageBrief: settings.guides.language,
@@ -1419,25 +1463,52 @@ function Studio() {
           // garde le résultat le plus proche de la fenêtre.
           let best = res;
           let bestGap = gap(predicted(res.scenes));
+          const hasPlanOutsideTolerance = (scenes: TransRes["scenes"]) =>
+            scenes.some(
+              (scene) =>
+                Math.abs(scene.narration.trim().length - charsPerShot) / charsPerShot > 0.15,
+            );
+          const planError = (scenes: TransRes["scenes"]) =>
+            scenes.reduce(
+              (sum, scene) =>
+                sum + Math.abs(scene.narration.trim().length - charsPerShot) / charsPerShot,
+              0,
+            );
+          let bestPlanError = planError(res.scenes);
           for (
             let pass = 0;
-            pass < MAX_CONDENSE_PASSES && bestGap > 0 && !cancelledRef.current;
+            pass < MAX_CONDENSE_PASSES &&
+            (bestGap > 0 || hasPlanOutsideTolerance(res.scenes)) &&
+            !cancelledRef.current;
             pass++
           ) {
             const mode = calibrationMode(charsOf(res.scenes), window);
-            if (mode === "ok") break;
+            if (mode === "ok" && !hasPlanOutsideTolerance(res.scenes)) break;
             setCurrentStep(
               `${mode === "shorten" ? "Condensation" : "Étoffement"} — ${languageLabel(lang)}…`,
             );
             res = await callTranslate(res, true, mode);
             const g = gap(predicted(res.scenes));
-            if (g < bestGap) {
+            const nextPlanError = planError(res.scenes);
+            if (g < bestGap || (g === bestGap && nextPlanError < bestPlanError)) {
               best = res;
               bestGap = g;
+              bestPlanError = nextPlanError;
             }
-            if (bestGap === 0) break;
+            if (bestGap === 0 && !hasPlanOutsideTolerance(best.scenes)) break;
           }
           res = best;
+          const finalPlanErrors = res.scenes.filter(
+            (scene) =>
+              Math.abs(scene.narration.trim().length - charsPerShot) / charsPerShot > 0.15,
+          );
+          if (finalPlanErrors.length) {
+            toast.warning(
+              `${languageLabel(lang)} : budget ${charsPerShot} caractères par plan non atteint après ${MAX_CONDENSE_PASSES} passes (${finalPlanErrors
+                .map((scene) => `plan ${scene.index + 1} : ${scene.narration.trim().length}`)
+                .join(" · ")}).`,
+            );
+          }
           if (bestGap > 0) {
             // Second levier : la vitesse de synthèse de CETTE langue (≤ 1,15).
             const speed = plannedSpeed(predicted(res.scenes), hiSec);
@@ -1456,7 +1527,7 @@ function Studio() {
           const byIndex = new Map(res.scenes.map((s) => [s.index, s]));
           // Même garde-fou que pour le script source : une traduction mal
           // formée ne doit jamais entrer telle quelle dans l'application.
-          next[lang] = normalizeScript({
+          const translated = normalizeScript({
             ...doc,
             title: res.title || doc.title,
             hook: res.hook || doc.hook,
@@ -1467,6 +1538,23 @@ function Studio() {
               overlay: byIndex.get(s.index)?.overlay ?? s.overlay,
             })),
           }) as Script;
+          next[lang] = translated;
+          // Une ancienne voix ne doit jamais survivre à un changement de texte :
+          // la nouvelle traduction finale sera synthétisée une seule fois ensuite.
+          const previous = scriptsRef.current[lang];
+          if (previous && sourceSignature(previous) !== sourceSignature(translated)) {
+            setStates((current) => {
+              const cleaned = { ...current };
+              for (const scene of translated.scenes) {
+                const state = cleaned[scene.index];
+                if (!state?.voices?.[lang]) continue;
+                const voices = { ...state.voices };
+                delete voices[lang];
+                cleaned[scene.index] = { ...state, voices };
+              }
+              return cleaned;
+            });
+          }
           // Mémorise le texte source d'où vient cette traduction : tant qu'il
           // ne change pas, on ne repaiera jamais la même traduction.
           translationSourceRef.current[lang] = sig;
@@ -1762,7 +1850,13 @@ function Studio() {
       // par prise, c'est huit secondes de trop sur la vidéo.
       const win = voiceWindow(words ?? [], duration);
       const speaking = Math.max(0.3, win ? win.end - win.start : duration);
-      const take: VoiceTake = { audio: audioDataUrl, words: words ?? [], duration, speaking };
+      const take: VoiceTake = {
+        audio: audioDataUrl,
+        words: words ?? [],
+        duration,
+        speaking,
+        text: text.trim(),
+      };
       setStates((prev) => ({
         ...prev,
         [scene.index]: {
@@ -1809,9 +1903,14 @@ function Studio() {
   ): Promise<Record<number, SceneState>> => {
     const out: Record<number, SceneState> = { ...snapshot };
     for (const lang of langs) {
+      const translatedDoc = scriptFor(lang, doc);
       for (const scene of doc.scenes) {
         if (cancelledRef.current) return out; // arrêt vérifié avant CHAQUE voix
-        if (out[scene.index]?.voices?.[lang]) continue;
+        const expectedText =
+          translatedDoc?.scenes.find((item) => item.index === scene.index)?.narration?.trim() ??
+          scene.narration.trim();
+        const existing = out[scene.index]?.voices?.[lang];
+        if (existing?.text === expectedText) continue;
         setCurrentStep(`Voix off ${languageLabel(lang)} — plan ${scene.index + 1}…`);
         setAssembleStep(`Voix off ${languageLabel(lang)} — plan ${scene.index + 1}…`);
         const take = await onVoice(scene, lang);
@@ -1858,10 +1957,13 @@ function Studio() {
       const speed = plannedSpeed(predictedTotal, hi);
       const total = s.scenes.reduce((sum, sc) => {
         const take = snapshot[sc.index]?.voices?.[l];
+        const matchesText = take?.text === (sc.narration ?? "").trim();
         const real = take?.speaking ?? take?.duration ?? 0;
         return (
           sum +
-          (real > 0 ? real : predictSeconds((sc.narration ?? "").trim().length, cps, speed))
+          (real > 0 && matchesText
+            ? real
+            : predictSeconds((sc.narration ?? "").trim().length, cps, speed))
         );
       }, 0);
       // SYMÉTRIQUE : une version trop COURTE est un échec au même titre qu'une
@@ -3614,7 +3716,7 @@ function Studio() {
                       {anyMeasured ? "Durée mesurée" : "Durée prédite (débit réel des voix)"}{" "}
                       (cible {lo}-{hi} s)
                     </span>
-                    {langDurations.map(({ lang: l, seconds, speed }) => {
+                     {langDurations.map(({ lang: l, seconds, speed, actualChars, targetChars }) => {
                       const bad = seconds < lo || seconds > hi;
                       const boosted = speed > baseVoiceSpeed + 0.001;
                       return (
@@ -3631,7 +3733,7 @@ function Studio() {
                                 : undefined
                           }
                         >
-                          {l.toUpperCase()} ≈ {Math.round(seconds)} s
+                           {l.toUpperCase()} ≈ {Math.round(seconds)} s · cible {targetChars.toLocaleString("fr-FR")} car. · obtenu {actualChars.toLocaleString("fr-FR")} car.
                           {boosted ? ` · voix ×${speed.toFixed(2).replace(".", ",")}` : ""}
                           {bad ? " ⚠" : ""}
                         </span>

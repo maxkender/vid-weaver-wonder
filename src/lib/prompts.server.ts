@@ -272,6 +272,7 @@ export function translationSystemPrompt(
     target: number;
     max: number;
     perScene: number;
+    sceneDeltas?: { index: number; chars: number; target: number }[];
     /** Sens de la correction : le texte actuel est trop long, trop court, ou bon. */
     mode?: "ok" | "shorten" | "lengthen";
   },
@@ -293,6 +294,13 @@ export function translationSystemPrompt(
     chars
       ? [
           `BUDGET DE CARACTÈRES — CONTRAINTE PRIORITAIRE ET UNIQUE MESURE DE LONGUEUR, calculée sur le débit réel de la voix de cette langue : le script complet (somme de toutes les narrations) doit faire ${chars.target} CARACTÈRES, espaces compris, avec une marge de ±5 %. Jamais moins de ${chars.min}, jamais plus de ${chars.max}. Soit environ ${chars.perScene} caractères par scène.`,
+          `CONTRÔLE PLAN PAR PLAN — chaque narration vise ${chars.perScene} caractères et doit rester à ±15 %. ${
+            chars.sceneDeltas?.length
+              ? `État actuel : ${chars.sceneDeltas
+                  .map((s) => `plan ${s.index + 1} = ${s.chars} caractères, cible ${s.target}`)
+                  .join(" · ")}.`
+              : ""
+          }`,
           "Compte réellement les caractères de l'ensemble AVANT de répondre. Un script trop COURT est une faute aussi grave qu'un script trop long : la vidéo dure alors deux fois moins que le format visé.",
           chars.mode === "lengthen"
             ? "LE TEXTE ACTUEL EST TROP COURT : tu dois l'ALLONGER pour atteindre le budget. Tu étoffes avec du détail CONCRET déjà impliqué par le sens (date, lieu, nom, chiffre, conséquence matérielle, précision sensorielle). Tu n'inventes aucun fait, tu n'ajoutes ni morale, ni publicité, ni remplissage, ni répétition."

@@ -11,23 +11,12 @@
  * voice-rate.server.ts / voice-rate.functions.ts.
  */
 
-/**
- * Valeurs de départ, relevées sur une vraie production multilingue
- * (caractères ÷ durée mesurée de l'audio ElevenLabs), puis RAMENÉES À LA
- * VITESSE 1,0 : les prises mesurées avaient été synthétisées à 1,05.
- * FR 10,9 · EN 8,7 · ES 7,1 · DE 7,7 · IT 8,3 à 1,05 → valeurs ci-dessous.
- * Elles ne servent que tant qu'une voix n'a aucun historique.
- */
-export const DEFAULT_CHARS_PER_SECOND: Record<string, number> = {
-  fr: 10.4,
-  en: 8.3,
-  es: 6.8,
-  de: 7.3,
-  it: 7.9,
-  pt: 8.1,
-};
+import { fallbackCharsPerSecond } from "./duration";
 
-const FALLBACK_CPS = 8.5;
+/** Valeurs de repli explicites, converties depuis mots/s × caractères/mot. */
+export const DEFAULT_CHARS_PER_SECOND: Record<string, number> = Object.fromEntries(
+  ["fr", "en", "es", "de", "it", "pt"].map((lang) => [lang, fallbackCharsPerSecond(lang)]),
+);
 
 /** Vitesse de synthèse : jamais en dessous, une voix ralentie tue le rythme. */
 export const MIN_VOICE_SPEED = 0.95;
@@ -42,7 +31,8 @@ export const rateKey = (voiceId: string, language: string) =>
   `${voiceId}:${language.slice(0, 2).toLowerCase()}`;
 
 export function defaultCharsPerSecond(language = "fr") {
-  return DEFAULT_CHARS_PER_SECOND[language.slice(0, 2).toLowerCase()] ?? FALLBACK_CPS;
+  const lang = language.slice(0, 2).toLowerCase();
+  return DEFAULT_CHARS_PER_SECOND[lang] ?? fallbackCharsPerSecond(lang);
 }
 
 /**

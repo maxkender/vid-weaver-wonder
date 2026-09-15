@@ -9,6 +9,7 @@
  */
 
 import { charBudget, predictSeconds } from "./voice-rate";
+import { fallbackCharsPerSecond } from "./duration";
 
 /** Fenêtre de longueur de texte, en caractères espaces compris. */
 export type CharWindow = { min: number; target: number; max: number };
@@ -49,6 +50,49 @@ export function narrationChars(texts: (string | undefined)[]) {
 export function perSceneChars(w: CharWindow, sceneCount: number) {
   return Math.max(40, Math.round(w.target / Math.max(1, sceneCount)));
 }
+
+/**
+ * Source unique du budget d'UN plan traduit, en caractères espaces compris.
+ * Le débit mesuré est prioritaire. Sans mesure, le débit en mots est d'abord
+ * converti en caractères/seconde avec la longueur moyenne d'un mot de la langue.
+ */
+export function targetCharsPerShot(
+  language: string,
+  targetSeconds: number,
+  shotCount: number,
+  measuredCharsPerSecond?: number | null,
+  speed = 1,
+) {
+  const cps =
+    measuredCharsPerSecond && measuredCharsPerSecond >= 3
+      ? measuredCharsPerSecond
+      : fallbackCharsPerSecond(language);
+  return Math.max(40, Math.round((targetSeconds / Math.max(1, shotCount)) * cps * speed));
+}
+
+/** Assertion chargée avec le module : 64 s / 8 plans à 10,9 car/s vaut ~87 car/plan. */
+function assertTranslationBudgetUnits() {
+  const frenchBudget = targetCharsPerShot("fr", 64, 8, 10.9);
+  if (frenchBudget < 70 || frenchBudget > 95) {
+    throw new Error(`Budget de traduction invalide (fr) : ${frenchBudget} caractères/plan`);
+  }
+  const measuredByLanguage: Record<string, number> = {
+    fr: 10.9,
+    en: 8.7,
+    es: 7.1,
+    de: 7.7,
+    it: 8.3,
+  };
+  for (const [language, cps] of Object.entries(measuredByLanguage)) {
+    const budget = targetCharsPerShot(language, 64, 8, cps);
+    const predicted = predictSeconds(budget * 8, cps);
+    if (Math.abs(predicted - 64) / 64 > 0.05) {
+      throw new Error(`Budget de traduction incohérent (${language}) : ${predicted.toFixed(1)} s`);
+    }
+  }
+}
+
+assertTranslationBudgetUnits();
 
 /**
  * Écart plan par plan au budget : combien de caractères il MANQUE (positif) ou
