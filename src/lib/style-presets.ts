@@ -225,7 +225,7 @@ export type StudioSettings = {
    * Consignes éditoriales communes : niveau de langue, accroche, rotation des
    * types de plan. Elles s'appliquent à l'écriture, à la traduction et aux images.
    */
-  guides: { language: string; hook: string; shots: string };
+  guides: { language: string; hook: string; structure: string; audit: string; shots: string };
   /** Cohérence visuelle : réutiliser la 1ʳᵉ image comme référence des suivantes. */
   useReferenceImage: boolean;
   /** Volume de la musique de fond dans l'export. */
@@ -273,7 +273,8 @@ export function visualPath(id: VisualStyleId, key: "brief" | "quality" | "motion
 export function openingPath(key: "motion" | "image"): FieldPath {
   return `opening.first.${key}`;
 }
-export function guidePath(key: "language" | "hook" | "shots"): FieldPath {
+export type GuideKey = "language" | "hook" | "structure" | "audit" | "shots";
+export function guidePath(key: GuideKey): FieldPath {
   return `guides.first.${key}`;
 }
 
@@ -286,7 +287,11 @@ export function defaultFieldValue(path: FieldPath): string {
       ? DEFAULT_LANGUAGE_BRIEF
       : key === "hook"
         ? DEFAULT_HOOK_BRIEF
-        : DEFAULT_SHOT_BRIEF;
+        : key === "structure"
+          ? DEFAULT_STRUCTURE_BRIEF
+          : key === "audit"
+            ? DEFAULT_AUDIT_BRIEF
+            : DEFAULT_SHOT_BRIEF;
   if (group === "opening")
     return key === "motion" ? DEFAULT_OPENING_MOTION : DEFAULT_OPENING_IMAGE;
   if (key === "brief") return DEFAULT_VISUAL_BRIEF[id as VisualStyleId] ?? "";
@@ -299,7 +304,7 @@ function readField(settings: StudioSettings, path: FieldPath): string {
   const [group, id, key] = path.split(".");
   if (group === "narration") return settings.narration[id as NarrationStyleId]?.brief ?? "";
   if (group === "guides")
-    return settings.guides?.[key as "language" | "hook" | "shots"] ?? "";
+    return settings.guides?.[key as GuideKey] ?? "";
   if (group === "opening") return settings.opening?.[key as "motion" | "image"] ?? "";
   const v = settings.visual[id as VisualStyleId];
   return (v?.[key as "brief" | "quality" | "motion"] as string) ?? "";
@@ -392,6 +397,8 @@ export function defaultSettings(): StudioSettings {
     guides: {
       language: DEFAULT_LANGUAGE_BRIEF,
       hook: DEFAULT_HOOK_BRIEF,
+      structure: DEFAULT_STRUCTURE_BRIEF,
+      audit: DEFAULT_AUDIT_BRIEF,
       shots: DEFAULT_SHOT_BRIEF,
     },
     useReferenceImage: true,
@@ -423,7 +430,7 @@ export function allFieldPaths(): FieldPath[] {
       (["brief", "quality", "motion"] as const).map((k) => visualPath(id, k)),
     ),
     ...(["motion", "image"] as const).map((k) => openingPath(k)),
-    ...(["language", "hook", "shots"] as const).map((k) => guidePath(k)),
+    ...(["language", "hook", "structure", "audit", "shots"] as const).map((k) => guidePath(k)),
   ];
 }
 
