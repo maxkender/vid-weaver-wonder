@@ -13,6 +13,7 @@ import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/
 import { Route as ConnexionRouteImport } from './routes/connexion'
 import { Route as StationRouteImport } from './routes/station'
 import { Route as AuthenticatedAdminRouteRouteImport } from './routes/_authenticated/_admin/route'
+import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 import { Route as AuthenticatedEspaceRouteImport } from './routes/_authenticated/espace'
 import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/_admin/index'
 import { Route as AuthenticatedAdminParametresRouteImport } from './routes/_authenticated/_admin/parametres'
@@ -39,6 +40,11 @@ const StationRoute = StationRouteImport.update({
 } as any)
 const AuthenticatedAdminRouteRoute = AuthenticatedAdminRouteRouteImport.update({
   id: '/_admin',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedEspaceRoute = AuthenticatedEspaceRouteImport.update({
@@ -94,6 +100,7 @@ export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedAdminIndexRoute
   '/connexion': typeof ConnexionRoute
   '/station': typeof StationRoute
+  '/admin': typeof AuthenticatedAdminRoute
   '/espace': typeof AuthenticatedEspaceRoute
   '/parametres': typeof AuthenticatedAdminParametresRoute
   '/sujets': typeof AuthenticatedAdminSujetsRoute
@@ -107,6 +114,7 @@ export interface FileRoutesByTo {
   '/': typeof AuthenticatedAdminIndexRoute
   '/connexion': typeof ConnexionRoute
   '/station': typeof StationRoute
+  '/admin': typeof AuthenticatedAdminRoute
   '/espace': typeof AuthenticatedEspaceRoute
   '/parametres': typeof AuthenticatedAdminParametresRoute
   '/sujets': typeof AuthenticatedAdminSujetsRoute
@@ -122,6 +130,7 @@ export interface FileRoutesById {
   '/connexion': typeof ConnexionRoute
   '/station': typeof StationRoute
   '/_authenticated/_admin': typeof AuthenticatedAdminRouteRouteWithChildren
+  '/_authenticated/admin': typeof AuthenticatedAdminRoute
   '/_authenticated/espace': typeof AuthenticatedEspaceRoute
   '/_authenticated/_admin/parametres': typeof AuthenticatedAdminParametresRoute
   '/_authenticated/_admin/sujets': typeof AuthenticatedAdminSujetsRoute
@@ -138,6 +147,7 @@ export interface FileRouteTypes {
     | '/'
     | '/connexion'
     | '/station'
+    | '/admin'
     | '/espace'
     | '/parametres'
     | '/sujets'
@@ -151,6 +161,7 @@ export interface FileRouteTypes {
     | '/'
     | '/connexion'
     | '/station'
+    | '/admin'
     | '/espace'
     | '/parametres'
     | '/sujets'
@@ -165,6 +176,7 @@ export interface FileRouteTypes {
     | '/connexion'
     | '/station'
     | '/_authenticated/_admin'
+    | '/_authenticated/admin'
     | '/_authenticated/espace'
     | '/_authenticated/_admin/parametres'
     | '/_authenticated/_admin/sujets'
@@ -214,6 +226,13 @@ declare module '@tanstack/react-router' {
       path: ''
       fullPath: '/'
       preLoaderRoute: typeof AuthenticatedAdminRouteRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/admin': {
+      id: '/_authenticated/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AuthenticatedAdminRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/espace': {
@@ -302,11 +321,13 @@ const AuthenticatedAdminRouteRouteWithChildren =
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAdminRouteRoute: typeof AuthenticatedAdminRouteRouteWithChildren
+  AuthenticatedAdminRoute: typeof AuthenticatedAdminRoute
   AuthenticatedEspaceRoute: typeof AuthenticatedEspaceRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAdminRouteRoute: AuthenticatedAdminRouteRouteWithChildren,
+  AuthenticatedAdminRoute: AuthenticatedAdminRoute,
   AuthenticatedEspaceRoute: AuthenticatedEspaceRoute,
 }
 
