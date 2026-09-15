@@ -42,6 +42,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { KaraokeCaption } from "@/components/karaoke-caption";
+import { normalizeScript, normalizeScripts } from "@/lib/script-shape";
+import { StudioErrorBoundary } from "@/components/studio-error-boundary";
 import { MusicLibrary } from "@/components/music-library";
 import {
   audioDuration,
