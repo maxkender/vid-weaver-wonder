@@ -2196,6 +2196,36 @@ function Studio() {
         if (image) previousImage.current = image;
         snapshot[scene.index] = { ...st, ...(image ? { image } : {}) };
       }
+
+      // CONTRÔLE DE RESSEMBLANCE entre plans voisins : deux plans quasi
+      // identiques (même sujet, même cadrage) donnent une vidéo qui tourne en
+      // rond. Le plan fautif est régénéré UNE SEULE FOIS avec un autre type de
+      // plan — jamais de boucle, jamais de seconde tentative.
+      if (!cancelledRef.current) {
+        const prints: (number[] | null)[] = [];
+        for (const scene of doc.scenes) {
+          const img = snapshot[scene.index]?.image;
+          prints[scene.index] = img ? await imageFingerprint(img) : null;
+        }
+        for (const scene of doc.scenes) {
+          if (cancelledRef.current || scene.index === 0) break;
+          const a = prints[scene.index - 1];
+          const b = prints[scene.index];
+          if (!a || !b || fingerprintSimilarity(a, b) < TOO_SIMILAR) continue;
+          const swap = alternativeShot(shotTypeFor(scene, doc), [
+            shotTypesRef.current[scene.index - 1],
+            shotTypesRef.current[scene.index + 1],
+          ]);
+          shotTypesRef.current[scene.index] = swap;
+          setAssembleStep(`Plan ${scene.index + 1} trop proche du précédent — nouveau cadrage…`);
+          const again = await onImage(scene, doc, swap);
+          if (again) {
+            snapshot[scene.index] = { ...(snapshot[scene.index] ?? {}), image: again };
+            prints[scene.index] = await imageFingerprint(again);
+          }
+        }
+      }
+
       if (cancelledRef.current) {
         setAssembleStep("Pipeline arrêté");
         return;
