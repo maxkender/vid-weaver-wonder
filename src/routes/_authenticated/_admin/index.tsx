@@ -252,6 +252,12 @@ type Scene = {
 type Script = {
   title: string;
   hook: string;
+  /** Les trois accroches candidates, leur note et la raison du choix. */
+  hookOptions?: string[];
+  hookScores?: string[];
+  hookChoice?: string;
+  /** Relecture finale : plan le plus faible, pourquoi, et ce qu'on apprend. */
+  audit?: { weakest: number; reason: string; learned: string };
   scenes: Scene[];
   cta: string;
   hashtags: string[];
