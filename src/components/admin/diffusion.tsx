@@ -8,7 +8,9 @@ import {
   estimateProduction,
   getAdminVideoLink,
   getDistribution,
+  listFailedJobs,
   produceNow,
+  retryJob,
   setDailyVideoStatus,
   updateDailyVideo,
   updateDistributionSettings,
@@ -17,6 +19,7 @@ import { MASTER_LANGUAGES } from "@/lib/languages";
 
 type Distribution = Awaited<ReturnType<typeof getDistribution>>;
 type Estimate = Awaited<ReturnType<typeof estimateProduction>>;
+type FailedJob = Awaited<ReturnType<typeof listFailedJobs>>[number];
 
 function isoDay(d: Date) {
   return d.toISOString().slice(0, 10);
@@ -41,19 +44,32 @@ export function AdminDiffusion() {
   const runEstimate = useServerFn(estimateProduction);
   const runProduce = useServerFn(produceNow);
 
+  const runFailed = useServerFn(listFailedJobs);
+  const runRetry = useServerFn(retryJob);
+
   const [date, setDate] = useState(isoDay(new Date()));
   const [data, setData] = useState<Distribution | null>(null);
   const [previews, setPreviews] = useState<Record<string, string>>({});
   const [estimate, setEstimate] = useState<Estimate | null>(null);
   const [producing, setProducing] = useState(false);
+  const [failed, setFailed] = useState<FailedJob[]>([]);
+  const [retrying, setRetrying] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     setData((await runGet({ data: { date } })) as Distribution);
   }, [runGet, date]);
 
+  const loadFailed = useCallback(async () => {
+    setFailed((await runFailed({ data: {} } as never)) as FailedJob[]);
+  }, [runFailed]);
+
   useEffect(() => {
     void refresh();
   }, [refresh]);
+
+  useEffect(() => {
+    void loadFailed();
+  }, [loadFailed]);
 
   if (!data) {
     return (
@@ -321,16 +337,69 @@ export function AdminDiffusion() {
         </button>
       </section>
 
+      {/* TRAVAUX EN ÉCHEC */}
+      <section className="surface-card p-3">
+        <div className="flex items-center justify-between gap-2">
+          <p className="label-x">Productions en échec</p>
+          <button className="btn-base btn-ghost text-xs" onClick={() => void loadFailed()}>
+            Actualiser
+          </button>
+        </div>
+        {failed.length === 0 ? (
+          <p className="mt-2 text-xs text-muted-foreground">Aucune production en échec.</p>
+        ) : (
+          <ul className="mt-2 space-y-2">
+            {failed.map((j) => (
+              <li
+                key={j.id}
+                className="flex flex-wrap items-center justify-between gap-2 rounded-[8px] border border-border p-2"
+              >
+                <div className="min-w-0">
+                  <p className="truncate text-xs font-medium">
+                    {j.language.toUpperCase()} · {j.topic ?? "sans sujet"}
+                  </p>
+                  <p className="truncate text-[11px] text-muted-foreground">
+                    Étape « {j.step} » — {j.error ?? "erreur inconnue"}
+                  </p>
+                </div>
+                <button
+                  className="btn-base btn-primary text-xs"
+                  disabled={retrying === j.id}
+                  onClick={async () => {
+                    setRetrying(j.id);
+                    try {
+                      const res = (await runRetry({ data: { id: j.id } })) as { status: string };
+                      toast.success(`Relancé à l'étape « ${res.status} » — rien n'est repayé.`);
+                      await loadFailed();
+                    } catch (e) {
+                      toast.error(e instanceof Error ? e.message : "Relance impossible");
+                    } finally {
+                      setRetrying(null);
+                    }
+                  }}
+                >
+                  {retrying === j.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null} Relancer
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
       {estimate ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
           <div className="surface-card w-full max-w-md p-4">
             <p className="text-sm font-semibold">Confirmer la production</p>
             <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
-              <li>{estimate.videos} vidéo(s), une par langue active</li>
+              <li>{estimate.videos} vidéo(s) livrée(s), une par langue active</li>
               <li>
-                {estimate.images} images et {estimate.scenes} clips (~{estimate.clipSeconds} s d'animation)
+                {estimate.images} images et {estimate.scenes} clips au total (~{estimate.clipSeconds} s
+                d'animation), payés une seule fois
               </li>
-              <li>{estimate.voiceLanguages} voix off</li>
+              <li>
+                {estimate.voiceTakes} prises de voix off ({estimate.scenes} plans ×{" "}
+                {estimate.voiceLanguages} langues)
+              </li>
               <li>{estimate.note}</li>
             </ul>
             <div className="mt-4 flex justify-end gap-2">

@@ -25,12 +25,66 @@ export function gatewayHeaders(json = true): Record<string, string> {
   return h;
 }
 
+/** Erreur de passerelle portant son code HTTP (pour décider d'un réessai). */
+export class GatewayError extends Error {
+  status: number;
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = "GatewayError";
+    this.status = status;
+  }
+}
+
 async function readError(res: Response) {
   const body = (await res.json().catch(() => null)) as { message?: string } | null;
   const msg = body?.message ?? `Erreur du service IA (${res.status})`;
   if (res.status === 429) return "Trop de requêtes, réessayez dans quelques instants.";
   if (res.status === 402) return msg;
   return msg;
+}
+
+/** Erreur prête à lever : message lisible + code HTTP conservé. */
+async function gatewayError(res: Response) {
+  return new GatewayError(await readError(res), res.status);
+}
+
+/**
+ * ERREURS TRANSITOIRES UNIQUEMENT : hoquet du service ou coupure réseau.
+ * 401/402/403 (clé, crédits, politique) et refus de contenu ne sont JAMAIS
+ * réessayés : ils gardent leur droit de veto immédiat sur la dépense.
+ */
+const TRANSIENT_STATUS = new Set([408, 425, 429, 500, 502, 503, 504]);
+
+export function isTransientError(e: unknown): boolean {
+  if (e instanceof GatewayError) return TRANSIENT_STATUS.has(e.status);
+  if (e instanceof Error) {
+    if (/\b(401|402|403)\b|credit|insufficient|forbidden|refus/i.test(e.message)) return false;
+    // Coupures réseau : la requête n'a jamais abouti, rien n'est facturé.
+    return /fetch failed|network|ECONNRESET|ETIMEDOUT|EAI_AGAIN|socket hang up|aborted|timeout/i.test(
+      e.message,
+    );
+  }
+  return false;
+}
+
+/** Attentes croissantes : 2 s, 8 s, 20 s. Trois tentatives au total. */
+export const RETRY_DELAYS_MS = [2_000, 8_000, 20_000];
+
+export async function withRetry<T>(label: string, fn: () => Promise<T>): Promise<T> {
+  let last: unknown;
+  for (let attempt = 0; attempt < RETRY_DELAYS_MS.length; attempt++) {
+    try {
+      return await fn();
+    } catch (e) {
+      last = e;
+      if (!isTransientError(e) || attempt === RETRY_DELAYS_MS.length - 1) throw e;
+      console.warn(
+        `[ai] ${label} : erreur transitoire, nouvelle tentative dans ${RETRY_DELAYS_MS[attempt]! / 1000} s`,
+      );
+      await new Promise((r) => setTimeout(r, RETRY_DELAYS_MS[attempt]!));
+    }
+  }
+  throw last instanceof Error ? last : new Error(String(last));
 }
 
 export async function chatJSON<T>(
@@ -41,29 +95,31 @@ export async function chatJSON<T>(
   /** Réceptacle facultatif : la consommation rapportée par la passerelle. */
   usageOut?: { usage?: TokenUsage | undefined },
 ): Promise<T> {
-  const res = await fetch(`${GATEWAY}/chat/completions`, {
-    method: "POST",
-    headers: gatewayHeaders(),
-    body: JSON.stringify({
-      model,
-      response_format: { type: "json_object" },
-      ...(temperature === undefined ? {} : { temperature }),
-      messages: [
-        { role: "system", content: system },
-        { role: "user", content: user },
-      ],
-    }),
-  });
+  return withRetry("texte", async () => {
+    const res = await fetch(`${GATEWAY}/chat/completions`, {
+      method: "POST",
+      headers: gatewayHeaders(),
+      body: JSON.stringify({
+        model,
+        response_format: { type: "json_object" },
+        ...(temperature === undefined ? {} : { temperature }),
+        messages: [
+          { role: "system", content: system },
+          { role: "user", content: user },
+        ],
+      }),
+    });
 
-  if (!res.ok) throw new Error(await readError(res));
-  const data = (await res.json()) as { choices: { message: { content: string } }[] };
-  if (usageOut) usageOut.usage = readUsage(data);
-  const raw = data.choices?.[0]?.message?.content ?? "{}";
-  const cleaned = raw
-    .trim()
-    .replace(/^```(?:json)?/i, "")
-    .replace(/```$/, "");
-  return JSON.parse(cleaned) as T;
+    if (!res.ok) throw await gatewayError(res);
+    const data = (await res.json()) as { choices: { message: { content: string } }[] };
+    if (usageOut) usageOut.usage = readUsage(data);
+    const raw = data.choices?.[0]?.message?.content ?? "{}";
+    const cleaned = raw
+      .trim()
+      .replace(/^```(?:json)?/i, "")
+      .replace(/```$/, "");
+    return JSON.parse(cleaned) as T;
+  });
 }
 
 /** Génère une image (Nano Banana) et renvoie une data URL. */
@@ -78,24 +134,26 @@ export async function generateImageDataUrl(
         ...referenceImages.map((url) => ({ type: "image_url", image_url: { url } })),
       ]
     : prompt;
-  const res = await fetch(`${GATEWAY}/chat/completions`, {
-    method: "POST",
-    headers: gatewayHeaders(),
-    body: JSON.stringify({
-      model: "google/gemini-3.1-flash-image",
-      modalities: ["image", "text"],
-      messages: [{ role: "user", content }],
-    }),
-  });
+  return withRetry("image", async () => {
+    const res = await fetch(`${GATEWAY}/chat/completions`, {
+      method: "POST",
+      headers: gatewayHeaders(),
+      body: JSON.stringify({
+        model: "google/gemini-3.1-flash-image",
+        modalities: ["image", "text"],
+        messages: [{ role: "user", content }],
+      }),
+    });
 
-  if (!res.ok) throw new Error(await readError(res));
-  const data = (await res.json()) as {
-    choices: { message: { images?: { image_url?: { url?: string } }[] } }[];
-  };
-  if (usageOut) usageOut.usage = readUsage(data);
-  const url = data.choices?.[0]?.message?.images?.[0]?.image_url?.url;
-  if (!url) throw new Error("Aucune image générée.");
-  return url;
+    if (!res.ok) throw await gatewayError(res);
+    const data = (await res.json()) as {
+      choices: { message: { images?: { image_url?: { url?: string } }[] } }[];
+    };
+    if (usageOut) usageOut.usage = readUsage(data);
+    const url = data.choices?.[0]?.message?.images?.[0]?.image_url?.url;
+    if (!url) throw new Error("Aucune image générée.");
+    return url;
+  });
 }
 
 export type VideoJob = {
@@ -144,38 +202,51 @@ export async function createVideoJob(input: {
 }): Promise<VideoJob> {
   const base = videoJobBody(input);
 
-  // 1er essai : audio désactivé (tarif sans audio).
-  let res = await postVideoJob({ ...base, generateAudio: false });
-  if (!res.ok) {
-    const firstError = await readError(res);
-    // 2e essai avec la variante snake_case, au cas où.
-    res = await postVideoJob({ ...base, generate_audio: false });
+  // Réessai UNIQUEMENT sur erreur transitoire : un 5xx signifie que la
+  // commande n'a pas été enregistrée, donc rien n'est facturé deux fois.
+  return withRetry("clip", async () => {
+    // 1er essai : audio désactivé (tarif sans audio).
+    let res = await postVideoJob({ ...base, generateAudio: false });
     if (!res.ok) {
-      await readError(res); // consomme le corps
-      // 3e essai : sans le paramètre — la génération ne doit jamais échouer
-      // à cause de cette optimisation de coût.
-      res = await postVideoJob(base);
-      if (!res.ok) throw new Error(await readError(res));
-      if (!audioOptOutUnavailableLogged) {
-        audioOptOutUnavailableLogged = true;
-        console.warn(
-          "[video] La passerelle refuse generateAudio=false — audio natif généré et facturé. Première erreur :",
-          firstError,
-        );
+      const first = await gatewayError(res);
+      // Erreur transitoire : inutile de tenter les variantes, on relance tel quel.
+      if (isTransientError(first)) throw first;
+      // 2e essai avec la variante snake_case, au cas où.
+      res = await postVideoJob({ ...base, generate_audio: false });
+      if (!res.ok) {
+        await readError(res); // consomme le corps
+        // 3e essai : sans le paramètre — la génération ne doit jamais échouer
+        // à cause de cette optimisation de coût.
+        res = await postVideoJob(base);
+        if (!res.ok) throw await gatewayError(res);
+        if (!audioOptOutUnavailableLogged) {
+          audioOptOutUnavailableLogged = true;
+          console.warn(
+            "[video] La passerelle refuse generateAudio=false — audio natif généré et facturé. Première erreur :",
+            first.message,
+          );
+        }
       }
     }
-  }
-  return (await res.json()) as VideoJob;
+    return (await res.json()) as VideoJob;
+  });
 }
 
 export async function getVideoJob(id: string): Promise<VideoJob> {
-  const res = await fetch(`${GATEWAY}/videos/${id}`, { headers: gatewayHeaders(false) });
-  if (!res.ok) throw new Error(await readError(res));
-  return (await res.json()) as VideoJob;
+  return withRetry("suivi du clip", async () => {
+    const res = await fetch(`${GATEWAY}/videos/${id}`, { headers: gatewayHeaders(false) });
+    if (!res.ok) throw await gatewayError(res);
+    return (await res.json()) as VideoJob;
+  });
 }
 
 export async function fetchVideoContent(id: string): Promise<Response> {
-  return fetch(`${GATEWAY}/videos/${id}/content`, { headers: gatewayHeaders(false) });
+  // Téléchargement du clip déjà payé : un hoquet réseau ne doit rien perdre.
+  return withRetry("téléchargement du clip", async () => {
+    const res = await fetch(`${GATEWAY}/videos/${id}/content`, { headers: gatewayHeaders(false) });
+    if (!res.ok) throw await gatewayError(res);
+    return res;
+  });
 }
 
 /** Génère une voix off (TTS) et renvoie une data URL audio/mpeg. */

@@ -945,17 +945,20 @@ export const estimateProduction = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     await requireAdmin(context);
     const scenes = Math.max(8, Math.round(data.durationSec / 7));
+    // Vérité du pipeline maître : un seul jeu d'images et de clips pour toute
+    // la production ; seule la voix off est refaite langue par langue.
     return {
       videos: data.languages.length,
       scenes,
       clipSeconds: scenes * 7,
       images: scenes,
       voiceLanguages: data.languages.length,
-      note: "Un seul jeu d'images et de clips : les langues supplémentaires ne coûtent que la voix off.",
+      voiceTakes: scenes * data.languages.length,
+      note: "Un seul jeu d'images et de clips, partagé par toutes les langues : les langues supplémentaires ne coûtent que la voix off et le montage.",
     };
   });
 
-/** Lance une production immédiate, une par langue demandée. */
+/** Lance une production immédiate : UN maître, les autres langues en dérivent. */
 export const produceNow = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) =>
@@ -963,6 +966,7 @@ export const produceNow = createServerFn({ method: "POST" })
       .object({
         languages: z.array(z.string().min(2).max(5)).min(1).max(6),
         durationSec: z.number().int().min(60).max(90).default(62),
+        publishDate: z.string().length(10).optional(),
       })
       .parse(d),
   )
@@ -985,25 +989,29 @@ export const produceNow = createServerFn({ method: "POST" })
       ((langRows ?? []) as Record<string, unknown>[]).map((r) => [String(r["language"]), r]),
     );
 
-    const created: string[] = [];
-    for (const language of data.languages) {
-      const s = settings.get(language);
-      const { data: job, error } = await db
-        .from("render_jobs")
-        .insert({
-          language,
-          narration_style: String(s?.["narration_style"] ?? topicRow.data.narration_style),
-          visual_style: String(s?.["visual_style"] ?? "papercraft"),
-          topic_category: topicRow.data.category,
-          topic: topicRow.data.topic,
-          duration_sec: data.durationSec,
-          voice_id: (s?.["eleven_voice_id"] as string | null) ?? null,
-        })
-        .select("id")
-        .single();
-      if (error) throw new Error(error.message);
-      created.push((job as { id: string }).id);
-    }
+    // Langue source : le français s'il est demandé, sinon la première.
+    const langs = data.languages.filter((l, i, a) => a.indexOf(l) === i);
+    const source = langs.includes("fr") ? "fr" : langs[0]!;
+    const s = settings.get(source);
+
+    const { data: job, error } = await db
+      .from("render_jobs")
+      .insert({
+        language: source,
+        languages: langs,
+        master_id: null,
+        publish_date: data.publishDate ?? null,
+        narration_style: String(s?.["narration_style"] ?? topicRow.data.narration_style),
+        visual_style: String(s?.["visual_style"] ?? "papercraft"),
+        topic_category: topicRow.data.category,
+        topic: topicRow.data.topic,
+        duration_sec: data.durationSec,
+        voice_id: (s?.["eleven_voice_id"] as string | null) ?? null,
+      })
+      .select("id")
+      .single();
+    if (error) throw new Error(error.message);
+    const created = [(job as { id: string }).id];
 
     await db
       .from("topic_queue")
@@ -1018,15 +1026,84 @@ export const produceNow = createServerFn({ method: "POST" })
       .from("distribution_settings")
       .update({
         last_run_at: new Date().toISOString(),
-        last_run_result: `Lancement manuel : ${created.length} production(s)`,
+        last_run_result: `Lancement manuel : 1 production, ${langs.length} langue(s)`,
       })
       .eq("id", 1);
 
     await audit(actor, "distribution.produce_now", "render_jobs", created[0] ?? null, {
-      languages: data.languages,
+      languages: langs,
       topic: topicRow.data.topic,
     });
     return { jobIds: created, topic: topicRow.data.topic as string };
+  });
+
+/** Travaux en échec, pour relance manuelle depuis l'administration. */
+export const listFailedJobs = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await requireAdmin(context);
+    const db = await adminDb();
+    const { data, error } = await db
+      .from("render_jobs")
+      .select("id, language, topic, status, step, error, master_id, updated_at")
+      .eq("status", "failed")
+      .order("updated_at", { ascending: false })
+      .limit(40);
+    if (error) throw new Error(error.message);
+    return (data ?? []) as {
+      id: string;
+      language: string;
+      topic: string | null;
+      status: string;
+      step: string;
+      error: string | null;
+      master_id: string | null;
+      updated_at: string;
+    }[];
+  });
+
+/**
+ * Relance un travail en échec À L'ÉTAPE ÉCHOUÉE : rien de déjà produit n'est
+ * repayé (les gardes du pipeline sautent image, voix et clip existants).
+ */
+export const retryJob = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
+  .handler(async ({ context, data }) => {
+    const actor = await requireAdmin(context);
+    const db = await adminDb();
+    const { data: row, error } = await db
+      .from("render_jobs")
+      .select("id, status, scenes, script, topic")
+      .eq("id", data.id)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!row) throw new Error("Travail introuvable.");
+
+    const scenes = (Array.isArray(row.scenes) ? row.scenes : []) as {
+      imagePath?: string;
+      audioPath?: string;
+      clipPath?: string;
+      clipFailed?: boolean;
+      narration?: string;
+    }[];
+
+    let status = "queued";
+    if (!row.topic) status = "queued";
+    else if (!scenes.length) status = "scripting";
+    else if (scenes.some((s) => !s.imagePath)) status = "images";
+    else if (scenes.some((s) => (s.narration ?? "").trim() && !s.audioPath)) status = "voice";
+    else if (scenes.some((s) => !s.clipPath && !s.clipFailed)) status = "clips";
+    else status = "rendering";
+
+    const { error: upErr } = await db
+      .from("render_jobs")
+      .update({ status, step: status, error: null, lease_until: null })
+      .eq("id", data.id);
+    if (upErr) throw new Error(upErr.message);
+
+    await audit(actor, "render_job.retried", "render_jobs", data.id, { status });
+    return { ok: true, status };
   });
 
 /* --------------------------------------------------- réglages de contenu */

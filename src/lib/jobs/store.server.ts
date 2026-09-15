@@ -36,6 +36,12 @@ export type RenderJob = {
   client_id: string | null;
   poster_id: string | null;
   language: string;
+  /** Travail maître dont ce travail réutilise images et clips (null = maître). */
+  master_id: string | null;
+  /** Sur le maître : toutes les langues à produire à partir des mêmes visuels. */
+  languages: string[];
+  /** Date de diffusion voulue (fuseau de diffusion), sinon le jour du rendu. */
+  publish_date: string | null;
   narration_style: string;
   topic_category: string;
   visual_style: string;
