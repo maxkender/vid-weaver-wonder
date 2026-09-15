@@ -302,7 +302,6 @@ export const createPoster = createServerFn({ method: "POST" })
       throw new Error(error.message);
     }
 
-    const conv = await conventions();
     const handle = conventionHandle(conv, country);
     const gmail = conventionGmail(conv, country);
     await db.from("poster_accounts").insert({
