@@ -81,6 +81,12 @@ export function scriptSystemPrompt(
   includeCta = true,
   /** Faits établis par l'étape de vérification : seule source autorisée. */
   verifiedFacts: string[] = [],
+  /**
+   * BUDGET DE CARACTÈRES du script source, calculé sur le débit réel de la voix
+   * (caractères par seconde). Quand il est fourni, il remplace toute consigne
+   * en MOTS : deux unités concurrentes font dériver la durée.
+   */
+  chars?: { min: number; target: number; max: number; perScene: number },
 ) {
   // Fourchette resserrée : la borne basse ne doit jamais autoriser un plan de 3 s.
   const lo = Math.max(14, Math.round(wordsPerScene - 2));
