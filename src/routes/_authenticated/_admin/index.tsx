@@ -1460,22 +1460,21 @@ function Studio() {
 
   /** Met à jour la narration traduite d'un plan (traductions éditables). */
   const updateTranslatedScene = (lang: string, index: number, value: string) => {
-    setScripts((prev) => {
-      const doc = prev[lang];
-      if (!doc) return prev;
-      const next = {
-        ...prev,
-        [lang]: {
-          ...doc,
-          scenes: doc.scenes.map((s) =>
-            s.index === index ? { ...s, narration: value } : s,
-          ),
-        },
-      };
-      scriptsRef.current = next;
-      return next;
-    });
+    const doc = scriptsRef.current[lang];
+    if (!doc) return;
+    const next = {
+      ...scriptsRef.current,
+      [lang]: {
+        ...doc,
+        scenes: doc.scenes.map((s) => (s.index === index ? { ...s, narration: value } : s)),
+      },
+    };
+    scriptsRef.current = next;
+    setScripts(next);
+    // La traduction corrigée doit survivre au rechargement, comme la source.
+    if (projectId && scriptRef.current) saveHistory(projectId, scriptRef.current, next);
   };
+
 
   /** Résumé narratif : ce qui vient d'être raconté et ce qui suit. */
   const storyContext = (scene: Scene, doc: Script | null = script) => {
