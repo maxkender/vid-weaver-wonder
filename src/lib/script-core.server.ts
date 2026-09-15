@@ -3,6 +3,8 @@ import {
   auditSystemPrompt,
   scriptSystemPrompt,
   simplifySystemPrompt,
+  sceneFactCheckSystemPrompt,
+
   scriptUserPrompt,
   SOPHIA_OUTRO,
   type Script,
