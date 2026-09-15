@@ -229,11 +229,13 @@ export const proposeTopicBatch = createServerFn({ method: "POST" })
         TOPIC_BRIEF[data.narrationStyle],
         TOPIC_INTRIGUE,
         TOPIC_VIRAL,
-        `Propose exactement ${data.count} sujets DIFFÉRENTS, variés (pas deux fois le même domaine, pas deux fois le même levier d'affilée).`,
+        `Propose exactement ${data.count} sujets DIFFÉRENTS, répartis sur les TROIS familles validées (questions du quotidien, grands épisodes d'histoire connus de tous, mythes et fictions connus de tous).`,
         "Chaque sujet est formulé comme la première phrase de la vidéo : une seule phrase de 8 à 20 mots, mots du quotidien.",
-        "Évite les sujets ultra rebattus (pyramides, Titanic, Mozart enfant prodige, Grande Muraille visible de l'espace, Cléopâtre, Einstein mauvais élève).",
-        "CHAQUE sujet doit avoir de quoi DÉROULER 60 secondes : un mécanisme en plusieurs étapes ou une enquête qui avance. Avant de retenir un sujet, écris mentalement ses trois étapes de déroulé ; si tu n'en trouves pas trois qui apportent chacune une information nouvelle, remplace-le. Aucun sujet dont le fait tient entier dans la phrase d'accroche.",
-        'Réponds uniquement en JSON: {"topics": [{"topic": string, "angle": string (la révélation en une phrase), "lever": string (le levier viral utilisé)}]}',
+        "RÈGLE ÉLIMINATOIRE : le spectateur doit avoir DÉJÀ EU LA QUESTION EN TÊTE et croire connaître la réponse. Pour chaque sujet, tu nommes dans « lever » la RÉPONSE COMMUNE que le spectateur a dans la tête et que la vidéo va lui retirer. Si tu ne peux pas la nommer, change de sujet.",
+        "Évite les sujets ultra rebattus traités mille fois à l'identique (pyramides, Mozart enfant prodige, Grande Muraille visible de l'espace, Einstein mauvais élève).",
+        "CHAQUE sujet doit avoir de quoi DÉROULER 60 secondes : un mécanisme en plusieurs étapes. Avant de retenir un sujet, écris mentalement ses trois étapes de déroulé ; si tu n'en trouves pas trois qui apportent chacune une information nouvelle, remplace-le.",
+        'Réponds uniquement en JSON: {"topics": [{"topic": string, "angle": string (la vraie explication en une phrase), "lever": string (la réponse commune fausse ou incomplète que la vidéo retire)}]}',
+
       ].join("\n"),
       avoid.length
         ? `INTERDIT : ne propose ni ces sujets, ni un sujet qui parle du même événement, du même lieu, du même personnage ou de la même œuvre :\n- ${avoid

@@ -50,6 +50,9 @@ export type Script = {
   scenes: Scene[];
   /** Message clair quand la longueur reste hors cible après les 3 passes. */
   lengthNote?: string;
+  /** Faits corrigés par la vérification plan par plan. */
+  factNote?: string;
+
   cta: string;
   hashtags: string[];
   /** Bible visuelle : personnages, palette et décors constants d'une scène à l'autre. */
@@ -395,40 +398,45 @@ export const TOPIC_BRIEF: Record<NarrationStyle, string> = {
  * ne suffit pas, il faut la promesse d'une révélation.
  */
 export const TOPIC_INTRIGUE = [
-  "EXIGENCE D'INTRIGUE (critère éliminatoire) : le sujet doit donner l'impression que quelque chose d'IMPOSSIBLE, de CACHÉ ou de CONTRAIRE AU BON SENS va être révélé.",
-  "Il faut une tension, un secret, une croyance renversée, ou un détail que personne ne remarque. Un sujet purement explicatif (« pourquoi tel phénomène se produit ») n'est PAS assez accrocheur : reformule-le jusqu'à ce qu'il promette une révélation.",
-  "TEST DE VALIDATION DU SUJET, à appliquer avant de répondre : en lisant le sujet seul, est-ce qu'on a envie de connaître la suite parce qu'on sent qu'on va apprendre quelque chose qui contredit ce qu'on croyait ? Si la réponse est non, propose un autre sujet.",
+  "RÈGLE DE SUJET VALIDÉE PAR LE CLIENT — ELLE PRIME SUR TOUT LE RESTE ET ELLE EST ÉLIMINATOIRE.",
+  "Les sujets ne sont NI des anecdotes historiques, NI des faits obscurs. Ce sont des QUESTIONS QUE TOUT LE MONDE S'EST DÉJÀ POSÉES, dont tout le monde croit connaître la réponse, et dont la réponse commune est FAUSSE ou INCOMPLÈTE.",
+  "TROIS FAMILLES, ET RIEN D'AUTRE :",
+  "1. LES QUESTIONS DU QUOTIDIEN : pourquoi y a-t-il des saisons, pourquoi les feuilles changent de couleur, pourquoi bâille-t-on, pourquoi a-t-on des frissons, pourquoi dort-on, qu'est-ce que l'effet de serre, pourquoi les abeilles sont vitales.",
+  "2. LES GRANDS ÉPISODES D'HISTOIRE QUE TOUT LE MONDE A ENTENDUS SANS JAMAIS COMPRENDRE : Waterloo, Tchernobyl, la peste noire, la chute de Rome, la guerre du Vietnam.",
+  "3. LES MYTHES ET FICTIONS CONNUS DE TOUS, EXPLIQUÉS OU DÉMONTÉS : le talon d'Achille, Sisyphe, le Cyclope, Spider-Man qui arrête un train.",
+  "CRITÈRE ABSOLU : le spectateur doit comprendre le sujet SANS AUCUNE CONNAISSANCE PRÉALABLE, et doit avoir DÉJÀ EU LA QUESTION EN TÊTE au moins une fois dans sa vie. Un sujet qu'il faut expliquer avant de pouvoir le poser est un MAUVAIS SUJET : remplace-le.",
+  "TEST DE VALIDATION, à appliquer avant de répondre : quelle réponse le spectateur a-t-il déjà dans la tête ? Si tu ne peux pas nommer cette réponse commune, et dire en quoi elle est fausse ou incomplète, le sujet est refusé.",
   "TEST DE SIMPLICITÉ : le sujet doit pouvoir être expliqué à un enfant de 12 ans sans aucune notion technique, sans formule et sans vocabulaire de cours de sciences.",
 ].join("\n");
 
+
 /**
- * LEVIERS VIRAUX : les 9 vidéos de référence qui marchent ont toutes de la
- * matière à DÉROULER (mécanisme ou enquête) et activent au moins un de ces
- * leviers. Un sujet qui n'en active aucun, ou qui tient entier dans sa phrase
- * d'accroche, est rejeté.
+ * MATIÈRE À DÉROULER + LES TROIS FAMILLES VALIDÉES. Un sujet hors de ces trois
+ * familles, ou dont le fait tient entier dans sa phrase d'accroche, est rejeté.
  */
+
 export const TOPIC_VIRAL = [
   "RÈGLE ABSOLUE — IL FAUT DE LA MATIÈRE À DÉROULER (critère éliminatoire, à vérifier AVANT tout le reste) : le sujet doit contenir quelque chose qui se DÉROULE sur soixante secondes, c'est-à-dire soit un MÉCANISME qui s'explique en plusieurs étapes, soit une ENQUÊTE dont la vérité se découvre progressivement.",
   "TEST DE REJET : si le fait est entièrement dit dans la phrase d'accroche et qu'il ne reste plus qu'à le répéter ou à broder autour, le sujet est REFUSÉ. C'est une anecdote, pas une histoire. Exemples refusés : « il existe plus de flamants roses en plastique que de vrais », « il y a cent Lego par humain », « Oxford est plus vieille que l'empire aztèque » — le fait tient entier dans la première phrase, il ne reste rien à raconter.",
   "Les vidéos qui marchent ont toutes quelque chose à dérouler : les poils sensoriels de l'araignée expliqués un par un, la colonne d'air qui fabrique un nuage d'orage étape par étape, les crânes de Sicile qu'on identifie peu à peu comme des éléphants nains, les cellules immunitaires des super-centenaires qu'on découvre en enquêtant.",
   "",
-  "LEVIERS VIRAUX (critère éliminatoire) : le sujet DOIT activer au moins un de ces leviers. S'il n'en active aucun, recommence. Les trois premiers sont PRIORITAIRES : ce sont eux qui dominent les vidéos de référence.",
-  "1. ORIGINE RÉELLE D'UNE FICTION (levier le plus efficace, à privilégier) : une fiction, un mythe, un héros ou un personnage célèbre dont la science ou l'archéologie révèle l'origine réelle, et on déroule l'enquête qui l'a établie. Exemples : « Le Spider Sense de Spider-Man a été copié sur les vraies araignées. », « Le Cyclope de l'Odyssée a une origine bien réelle. », « La ville de Troie a vraiment existé. » Le point de départ est connu de tous, la révélation se découvre par étapes.",
-  "2. MÉCANIQUE D'UN PHÉNOMÈNE SPECTACULAIRE : un phénomène naturel impressionnant dont on explique la mécanique interne, étape par étape, jusqu'à une conséquence qui dépasse ce qu'on imaginait. Exemple : « Un méga feu peut créer son propre nuage d'orage. » Chaque étape ajoute un rouage, la dernière donne le vertige.",
-  "3. EXPÉRIENCE VÉCUE PAR LE SPECTATEUR : une chose qu'il a déjà ressentie dans son corps ou dans sa tête, dont on explique le mécanisme réel, avec si possible quelque chose qu'il peut en faire. Exemple : « Plus tu grandis, plus le temps passe vite — et il existe un moyen de le ralentir. »",
-  "4. CROYANCE RENVERSÉE : ce que tout le monde tient pour vrai est faux, ou l'inverse — à condition que la démonstration se déroule en plusieurs étapes. Exemple : « De tous les pouvoirs de Spider-Man, un seul est vraiment impossible. »",
-  "5. ÉPISODE HISTORIQUE RACONTÉ VITE : un épisode marquant de l'Histoire, raconté tendu et rapide. Il déroule par nature, minute par minute. L'événement doit être connu DE NOM du grand public (Tchernobyl, Pompéi, le Titanic, le Hindenburg, Apollo 13, la peste noire, le mur de Berlin, Hiroshima, Fukushima, la mutinerie du Bounty, la Grande Peur) : si le spectateur n'a jamais entendu ce nom, le sujet est refusé. L'ANGLE, lui, est un détail précis et peu connu de cet événement — une heure, une décision, un homme, un objet — jamais « ce qui s'est passé à Tchernobyl ». On entre directement dans la scène, on avance minute par minute, on termine sur la conséquence qui donne le vertige. INTERDIT d'en faire un cours d'histoire : aucune date de contexte inutile, aucun nom de traité, aucune explication politique. Des faits, des gens, des conséquences.",
-  "LE CHIFFRE SIDÉRANT N'EST PLUS UN LEVIER À LUI SEUL : un chiffre qu'on refuse de croire reste bienvenu, mais toujours À L'INTÉRIEUR d'un sujet qui a un mécanisme ou une enquête. Un chiffre seul ne fait jamais un sujet.",
+  "LE SUJET APPARTIENT OBLIGATOIREMENT À L'UNE DES TROIS FAMILLES VALIDÉES (questions du quotidien · grands épisodes d'histoire connus de tous · mythes et fictions connus de tous). Aucun sujet hors de ces trois familles.",
+  "Dans les trois familles, on part TOUJOURS de la réponse commune que le spectateur a déjà en tête, et on montre qu'elle est fausse ou incomplète, puis on déroule le vrai mécanisme étape par étape.",
+  "• QUESTION DU QUOTIDIEN : « pourquoi y a-t-il des saisons » — réponse commune : « la Terre est plus près du Soleil en été ». Faux. On déroule l'inclinaison.",
+  "• ÉPISODE D'HISTOIRE : « Waterloo » — réponse commune : « Napoléon a perdu à cause des Anglais ». Incomplet. On déroule la boue et le retard.",
+  "• MYTHE OU FICTION : « le talon d'Achille » — réponse commune : « Homère raconte qu'il était invulnérable sauf au talon ». Faux. On déroule d'où vient vraiment l'expression.",
+  "UN SUJET PUREMENT EXPLICATIF EST DÉSORMAIS BIENVENU, à une condition : il doit exister une réponse commune fausse ou incomplète à retirer au spectateur. Sans croyance à retirer, pas de sujet.",
   "À REJETER SYSTÉMATIQUEMENT :",
   "- L'ANECDOTE SANS DÉROULÉ : un fait isolé, aussi étonnant soit-il, qui se dit en une phrase et n'a aucune suite à expliquer.",
-  "- LE SON ET LE BRUITAGE : tout sujet sur la fabrication d'un cri, d'un rugissement, d'une musique ou d'un bruitage de film (le cri de Godzilla, le sabre laser, le cri Wilhelm). Sans extrait sonore, une vidéo ne peut pas démontrer ce genre de sujet.",
-  "- L'INCONNU : tout sujet dont le sujet principal — lieu, personne, œuvre ou événement — n'est pas reconnu immédiatement par le grand public (un peintre oublié, un village perdu, une bataille secondaire, un roman confidentiel). Si le spectateur doit se demander « c'est quoi ça ? », il passe.",
-  "- Les sujets purement explicatifs du type « pourquoi tel phénomène se produit », sans tension ni révélation. Exemple raté : la chute des fourmis expliquée par la physique — rien à renverser, aucun héros, aucun enjeu pour le spectateur.",
-  "- L'HISTOIRE OBSCURE : un événement, un lieu ou un personnage que le grand public ne connaît pas. Sans point d'accroche connu, le spectateur passe.",
+  "- LE FAIT OBSCUR et L'HISTOIRE OBSCURE : tout sujet — lieu, personne, œuvre, événement — que le grand public ne reconnaît pas immédiatement (un peintre oublié, un village perdu, une bataille secondaire, un roman confidentiel). Si le spectateur doit se demander « c'est quoi ça ? », il passe.",
+  "- TOUT SUJET QU'IL FAUT EXPLIQUER AVANT DE POUVOIR LE POSER.",
+  "- LE SON ET LE BRUITAGE : tout sujet sur la fabrication d'un cri, d'un rugissement, d'une musique ou d'un bruitage de film. Sans extrait sonore, une vidéo ne peut pas le démontrer.",
+  "- LE CHIFFRE SIDÉRANT SEUL : un chiffre qu'on refuse de croire reste bienvenu, mais toujours À L'INTÉRIEUR d'un sujet qui a une croyance à renverser.",
   "- Tout sujet dont la démonstration exige plusieurs notions abstraites.",
   "TEST DU SCROLL, obligatoire avant de répondre : formule le sujet comme la PREMIÈRE PHRASE de la vidéo, puis demande-toi si quelqu'un qui scrolle s'arrêterait dessus. S'il faut une phrase de contexte avant que ça devienne intéressant, le sujet est mauvais : recommence.",
   "TEST DES TROIS ÉTAPES, dernier test avant de proposer un sujet : écris mentalement les trois étapes du déroulé de la vidéo. Si tu n'arrives pas à en écrire trois qui apportent CHACUNE une information nouvelle, le sujet n'a pas assez de matière — remplace-le par un autre.",
   "Le sujet doit tenir en UNE phrase compréhensible sans aucune connaissance préalable, et ne contenir aucun mot qu'un ado ne dirait pas.",
+
 ].join("\n");
 
 
@@ -474,5 +482,30 @@ export function auditSystemPrompt(
     "TEST DE SUPPRESSION : pour chaque plan, demande-toi ce que le spectateur perdrait si on le coupait. Le plan dont la perte est la plus faible est le plan le plus faible.",
     "Tu ne renvoies QU'UN SEUL plan réécrit : celui que tu as désigné. Tu gardes son index et sa longueur (±10 % de caractères).",
     'Réponds uniquement en JSON: {"weakest":number,"reason":string,"learned":string,"narration":string}',
+  ].join("\n");
+}
+
+/**
+ * VÉRIFICATION DES FAITS, PLAN PAR PLAN. Le sujet seul ne suffit pas : une
+ * phrase inventée au milieu du script passait sans contrôle (« des défenses
+ * d'éléphant font penser à des dents de carnivore »). Cette passe corrige ou
+ * supprime chaque affirmation non étayée, SANS remonter le niveau de langue.
+ */
+export function sceneFactCheckSystemPrompt(
+  langName: string,
+  sceneCount: number,
+  languageBrief?: string,
+) {
+  return [
+    `Tu vérifies, phrase par phrase, un script de vidéo courte écrit en ${langName}. Il compte ${sceneCount} plans, numérotés à partir de 0.`,
+    "Tu examines CHAQUE affirmation factuelle et CHAQUE chiffre de CHAQUE plan.",
+    "• Affirmation exacte → tu recopies le plan TEL QUEL, mot pour mot.",
+    "• Affirmation fausse, exagérée, contestée ou inventée → tu la réécris avec ce qui est réellement établi, ou tu la SUPPRIMES et tu la remplaces par une information vraie de même nature.",
+    "• Chiffre douteux → tu le recalcules ou tu donnes l'ordre de grandeur.",
+    "TU NE REMONTES JAMAIS LE NIVEAU DE LANGUE. C'est la même contrainte de vocabulaire que le reste du script :",
+    languageBrief?.trim() || DEFAULT_LANGUAGE_BRIEF,
+    "Tu gardes la longueur de chaque plan corrigé (±10 % de caractères) : la durée de la vidéo est déjà calée.",
+    "Tu ne touches ni à l'ordre des plans, ni à leur fonction, ni aux plans exacts.",
+    'Réponds uniquement en JSON: {"scenes":[{"index":number,"narration":string,"fixed":boolean,"reason":string}]}',
   ].join("\n");
 }

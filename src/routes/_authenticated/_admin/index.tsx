@@ -544,6 +544,12 @@ function Studio() {
 
   const [orientation, setOrientation] = useState<"vertical" | "square" | "horizontal">("square");
   const [script, setScript] = useState<Script | null>(null);
+  /** Miroir du script source, toujours à jour pour les mises à jour successives. */
+  const scriptRef = useRef<Script | null>(null);
+  useEffect(() => {
+    scriptRef.current = script;
+  }, [script]);
+
   const [loadingScript, setLoadingScript] = useState(false);
   const [states, setStates] = useState<Record<number, SceneState>>({});
   const patch = useCallback((i: number, value: SceneState) => {
@@ -713,6 +719,10 @@ function Studio() {
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [showHistory, setShowHistory] = useState(false);
   const [editing, setEditing] = useState<Record<number, boolean>>({});
+  /** Zone pour coller un script entier, une ligne par plan. */
+  const [pasteOpen, setPasteOpen] = useState(false);
+  const [pasteDraft, setPasteDraft] = useState("");
+
 
   /** Fenêtre de confirmation modale remplaçant window.confirm. */
   type LaunchCost = {
@@ -911,18 +921,49 @@ function Studio() {
 
   const updateScene = useCallback(
     (index: number, field: keyof Scene, value: string) => {
-      setScript((prev) => {
-        if (!prev) return prev;
-        const next = {
-          ...prev,
-          scenes: prev.scenes.map((s) => (s.index === index ? { ...s, [field]: value } : s)),
-        };
-        if (projectId) saveHistory(projectId, next);
-        return next;
-      });
+      const prev = scriptsRef.current[sourceLang] ?? scriptRef.current;
+      if (!prev) return;
+      const next: Script = {
+        ...prev,
+        scenes: prev.scenes.map((s) => (s.index === index ? { ...s, [field]: value } : s)),
+      };
+      // La langue source vit AUSSI dans `scripts` : sans cette mise à jour, la
+      // carte du plan continuait d'afficher l'ancienne phrase et les voix off
+      // partaient sur le texte d'avant.
+      const nextAll = { ...scriptsRef.current, [sourceLang]: next };
+      scriptsRef.current = nextAll;
+      scriptRef.current = next;
+      setScript(next);
+      setScripts(nextAll);
+      if (projectId) saveHistory(projectId, next, nextAll);
     },
-    [projectId, saveHistory],
+    [projectId, saveHistory, sourceLang],
   );
+
+
+  /** Remplace tout le script source à partir d'un texte collé, une ligne par plan. */
+  const replaceScriptFromText = useCallback(
+    (raw: string) => {
+      const lines = raw
+        .split(/\r?\n+/)
+        .map((l) => l.replace(/^\s*\d+[.)\-–]\s*/, "").trim())
+        .filter(Boolean);
+      if (!script) return 0;
+      if (!lines.length) return 0;
+      const next: Script = {
+        ...script,
+        scenes: script.scenes.map((s, i) => ({ ...s, narration: lines[i] ?? s.narration })),
+      };
+      setScript(next);
+      const nextAll = { ...scriptsRef.current, [sourceLang]: next };
+      scriptsRef.current = nextAll;
+      setScripts(nextAll);
+      if (projectId) saveHistory(projectId, next, nextAll);
+      return Math.min(lines.length, next.scenes.length);
+    },
+    [script, projectId, saveHistory, sourceLang],
+  );
+
 
   const deleteHistory = useCallback((id: string) => {
     const updated = readHistory().filter((h) => h.id !== id);
@@ -1423,22 +1464,21 @@ function Studio() {
 
   /** Met à jour la narration traduite d'un plan (traductions éditables). */
   const updateTranslatedScene = (lang: string, index: number, value: string) => {
-    setScripts((prev) => {
-      const doc = prev[lang];
-      if (!doc) return prev;
-      const next = {
-        ...prev,
-        [lang]: {
-          ...doc,
-          scenes: doc.scenes.map((s) =>
-            s.index === index ? { ...s, narration: value } : s,
-          ),
-        },
-      };
-      scriptsRef.current = next;
-      return next;
-    });
+    const doc = scriptsRef.current[lang];
+    if (!doc) return;
+    const next = {
+      ...scriptsRef.current,
+      [lang]: {
+        ...doc,
+        scenes: doc.scenes.map((s) => (s.index === index ? { ...s, narration: value } : s)),
+      },
+    };
+    scriptsRef.current = next;
+    setScripts(next);
+    // La traduction corrigée doit survivre au rechargement, comme la source.
+    if (projectId && scriptRef.current) saveHistory(projectId, scriptRef.current, next);
   };
+
 
   /** Résumé narratif : ce qui vient d'être raconté et ce qui suit. */
   const storyContext = (scene: Scene, doc: Script | null = script) => {
@@ -3413,7 +3453,52 @@ function Studio() {
                 >
                   Copier la voix off complète
                 </button>
+                <button
+                  onClick={() => {
+                    setPasteOpen((o) => !o);
+                    if (!pasteOpen)
+                      setPasteDraft(
+                        (scripts[sourceLang] ?? script).scenes
+                          .map((s) => s.narration)
+                          .join("\n"),
+                      );
+                  }}
+                  className="btn-base btn-ghost text-xs"
+                >
+                  {pasteOpen ? "Fermer le collage" : "Coller un script entier"}
+                </button>
               </div>
+
+              {pasteOpen && (
+                <div className="mt-3 space-y-2">
+                  <p className="text-xs text-muted-foreground">
+                    Une ligne par plan ({script.scenes.length} plans). Les numéros en début de
+                    ligne sont ignorés.
+                  </p>
+                  <textarea
+                    value={pasteDraft}
+                    onChange={(e) => setPasteDraft(e.target.value)}
+                    rows={10}
+                    className="field font-mono text-xs"
+                    aria-label="Coller le script complet, une ligne par plan"
+                  />
+                  <button
+                    onClick={() => {
+                      const n = replaceScriptFromText(pasteDraft);
+                      if (!n) {
+                        toast.error("Aucune ligne exploitable");
+                        return;
+                      }
+                      toast.success(`${n} plan(s) remplacé(s)`);
+                      setPasteOpen(false);
+                    }}
+                    className="btn-base btn-primary text-xs"
+                  >
+                    Remplacer tout le script
+                  </button>
+                </div>
+              )}
+
             </div>
 
             {/* Une vidéo par langue : mêmes clips, voix et sous-titres différents.
@@ -3577,7 +3662,9 @@ function Studio() {
             )}
 
             <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-              {(scriptFor(viewLang, script) ?? script).scenes.map((scene) => {
+              {/* On lit l'ÉTAT (et non la référence) : sans cela, une phrase
+                  modifiée ne réapparaissait jamais dans la carte du plan. */}
+              {(scripts[viewLang] ?? script).scenes.map((scene) => {
                 const st = states[scene.index] ?? {};
                 const take = voiceOf(st, viewLang);
                 const isSource = viewLang === sourceLang;
