@@ -69,8 +69,14 @@ function inside(px, py, box) {
   return r + 0.5 - d;
 }
 
+/** Le masque ne dépend que du format : on ne le calcule qu'une fois. */
+const cache = new Map();
+
 /** PNG du masque : noir opaque hors du carré, transparent dedans. */
 export function buildMaskPng(width, height) {
+  const key = `${width}x${height}`;
+  const hit = cache.get(key);
+  if (hit) return hit;
   const box = squareBox(width, height);
   const rgba = Buffer.alloc(width * height * 4);
   for (let py = 0; py < height; py++) {
