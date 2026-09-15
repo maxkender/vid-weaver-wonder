@@ -32,6 +32,7 @@ import {
   isPaused,
   logEvent,
   patchJob,
+  patchJobIfStatus,
   releaseJob,
   setPaused,
   signedUrl,
