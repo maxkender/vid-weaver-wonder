@@ -628,13 +628,33 @@ function Studio() {
     });
   }, []);
   const confirmResolverRef = useRef<((value: boolean) => void) | null>(null);
+  /** Une seule fenêtre de confirmation à la fois (double clic ignoré). */
+  const confirmOpenRef = useRef(false);
 
   const requestCostConfirmation = (payload: LaunchCost): Promise<boolean> => {
+    // Un second clic pendant qu'une fenêtre est ouverte n'ouvre rien de plus.
+    if (confirmOpenRef.current) return Promise.resolve(false);
+    // Filet de sécurité : si un resolver traînait, on le libère avec « non »
+    // au lieu de laisser son `await` suspendu à jamais (bouton apparemment mort).
+    const stale = confirmResolverRef.current;
+    confirmResolverRef.current = null;
+    stale?.(false);
+    confirmOpenRef.current = true;
     setConfirmPayload(payload);
     setConfirmOpen(true);
     return new Promise((resolve) => {
       confirmResolverRef.current = resolve;
     });
+  };
+
+  /** Attente visible : l'utilisateur sait qu'une fenêtre l'attend. */
+  const confirmWithStep = async (run: () => Promise<boolean>) => {
+    setCurrentStep("En attente de ta confirmation — voir la fenêtre");
+    try {
+      return await run();
+    } finally {
+      setCurrentStep("");
+    }
   };
 
   const onConfirmLaunch = () => {
