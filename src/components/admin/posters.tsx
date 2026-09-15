@@ -304,7 +304,7 @@ export function AdminPosters() {
                   <div className="flex justify-end gap-1">
                     <button
                       className="btn-base btn-ghost px-2 py-1 text-xs"
-                      title="Régénérer le mot de passe de la plateforme"
+                      title="Réinitialiser le mot de passe de la plateforme"
                       onClick={async () => {
                         const res = (await runReset({ data: { id: p.id } })) as {
                           password: string;
