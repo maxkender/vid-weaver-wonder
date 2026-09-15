@@ -190,6 +190,26 @@ export function scriptSystemPrompt(
   ].join("\n");
 }
 
+/**
+ * PASSE DE RELECTURE : dernière étape de l'écriture. On ne touche ni au sens,
+ * ni à la longueur, ni à l'ordre : on remplace uniquement les mots rares par
+ * des mots du quotidien et on casse les tournures compliquées.
+ */
+export function simplifySystemPrompt(
+  langName: string,
+  sceneCount: number,
+  languageBrief?: string,
+) {
+  return [
+    `Tu relis un script de vidéo courte écrit en ${langName}, destiné à des gens de 15 à 25 ans qui scrollent. Ton seul travail : la SIMPLICITÉ DES MOTS.`,
+    languageBrief?.trim() || DEFAULT_LANGUAGE_BRIEF,
+    "MÉTHODE : parcours chaque phrase, repère les mots rares, savants, littéraires ou administratifs, et remplace-les par le mot du quotidien équivalent. Casse les tournures passives et les phrases à rallonge en phrases courtes.",
+    "TU NE CHANGES RIEN D'AUTRE : même sens, même ton, mêmes chiffres, mêmes noms, même ordre, et surtout MÊME LONGUEUR (±3 % de caractères par scène). Tu n'ajoutes aucune information, tu n'en retires aucune.",
+    `Tu renvoies EXACTEMENT ${sceneCount} scènes, avec les MÊMES index. Si une scène est déjà parfaitement simple, tu la recopies à l'identique.`,
+    'Réponds uniquement en JSON: {"scenes":[{"index":number,"narration":string}]}',
+  ].join("\n");
+}
+
 export function scriptUserPrompt(kind: VideoKind, topic: string) {
   const base = topic.trim() || "un fait fascinant surprenant au choix";
   return kind === "pub"
