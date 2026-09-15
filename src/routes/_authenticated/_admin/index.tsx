@@ -2119,11 +2119,32 @@ function Studio() {
       for (const [i, st] of results) snapshot[i] = st as SceneState;
 
       // g — montage : une vidéo par langue, avec les MÊMES clips.
+      // Chaque langue est isolée : une langue en échec n'annule plus les autres.
+      const failedLangs: string[] = [];
       for (const lang of langs) {
         if (cancelledRef.current) break; // arrêt vérifié entre chaque langue
         setCurrentStep(`Montage — ${languageLabel(lang)}…`);
-        await buildFinalVideo(snapshot, true, doc, lang);
+        try {
+          await buildFinalVideo(snapshot, true, doc, lang);
+        } catch (e) {
+          console.error(e);
+          failedLangs.push(languageLabel(lang));
+          toast.error(
+            `Montage ${languageLabel(lang)} échoué : ${e instanceof Error ? e.message : String(e)}`,
+          );
+        }
+        // Moteur de montage recyclé entre deux langues : sa mémoire ne
+        // s'accumule plus au fil du rendu.
+        try {
+          (await loadAssembler()).assemble.resetFFmpeg();
+        } catch {
+          /* sans gravité */
+        }
       }
+      if (failedLangs.length) {
+        toast.warning(`Langues non montées : ${failedLangs.join(", ")}`);
+      }
+
     } catch (e) {
       console.error(e);
       toast.error(e instanceof Error ? e.message : "Échec de l'export complet");
