@@ -2939,6 +2939,15 @@ function Studio() {
                 );
               })()}
 
+            {hasUsage(usage) && (
+              <UsageRecap
+                usage={usage}
+                priceVideoSecond={settings.priceVideoSecond ?? null}
+                priceImage={settings.priceImage ?? null}
+              />
+            )}
+
+
             {langs.length > 1 && (
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-xs text-muted-foreground">Langue affichée</span>
