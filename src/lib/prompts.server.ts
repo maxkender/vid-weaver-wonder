@@ -262,15 +262,15 @@ export function motionPrompt(
 
 export const TOPIC_BRIEF: Record<NarrationStyle, string> = {
   question:
-    "Le sujet doit être une GRANDE QUESTION que beaucoup de gens se sont déjà posée sans jamais avoir la réponse (pourquoi la mer est salée, pourquoi on rêve, pourquoi l'empire romain est tombé…). Formule le sujet comme une question simple.",
+    "Le sujet doit être une GRANDE QUESTION que beaucoup de gens se sont déjà posée sans jamais avoir la réponse (pourquoi la mer est salée, pourquoi on rêve, pourquoi l'empire romain est tombé…). Formule le sujet comme une question simple. La réponse doit se DÉROULER en plusieurs étapes : une question dont la réponse tient en une phrase ne fait pas une vidéo.",
   revelation:
-    "Le sujet doit être une croyance très répandue ou une histoire connue qui cache un retournement : ce que les gens croient est faux, ou l'explication réelle est bien plus étrange.",
+    "Le sujet doit être une croyance très répandue ou une histoire connue qui cache un retournement : ce que les gens croient est faux, ou l'explication réelle est bien plus étrange. Le retournement doit se DÉMONTRER indice par indice, comme une enquête — jamais s'énoncer d'un bloc en une phrase.",
   storytelling:
-    "Le sujet doit être une histoire vraie avec des personnages, un lieu et un moment précis, qu'on peut raconter comme une scène vécue.",
+    "Le sujet doit être une histoire vraie avec des personnages, un lieu et un moment précis, qu'on peut raconter comme une scène vécue, et qui AVANCE : chaque étape du récit apporte un fait nouveau jusqu'à la conséquence finale.",
   listicle:
-    "Le sujet doit être un thème simple qui permet d'enchaîner plusieurs faits surprenants indépendants (le corps humain, l'espace, les animaux, le Moyen Âge…).",
+    "Le sujet doit être un thème simple qui permet d'enchaîner plusieurs faits surprenants qui se répondent et montent en intensité (le corps humain, l'espace, les animaux, le Moyen Âge…). Les faits doivent construire une même démonstration, jamais être une simple liste d'anecdotes sans lien.",
   mecanique:
-    "Le sujet doit être une chose connue de tous dont on peut expliquer le fonctionnement réel, étape par étape (comment une araignée sent le danger, comment un incendie crée son propre orage, comment le GPS sait où tu es). On part du fait connu et on va jusqu'à une conséquence inattendue.",
+    "Le sujet doit être une chose connue de tous dont on peut expliquer le fonctionnement réel, étape par étape (comment une araignée sent le danger, comment un incendie crée son propre orage, comment le GPS sait où tu es). On part du fait connu et on va jusqu'à une conséquence inattendue. Il faut au moins trois étapes de mécanisme, chacune apportant une information nouvelle.",
 };
 
 /**
@@ -289,20 +289,26 @@ export const TOPIC_INTRIGUE = [
  * au moins un de ces cinq ressorts. Un sujet qui n'en active aucun est rejeté.
  */
 export const TOPIC_VIRAL = [
-  "LEVIERS VIRAUX (critère éliminatoire) : le sujet DOIT activer au moins un de ces cinq leviers. S'il n'en active aucun, recommence.",
-  "1. ANCRAGE POP CULTURE : on part d'un film, d'un héros, d'un jeu vidéo, d'une série ou d'un mythe que tout le monde connaît, et on révèle la réalité derrière. Exemples : « Le Spider Sense de Spider-Man a été copié sur les vraies araignées. », « Le Cyclope de l'Odyssée a une origine bien réelle. »",
-  "2. CROYANCE RENVERSÉE : ce que tout le monde tient pour vrai est faux, ou l'inverse. Exemples : « La ville de Troie a vraiment existé. », « De tous les pouvoirs de Spider-Man, un seul est vraiment impossible. »",
-  "3. ENJEU PERSONNEL : ça parle directement de la vie du spectateur, de son corps, de son temps. Exemple : « Plus tu grandis, plus le temps passe vite — et il existe un moyen de le ralentir. »",
-  "4. IMPOSSIBLE MAIS VRAI : un fait qui paraît absurde jusqu'à ce qu'on l'explique. Exemple : « Un méga feu peut créer son propre nuage d'orage. »",
-  "5. CHIFFRE SIDÉRANT : une proportion ou une mesure qu'on refuse de croire. Exemple : « Chez les plus de 110 ans, cette proportion grimpe à 18 %. »",
-  "6. ÉPISODE HISTORIQUE RACONTÉ VITE : un épisode marquant de l'Histoire, raconté tendu et rapide. L'événement doit être connu DE NOM du grand public (Tchernobyl, Pompéi, le Titanic, le Hindenburg, Apollo 13, la peste noire, le mur de Berlin, Hiroshima, Fukushima, la mutinerie du Bounty, la Grande Peur) : si le spectateur n'a jamais entendu ce nom, le sujet est refusé. L'ANGLE, lui, est un détail précis et peu connu de cet événement — une heure, une décision, un homme, un objet — jamais « ce qui s'est passé à Tchernobyl ». On entre directement dans la scène, on avance minute par minute, on termine sur la conséquence qui donne le vertige. INTERDIT d'en faire un cours d'histoire : aucune date de contexte inutile, aucun nom de traité, aucune explication politique. Des faits, des gens, des conséquences.",
+  "RÈGLE ABSOLUE — IL FAUT DE LA MATIÈRE À DÉROULER (critère éliminatoire, à vérifier AVANT tout le reste) : le sujet doit contenir quelque chose qui se DÉROULE sur soixante secondes, c'est-à-dire soit un MÉCANISME qui s'explique en plusieurs étapes, soit une ENQUÊTE dont la vérité se découvre progressivement.",
+  "TEST DE REJET : si le fait est entièrement dit dans la phrase d'accroche et qu'il ne reste plus qu'à le répéter ou à broder autour, le sujet est REFUSÉ. C'est une anecdote, pas une histoire. Exemples refusés : « il existe plus de flamants roses en plastique que de vrais », « il y a cent Lego par humain », « Oxford est plus vieille que l'empire aztèque » — le fait tient entier dans la première phrase, il ne reste rien à raconter.",
+  "Les vidéos qui marchent ont toutes quelque chose à dérouler : les poils sensoriels de l'araignée expliqués un par un, la colonne d'air qui fabrique un nuage d'orage étape par étape, les crânes de Sicile qu'on identifie peu à peu comme des éléphants nains, les cellules immunitaires des super-centenaires qu'on découvre en enquêtant.",
+  "",
+  "LEVIERS VIRAUX (critère éliminatoire) : le sujet DOIT activer au moins un de ces leviers. S'il n'en active aucun, recommence. Les trois premiers sont PRIORITAIRES : ce sont eux qui dominent les vidéos de référence.",
+  "1. ORIGINE RÉELLE D'UNE FICTION (levier le plus efficace, à privilégier) : une fiction, un mythe, un héros ou un personnage célèbre dont la science ou l'archéologie révèle l'origine réelle, et on déroule l'enquête qui l'a établie. Exemples : « Le Spider Sense de Spider-Man a été copié sur les vraies araignées. », « Le Cyclope de l'Odyssée a une origine bien réelle. », « La ville de Troie a vraiment existé. » Le point de départ est connu de tous, la révélation se découvre par étapes.",
+  "2. MÉCANIQUE D'UN PHÉNOMÈNE SPECTACULAIRE : un phénomène naturel impressionnant dont on explique la mécanique interne, étape par étape, jusqu'à une conséquence qui dépasse ce qu'on imaginait. Exemple : « Un méga feu peut créer son propre nuage d'orage. » Chaque étape ajoute un rouage, la dernière donne le vertige.",
+  "3. EXPÉRIENCE VÉCUE PAR LE SPECTATEUR : une chose qu'il a déjà ressentie dans son corps ou dans sa tête, dont on explique le mécanisme réel, avec si possible quelque chose qu'il peut en faire. Exemple : « Plus tu grandis, plus le temps passe vite — et il existe un moyen de le ralentir. »",
+  "4. CROYANCE RENVERSÉE : ce que tout le monde tient pour vrai est faux, ou l'inverse — à condition que la démonstration se déroule en plusieurs étapes. Exemple : « De tous les pouvoirs de Spider-Man, un seul est vraiment impossible. »",
+  "5. ÉPISODE HISTORIQUE RACONTÉ VITE : un épisode marquant de l'Histoire, raconté tendu et rapide. Il déroule par nature, minute par minute. L'événement doit être connu DE NOM du grand public (Tchernobyl, Pompéi, le Titanic, le Hindenburg, Apollo 13, la peste noire, le mur de Berlin, Hiroshima, Fukushima, la mutinerie du Bounty, la Grande Peur) : si le spectateur n'a jamais entendu ce nom, le sujet est refusé. L'ANGLE, lui, est un détail précis et peu connu de cet événement — une heure, une décision, un homme, un objet — jamais « ce qui s'est passé à Tchernobyl ». On entre directement dans la scène, on avance minute par minute, on termine sur la conséquence qui donne le vertige. INTERDIT d'en faire un cours d'histoire : aucune date de contexte inutile, aucun nom de traité, aucune explication politique. Des faits, des gens, des conséquences.",
+  "LE CHIFFRE SIDÉRANT N'EST PLUS UN LEVIER À LUI SEUL : un chiffre qu'on refuse de croire reste bienvenu, mais toujours À L'INTÉRIEUR d'un sujet qui a un mécanisme ou une enquête. Un chiffre seul ne fait jamais un sujet.",
   "À REJETER SYSTÉMATIQUEMENT :",
+  "- L'ANECDOTE SANS DÉROULÉ : un fait isolé, aussi étonnant soit-il, qui se dit en une phrase et n'a aucune suite à expliquer.",
   "- LE SON ET LE BRUITAGE : tout sujet sur la fabrication d'un cri, d'un rugissement, d'une musique ou d'un bruitage de film (le cri de Godzilla, le sabre laser, le cri Wilhelm). Sans extrait sonore, une vidéo ne peut pas démontrer ce genre de sujet.",
   "- L'INCONNU : tout sujet dont le sujet principal — lieu, personne, œuvre ou événement — n'est pas reconnu immédiatement par le grand public (un peintre oublié, un village perdu, une bataille secondaire, un roman confidentiel). Si le spectateur doit se demander « c'est quoi ça ? », il passe.",
   "- Les sujets purement explicatifs du type « pourquoi tel phénomène se produit », sans tension ni révélation. Exemple raté : la chute des fourmis expliquée par la physique — rien à renverser, aucun héros, aucun enjeu pour le spectateur.",
   "- L'HISTOIRE OBSCURE : un événement, un lieu ou un personnage que le grand public ne connaît pas. Sans point d'accroche connu, le spectateur passe.",
   "- Tout sujet dont la démonstration exige plusieurs notions abstraites.",
   "TEST DU SCROLL, obligatoire avant de répondre : formule le sujet comme la PREMIÈRE PHRASE de la vidéo, puis demande-toi si quelqu'un qui scrolle s'arrêterait dessus. S'il faut une phrase de contexte avant que ça devienne intéressant, le sujet est mauvais : recommence.",
+  "TEST DES TROIS ÉTAPES, dernier test avant de proposer un sujet : écris mentalement les trois étapes du déroulé de la vidéo. Si tu n'arrives pas à en écrire trois qui apportent CHACUNE une information nouvelle, le sujet n'a pas assez de matière — remplace-le par un autre.",
   "Le sujet doit tenir en UNE phrase compréhensible sans aucune connaissance préalable, et ne contenir aucun mot qu'un ado ne dirait pas.",
 ].join("\n");
 
