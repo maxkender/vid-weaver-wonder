@@ -3210,10 +3210,10 @@ function Studio() {
                         <button
                           onClick={() => onVideo(scene, undefined, script, clipSecondsFor(st))}
                           disabled={
-                            st.videoLoading || !imagesValidated || !clipSecondsFor(st)
+                            st.videoLoading || !imagesValidated || !hasAllVoices(st)
                           }
                           title={
-                            clipSecondsFor(st)
+                            hasAllVoices(st)
                               ? undefined
                               : "Génère d'abord les voix off de toutes les langues : la longueur du plan s'y cale."
                           }
