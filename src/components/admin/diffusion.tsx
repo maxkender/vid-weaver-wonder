@@ -326,11 +326,15 @@ export function AdminDiffusion() {
           <div className="surface-card w-full max-w-md p-4">
             <p className="text-sm font-semibold">Confirmer la production</p>
             <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
-              <li>{estimate.videos} vidéo(s), une par langue active</li>
+              <li>{estimate.videos} vidéo(s) livrée(s), une par langue active</li>
               <li>
-                {estimate.images} images et {estimate.scenes} clips (~{estimate.clipSeconds} s d'animation)
+                {estimate.images} images et {estimate.scenes} clips au total (~{estimate.clipSeconds} s
+                d'animation), payés une seule fois
               </li>
-              <li>{estimate.voiceLanguages} voix off</li>
+              <li>
+                {estimate.voiceTakes} prises de voix off ({estimate.scenes} plans ×{" "}
+                {estimate.voiceLanguages} langues)
+              </li>
               <li>{estimate.note}</li>
             </ul>
             <div className="mt-4 flex justify-end gap-2">
