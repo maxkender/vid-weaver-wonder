@@ -1656,6 +1656,36 @@ function Studio() {
   const hasAllVoices = (st: SceneState | undefined) =>
     langs.length > 0 && langs.every((l) => Boolean(st?.voices?.[l]?.duration));
 
+  /**
+   * Langues hors fenêtre, calculées sur un INSTANTANÉ (pas sur l'état React,
+   * qui est en retard au milieu d'un pipeline). Durée réellement parlée dès
+   * qu'une voix existe, prédiction par le débit mesuré sinon.
+   */
+  const overflowFrom = (doc: Script, snapshot: Record<number, SceneState>) => {
+    const hi = durationRange(targetSeconds).hi;
+    const out: { lang: LanguageId; over: number }[] = [];
+    for (const l of langs) {
+      const s = l === sourceLang ? doc : scriptsRef.current[l];
+      if (!s) continue;
+      const cps = cpsFor(l);
+      const predictedTotal = predictSeconds(scriptChars(s), cps, baseVoiceSpeed);
+      const speed = plannedSpeed(predictedTotal, hi);
+      const total = s.scenes.reduce((sum, sc) => {
+        const take = snapshot[sc.index]?.voices?.[l];
+        const real = take?.speaking ?? take?.duration ?? 0;
+        return (
+          sum +
+          (real > 0 ? real : predictSeconds((sc.narration ?? "").trim().length, cps, speed))
+        );
+      }, 0);
+      if (total > hi + 0.5) out.push({ lang: l, over: Math.round(total - hi) });
+    }
+    return out;
+  };
+
+  const overflowLabel = (over: { lang: LanguageId; over: number }[]) =>
+    over.map((o) => `${o.lang.toUpperCase()} +${o.over} s`).join(" · ");
+
   const onGenerateAll = async () => {
     if (!script) return;
     if (!(await confirmWithStep(() => confirmCost(script)))) return;
