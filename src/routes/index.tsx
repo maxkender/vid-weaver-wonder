@@ -1789,7 +1789,9 @@ function Studio() {
     try {
       // b — traductions.
       setCurrentStep("Traductions…");
-      await onTranslateAll(doc);
+      // Réutilise les traductions déjà obtenues depuis CE même texte source :
+      // on ne repaie pas 5 traductions pour un résultat identique.
+      await onTranslateAll(doc, true);
       if (cancelledRef.current) {
         setAssembleStep("Pipeline arrêté");
         return;
@@ -1928,14 +1930,16 @@ function Studio() {
       );
       return;
     }
-    const ok = await requestCostConfirmation({
-      clips: sceneCount,
-      seconds: planned,
-      perClip,
-      voices: sceneCount * langs.length,
-      languages: langs.length,
-      ctaSaving: settings.sophiaCta !== false ? perClip : 0,
-    });
+    const ok = await confirmWithStep(() =>
+      requestCostConfirmation({
+        clips: sceneCount,
+        seconds: planned,
+        perClip,
+        voices: sceneCount * langs.length,
+        languages: langs.length,
+        ctaSaving: settings.sophiaCta !== false ? perClip : 0,
+      }),
+    );
     if (!ok) return;
     beginRun();
     // Mode automatique : mêmes étapes, sans les portes de validation.
