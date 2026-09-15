@@ -271,6 +271,43 @@ export async function buildScript(data: BuildScriptInput): Promise<Script> {
     // relecture best-effort
   }
 
+  // VÉRIFICATION DES FAITS, PLAN PAR PLAN. Le sujet est vérifié en amont, mais
+  // une phrase inventée pouvait encore se glisser dans le corps du script.
+  // Passe texte seule, aucun appel payant de média, best-effort.
+  try {
+    const checked = await chatJSON<{
+      scenes: { index: number; narration: string; fixed?: boolean; reason?: string }[];
+    }>(
+      "google/gemini-3.7-flash",
+      sceneFactCheckSystemPrompt(langName, script.scenes.length, data.languageBrief),
+      `Scènes (JSON) : ${JSON.stringify(
+        script.scenes.map((s) => ({ index: s.index, narration: s.narration })),
+      )}`,
+      0.1,
+    );
+    const fixes: string[] = [];
+    for (const s of checked.scenes ?? []) {
+      const target = script.scenes[Number(s.index)];
+      const text = (s.narration ?? "").trim();
+      if (!target || !text) continue;
+      const before = (target.narration ?? "").length;
+      // On garde la longueur : la durée de la vidéo est déjà calée.
+      if (before === 0 || Math.abs(text.length - before) / before <= 0.15) {
+        if (text !== target.narration && s.fixed) {
+          fixes.push(`plan ${Number(s.index) + 1} : ${(s.reason ?? "fait corrigé").trim()}`);
+        }
+        target.narration = text;
+      }
+    }
+    if (fixes.length) script.factNote = fixes.join(" · ");
+    const checkedHook = script.scenes[0]?.narration?.trim();
+    if (checkedHook) script.hook = checkedHook;
+  } catch {
+    // vérification best-effort : un échec ne bloque jamais la production
+  }
+
+
+
   // CONTRÔLE FINAL — le modèle relit son script comme un spectateur qui scrolle,
   // nomme le plan le plus faible, dit ce qu'on a appris, et réécrit CE SEUL
   // plan. UNE seule passe, jamais de boucle, et jamais sur l'accroche à la
