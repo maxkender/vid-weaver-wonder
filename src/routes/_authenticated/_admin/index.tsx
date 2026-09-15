@@ -1246,8 +1246,10 @@ function Studio() {
       return next;
     }
     setTranslating(true);
+    // Une voix jamais entendue n'a pas de débit : UNE prise courte suffit à le
+    // mesurer, tout le reste du calibrage se fait ensuite sur le texte.
+    await ensureVoiceRates([sourceLang, ...others], doc);
     const { lo: loSec, hi: hiSec } = durationRange(targetSeconds);
-    const midSec = (loSec + hiSec) / 2;
     /** Écart à la fenêtre de durée : 0 quand la langue est dans la cible. */
     const gap = (sec: number) => (sec < loSec ? loSec - sec : sec > hiSec ? sec - hiSec : 0);
 
