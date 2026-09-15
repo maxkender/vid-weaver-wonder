@@ -1517,6 +1517,7 @@ function Studio() {
     } finally {
       setGeneratingAll(false);
       setCurrentStep(cancelledRef.current ? "Pipeline arrêté" : "");
+      setAssembleStep(cancelledRef.current ? "Pipeline arrêté" : "");
     }
   };
 
@@ -1959,6 +1960,7 @@ function Studio() {
     } finally {
       setAutoRunning(false);
       setCurrentStep(cancelledRef.current ? "Pipeline arrêté" : "");
+      setAssembleStep(cancelledRef.current ? "Pipeline arrêté" : "");
     }
   };
 
