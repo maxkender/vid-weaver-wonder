@@ -93,6 +93,10 @@ export type StudioSettings = {
   spendCapSeconds: number;
   /** Rythme de lecture de la voix off (0,9 à 1,15). */
   voiceSpeed: number;
+  /** Tarif d'une seconde de vidéo IA, en euros. null = non renseigné. */
+  priceVideoSecond: number | null;
+  /** Tarif d'une image générée, en euros. null = non renseigné. */
+  priceImage: number | null;
 };
 
 export function defaultSettings(): StudioSettings {
@@ -123,6 +127,10 @@ export function defaultSettings(): StudioSettings {
     draft720: false,
     spendCapSeconds: 72,
     voiceSpeed: 1.05,
+    // Aucun prix inventé : tant que l'utilisateur n'a pas saisi ses tarifs,
+    // le récapitulatif n'affiche que des quantités.
+    priceVideoSecond: null,
+    priceImage: null,
   };
 }
 
