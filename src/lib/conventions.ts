@@ -75,26 +75,9 @@ export function fillUpworkMessage(
 }
 
 /**
- * Mot de passe de connexion à la plateforme : lisible, facile à taper, et
- * DIFFÉRENT pour chaque posteur (les mots de passe des comptes sociaux sont
- * désormais affichés dans l'espace posteur, un mot de passe commun devinable
- * ouvrirait ces comptes à n'importe qui).
+ * Mot de passe de connexion à la plateforme : identique pour tous les posteurs,
+ * modifiable uniquement dans la table des conventions.
  */
-const WORDS = [
-  "soleil", "carbone", "orage", "cactus", "marbre", "banquise", "cobalt", "figue",
-  "lagune", "menthe", "nickel", "olive", "pluie", "quartz", "roseau", "safran",
-  "tulipe", "velours", "wagon", "zebre", "amande", "bambou", "cuivre", "dune",
-  "ecume", "fusain", "givre", "hibou", "iode", "jade", "koala", "lierre",
-  "mousse", "nuage", "onyx", "prisme", "rafale", "sable", "tempete", "ultra",
-];
-
-export function generatePlatformPassword() {
-  const pick = () => WORDS[Math.floor(Math.random() * WORDS.length)]!;
-  const a = pick();
-  let b = pick();
-  while (b === a) b = pick();
-  let c = pick();
-  while (c === a || c === b) c = pick();
-  const digits = String(Math.floor(10 + Math.random() * 90));
-  return `${a}-${b}-${c}-${digits}`;
+export function platformPassword(conv: ConventionRow) {
+  return conv.platform_password || DEFAULT_CONVENTIONS.platform_password;
 }
