@@ -1721,7 +1721,7 @@ function Studio() {
         toast.error(
           `Animation bloquée — ${overflowLabel(over)}. Condense ces versions (bouton Traduire) avant d'animer : les plans sont payés une seule fois pour toutes les langues.`,
         );
-        setCurrentStep("Durée hors cible : animation bloquée");
+        
         return;
       }
 
