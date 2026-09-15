@@ -89,10 +89,13 @@ function slugName(value: string) {
     .replace(/[^a-z]/g, "");
 }
 
-/** Marie Dupont → maried@sophia.com (puis maried2@… en cas de collision). */
-export function buildLogin(firstName: string, lastName: string) {
+/**
+ * Marie Dupont → maried@sophia.com (puis maried2@… en cas de collision).
+ * Le nom de famille est facultatif : Lucia sans nom → lucia@sophia.com.
+ */
+export function buildLogin(firstName: string, lastName?: string) {
   const first = slugName(firstName);
-  const initial = slugName(lastName).slice(0, 1);
+  const initial = slugName(lastName ?? "").slice(0, 1);
   const base = `${first}${initial}` || "posteur";
   return `${base}@${LOGIN_DOMAIN}`;
 }
@@ -100,14 +103,14 @@ export function buildLogin(firstName: string, lastName: string) {
 export const suggestLogin = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) =>
-    z.object({ firstName: z.string().max(80), lastName: z.string().max(80) }).parse(d),
+    z.object({ firstName: z.string().max(80), lastName: z.string().max(80).optional() }).parse(d),
   )
   .handler(async ({ context, data }) => {
     await requireAdmin(context);
     return { login: await freeLogin(data.firstName, data.lastName) };
   });
 
-async function freeLogin(firstName: string, lastName: string) {
+async function freeLogin(firstName: string, lastName?: string) {
   const db = await adminDb();
   const base = buildLogin(firstName, lastName);
   const [local] = base.split("@");
