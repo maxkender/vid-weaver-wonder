@@ -30,10 +30,12 @@ export const AVERAGE_CHARS_PER_WORD: Record<string, number> = {
 
 /**
  * SOURCE DE VÉRITÉ de la fourchette de durée cible.
- * Un script peut dépasser la durée demandée de 10 % au maximum : au-delà on
- * paie des secondes de clip pour rien (60 s demandées → 66 s tolérées).
+ * Fenêtre élargie : 60 s demandées → 58 à 70 s acceptées. Une ou deux secondes
+ * d'écart n'ont aucune conséquence sur un format court.
  */
-export const DURATION_TOLERANCE = 1.1;
+export const DURATION_TOLERANCE = 70 / 60;
+/** Plancher de la fenêtre : 60 s demandées → 58 s acceptées. */
+export const DURATION_FLOOR = 58 / 60;
 
 /**
  * Plafond d'accélération de la voix off à la synthèse. Au-delà, la diction
