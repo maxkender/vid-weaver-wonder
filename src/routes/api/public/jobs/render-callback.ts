@@ -76,9 +76,24 @@ export const Route = createFileRoute("/api/public/jobs/render-callback")({
             try {
               const { admin } = await import("@/lib/jobs/store.server");
               const db = await admin();
+              // Date de diffusion : celle voulue par le travail si elle existe,
+              // sinon le jour courant DANS LE FUSEAU de diffusion (un rendu
+              // terminé à 23 h à Paris appartient au jour en cours, pas à la veille).
+              const { data: settings } = await db
+                .from("distribution_settings")
+                .select("timezone")
+                .eq("id", 1)
+                .maybeSingle();
+              const timeZone = (settings as { timezone?: string } | null)?.timezone ?? "Europe/Paris";
+              const localDay = new Intl.DateTimeFormat("en-CA", {
+                timeZone,
+                year: "numeric",
+                month: "2-digit",
+                day: "2-digit",
+              }).format(new Date());
               await db.from("daily_videos").upsert(
                 {
-                  publish_date: new Date().toISOString().slice(0, 10),
+                  publish_date: job.publish_date ?? localDay,
                   language: job.language,
                   render_id: job.id,
                   storage_path: path,
