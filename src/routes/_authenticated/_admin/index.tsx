@@ -2300,18 +2300,23 @@ function Studio() {
     if (lang === sourceLang) setFinalUrl(url);
     if (autoDownload) downloadLang(lang, url, doc?.title ?? "video");
     toast.success(`Vidéo ${languageLabel(lang)} assemblée`);
-    // Sauvegarde en ligne : jamais bloquante, l'export local reste valide.
-    void saveExportOnline(lang, blob, url);
+    // Sauvegarde en ligne : dernière étape du montage d'une langue. Un échec
+    // ne bloque JAMAIS les langues suivantes ni le reste du pipeline.
+    exportBlobs.current[lang] = blob;
+    await saveExportOnline(lang, blob, url);
     return url;
   };
 
   /**
    * Envoie la vidéo sur le stockage du projet via une URL signée (le fichier ne
-   * passe pas par le serveur de l'application) puis range le lien avec le projet.
+   * passe pas par le serveur de l'application), range le lien avec le projet,
+   * puis inscrit la vidéo dans la diffusion du jour pour cette langue.
    * Un échec de stockage n'invalide JAMAIS l'export : il reste téléchargeable.
    */
   const saveExportOnline = async (lang: string, blob: Blob, objectUrl: string) => {
-    if (!projectId) return;
+    if (!projectId) return false;
+    exportBlobs.current[lang] = blob;
+    setSavingOnline(lang);
     try {
       setAssembleStep(`${languageLabel(lang)} — sauvegarde en ligne…`);
       const { path, token, bucket } = (await runCreateUpload({
@@ -2330,16 +2335,81 @@ function Studio() {
       const duration = await videoDuration(objectUrl);
       const info: ExportInfo = { path, url, expiresAt, size: blob.size, duration };
       setExportInfos((prev) => ({ ...prev, [lang]: info }));
+      setExportErrors((prev) => {
+        const next = { ...prev };
+        delete next[lang];
+        return next;
+      });
       saveExportToHistory(projectId, lang, info);
+
+      // Vidéo du jour : c'est ce que le posteur voit dans son espace.
+      const doc = scriptsRef.current[lang] ?? script;
+      try {
+        await runSaveDaily({
+          data: {
+            language: lang,
+            path,
+            durationSec: Math.round(duration),
+            title: doc?.title ?? "",
+            caption: doc?.caption ?? doc?.hook ?? "",
+            hashtags: asHashtags(doc?.hashtags),
+          },
+        });
+      } catch (e) {
+        console.error(e);
+        toast.warning(
+          `Vidéo ${languageLabel(lang)} sauvegardée, mais non ajoutée à la diffusion du jour (${
+            e instanceof Error ? e.message : "diffusion indisponible"
+          }).`,
+        );
+      }
+      return true;
     } catch (e) {
       console.error(e);
+      const message = e instanceof Error ? e.message : "stockage indisponible";
+      setExportErrors((prev) => ({ ...prev, [lang]: message }));
       toast.warning(
-        `Vidéo ${languageLabel(lang)} : la sauvegarde en ligne a échoué (${
-          e instanceof Error ? e.message : "stockage indisponible"
-        }). La vidéo reste téléchargeable ici.`,
+        `Vidéo ${languageLabel(lang)} : la sauvegarde en ligne a échoué (${message}). La vidéo reste téléchargeable ici, tu peux réessayer sans la remonter.`,
       );
+      return false;
+    } finally {
+      setSavingOnline(null);
     }
   };
+
+  /**
+   * Rattrapage : renvoie une langue déjà montée, sans rien réassembler.
+   * Le fichier est repris en mémoire, ou relu depuis l'aperçu local.
+   */
+  const retrySaveOnline = async (lang: string) => {
+    const url = finalUrls[lang];
+    let blob = exportBlobs.current[lang];
+    if (!blob && url) {
+      try {
+        blob = await (await fetch(url)).blob();
+      } catch {
+        /* aperçu local perdu */
+      }
+    }
+    if (!blob || !url) {
+      toast.error(
+        `Vidéo ${languageLabel(lang)} : le fichier n'est plus en mémoire, il faut relancer le montage de cette langue.`,
+      );
+      return false;
+    }
+    return await saveExportOnline(lang, blob, url);
+  };
+
+  /** Rattrapage groupé : toutes les langues montées mais non sauvegardées. */
+  const retrySaveAllOnline = async () => {
+    const pending = Object.keys(finalUrls).filter((l) => !exportInfos[l]);
+    if (!pending.length) {
+      toast.success("Toutes les langues sont déjà sauvegardées en ligne.");
+      return;
+    }
+    for (const lang of pending) await retrySaveOnline(lang);
+  };
+
 
   /**
    * Renouvelle les liens signés d'un projet rechargé : un lien de 7 jours peut
