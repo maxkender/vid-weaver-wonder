@@ -43,7 +43,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { KaraokeCaption } from "@/components/karaoke-caption";
 import { MusicLibrary } from "@/components/music-library";
-import { audioDuration, estimateSpeechSeconds } from "@/lib/duration";
+import { audioDuration, durationRange, estimateSpeechSeconds } from "@/lib/duration";
 import {
   addTokens,
   emptyUsage,
@@ -505,7 +505,7 @@ function Studio() {
    */
   const baseVoiceSpeed = settings.voiceSpeed ?? 1.05;
   const speedByLang = useMemo(() => {
-    const hi = Math.round(targetSeconds * 1.1);
+    const hi = durationRange(targetSeconds).hi;
     const out: Record<string, number> = {};
     for (const l of langs) {
       const s = scripts[l] ?? (l === sourceLang ? script : null);
@@ -999,8 +999,7 @@ function Studio() {
       return next;
     }
     setTranslating(true);
-    const loSec = targetSeconds;
-    const hiSec = Math.round(targetSeconds * 1.1);
+    const { lo: loSec, hi: hiSec } = durationRange(targetSeconds);
     /** Écart à la fenêtre de durée : 0 quand la langue est dans la cible. */
     const gap = (sec: number) => (sec < loSec ? loSec - sec : sec > hiSec ? sec - hiSec : 0);
     const totalSeconds = (scenes: { narration: string }[], lang: string) =>
@@ -2891,7 +2890,7 @@ function Studio() {
             {langDurations.length > 0 &&
               (() => {
                 const lo = targetSeconds;
-                const hi = Math.round(targetSeconds * 1.1);
+                const hi = durationRange(targetSeconds).hi;
                 const off = langDurations.filter((d) => d.seconds < lo || d.seconds > hi);
                 return (
                   <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">

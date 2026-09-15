@@ -7,6 +7,7 @@ import {
 } from "./prompts.server";
 import { languageName } from "./languages";
 import {
+  durationRange,
   estimateSpeechSeconds,
   fastestWordsPerSecond,
   wordsPerSecond as speechRate,
@@ -52,7 +53,7 @@ export async function buildScript(data: BuildScriptInput): Promise<Script> {
   // est lu par la langue SOURCE. Sans plafond, le français dérive (72 s pour
   // une cible de 60) et on paie des secondes de clip en trop. On plafonne donc
   // le script source à 110 % de la durée demandée (60 s → 66 s).
-  const maxTotalSeconds = Math.round(data.targetSeconds * 1.1);
+  const maxTotalSeconds = durationRange(data.targetSeconds).hi;
   const sourceCapWords = Math.round(
     Math.max(8, maxTotalSeconds - (includeCta ? 6 : 0)) * speechRate(data.language),
   );
