@@ -21,7 +21,7 @@ const FONT_NAME = process.env.CAPTION_FONT_NAME ?? "Poppins";
 
 /** Constantes strictement identiques à src/lib/assemble-video.ts. */
 export const OUTPUT_FPS = 30;
-const MAX_STRETCH = 1.6;
+const MAX_STRETCH = 1.2;
 const STRETCH_BEFORE_TEMPO = 1.25;
 const MAX_TEMPO = 1.12;
 const AUDIO_FADE = 0.03;
