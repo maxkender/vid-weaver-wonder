@@ -63,7 +63,19 @@ import {
   SQUARE_CENTER_OFFSET_RATIO,
   SQUARE_MARGIN_RATIO,
   SQUARE_RADIUS_RATIO,
+  voiceWindow,
 } from "@/lib/karaoke-overlay";
+import {
+  charBudget,
+  charsPerSecond,
+  MAX_CONDENSE_PASSES,
+  MIN_VOICE_SPEED,
+  normalizeSeconds,
+  predictSeconds,
+  rateKey,
+  type VoiceRate,
+} from "@/lib/voice-rate";
+import { listVoiceRates, recordVoiceRate } from "@/lib/voice-rate.functions";
 import {
   
   defaultVoiceFor,
@@ -243,7 +255,14 @@ type Script = {
 type WordTiming = { word: string; start: number; end: number };
 
 /** Voix off d'UNE langue pour un plan : audio + alignement mot à mot + durée. */
-type VoiceTake = { audio: string; words: WordTiming[]; duration: number };
+type VoiceTake = {
+  audio: string;
+  words: WordTiming[];
+  /** Durée BRUTE du fichier audio (silences compris) : base du montage. */
+  duration: number;
+  /** Durée RÉELLEMENT parlée, silences de tête et de queue retirés. */
+  speaking?: number;
+};
 
 type SceneState = {
   /** MÉDIAS VISUELS — communs à toutes les langues du master, payés une fois. */
@@ -447,6 +466,26 @@ function Studio() {
   }, [langs, voiceLangTab, sourceLang]);
 
   /**
+   * DÉBIT RÉEL DES VOIX, mémorisé en base (donc partagé avec le service de
+   * nuit). Une voix espagnole et une voix allemande ne lisent pas le même
+   * nombre de caractères par seconde : c'est la mesure, pas l'estimation par
+   * les mots, qui décide du budget de texte de chaque langue.
+   */
+  const [voiceRates, setVoiceRates] = useState<Record<string, VoiceRate>>({});
+  const runListRates = useServerFn(listVoiceRates);
+  const runRecordRate = useServerFn(recordVoiceRate);
+  useEffect(() => {
+    runListRates({})
+      .then((r) => setVoiceRates(((r as { rates?: Record<string, VoiceRate> }).rates) ?? {}))
+      .catch(() => undefined);
+  }, [runListRates]);
+  /** Caractères par seconde (à la vitesse 1,0) de la voix de cette langue. */
+  const cpsFor = useCallback(
+    (l: string) => charsPerSecond(l, voiceRates[rateKey(voiceForLang(l), l)]),
+    [voiceRates, voiceForLang],
+  );
+
+  /**
    * Langues cochées sans aucun narrateur utilisable : ni choix de l'utilisateur,
    * ni voix par défaut pour cette langue. Avertissement non bloquant.
    */
@@ -513,21 +552,42 @@ function Studio() {
    * recalcule jamais les sous-titres et on ne touche pas à atempo au montage.
    */
   const baseVoiceSpeed = settings.voiceSpeed ?? 1.05;
+
+  /** Caractères parlés d'une version (c'est ce qu'ElevenLabs lit et facture). */
+  const scriptChars = useCallback(
+    (s: Script | null | undefined) =>
+      (s?.scenes ?? []).reduce((n, sc) => n + (sc.narration ?? "").trim().length, 0),
+    [],
+  );
+  const scriptOf = useCallback(
+    (l: string) => scripts[l] ?? (l === sourceLang ? script : null),
+    [scripts, script, sourceLang],
+  );
+
+  /** Vitesse de synthèse à retenir pour rattraper un dépassement résiduel. */
+  const plannedSpeed = useCallback(
+    (predicted: number, hi: number) => {
+      const needed = predicted > hi ? (baseVoiceSpeed * predicted) / hi : baseVoiceSpeed;
+      return Math.max(
+        MIN_VOICE_SPEED,
+        Math.min(MAX_VOICE_SPEED, Math.round(needed * 100) / 100),
+      );
+    },
+    [baseVoiceSpeed],
+  );
+
   const speedByLang = useMemo(() => {
     const hi = durationRange(targetSeconds).hi;
     const out: Record<string, number> = {};
     for (const l of langs) {
-      const s = scripts[l] ?? (l === sourceLang ? script : null);
+      const s = scriptOf(l);
       if (!s) continue;
-      const est = (s.scenes ?? []).reduce(
-        (sum, sc) => sum + estimateSpeechSeconds(sc.narration ?? "", l),
-        0,
-      );
-      const needed = est > hi ? (baseVoiceSpeed * est) / hi : baseVoiceSpeed;
-      out[l] = Math.min(MAX_VOICE_SPEED, Math.round(needed * 100) / 100);
+      // Durée PRÉDITE à partir du débit réellement mesuré de cette voix.
+      const est = predictSeconds(scriptChars(s), cpsFor(l), baseVoiceSpeed);
+      out[l] = plannedSpeed(est, hi);
     }
     return out;
-  }, [langs, scripts, script, sourceLang, targetSeconds, baseVoiceSpeed]);
+  }, [langs, scriptOf, targetSeconds, baseVoiceSpeed, cpsFor, scriptChars, plannedSpeed]);
 
   const speedFor = useCallback(
     (lang: string) => speedByLang[lang] ?? baseVoiceSpeed,
@@ -535,27 +595,54 @@ function Studio() {
   );
 
   /**
-   * Durée totale estimée par langue produite : durée réelle de la voix off dès
-   * qu'elle existe, estimation par le débit de la langue (corrigée de la
-   * vitesse retenue pour cette langue) sinon.
+   * Durée par langue : durée RÉELLEMENT PARLÉE dès que la voix existe (silences
+   * de tête et de queue retirés), sinon durée prédite à partir du débit mesuré
+   * de cette voix et de la vitesse retenue pour cette langue.
    */
   const langDurations = useMemo(() => {
     return langs
       .map((l) => {
-        const s = scripts[l] ?? (l === sourceLang ? script : null);
+        const s = scriptOf(l);
         if (!s) return null;
         const speed = speedByLang[l] ?? baseVoiceSpeed;
-        const total = (s.scenes ?? []).reduce((sum, sc, i) => {
-          const real = states[i]?.voices?.[l]?.duration ?? 0;
-          if (real > 0) return sum + real;
-          return sum + (estimateSpeechSeconds(sc.narration ?? "", l) * baseVoiceSpeed) / speed;
+        const cps = cpsFor(l);
+        let measured = false;
+        const total = (s.scenes ?? []).reduce((sum, sc) => {
+          const take = states[sc.index]?.voices?.[l];
+          const real = take?.speaking ?? take?.duration ?? 0;
+          if (real > 0) {
+            measured = true;
+            return sum + real;
+          }
+          return sum + predictSeconds((sc.narration ?? "").trim().length, cps, speed);
         }, 0);
-        return { lang: l, seconds: total, speed };
+        return { lang: l, seconds: total, speed, measured };
       })
       .filter(
-        (x): x is { lang: LanguageId; seconds: number; speed: number } => x !== null,
+        (
+          x,
+        ): x is { lang: LanguageId; seconds: number; speed: number; measured: boolean } =>
+          x !== null,
       );
-  }, [langs, scripts, script, sourceLang, states, speedByLang, baseVoiceSpeed]);
+  }, [langs, scriptOf, states, speedByLang, baseVoiceSpeed, cpsFor]);
+
+  /**
+   * Langues encore hors fenêtre APRÈS condensation et accélération : tant qu'il
+   * en reste une, aucune animation ne doit être commandée — les clips sont
+   * payés une seule fois pour toutes les langues.
+   */
+  const durationOverflow = useMemo(() => {
+    const hi = durationRange(targetSeconds).hi;
+    return langDurations
+      .filter((d) => d.seconds > hi + 0.5)
+      .map((d) => ({ lang: d.lang, over: Math.round(d.seconds - hi) }));
+  }, [langDurations, targetSeconds]);
+
+  const durationBlockMessage = durationOverflow.length
+    ? `Durée hors cible : ${durationOverflow
+        .map((d) => `${d.lang.toUpperCase()} +${d.over} s`)
+        .join(" · ")}. Condense ces versions avant d'animer : les plans animés sont payés une seule fois pour toutes les langues.`
+    : "";
 
   /** MP4 final par langue. */
   const [finalUrls, setFinalUrls] = useState<Record<string, string>>({});
@@ -1082,12 +1169,14 @@ function Studio() {
   const onTranslateAll = async (
     doc: Script | null = script,
     reuse = false,
+    only?: LanguageId[],
   ): Promise<Record<string, Script> | undefined> => {
     if (!doc) return undefined;
     const sig = sourceSignature(doc);
     let others = langs.filter((l) => l !== sourceLang);
     const next: Record<string, Script> = { ...scriptsRef.current, [sourceLang]: doc };
-    if (reuse) {
+    if (only) others = others.filter((l) => only.includes(l));
+    else if (reuse) {
       others = others.filter(
         (l) => !next[l] || translationSourceRef.current[l] !== sig,
       );
@@ -1099,10 +1188,9 @@ function Studio() {
     }
     setTranslating(true);
     const { lo: loSec, hi: hiSec } = durationRange(targetSeconds);
+    const midSec = (loSec + hiSec) / 2;
     /** Écart à la fenêtre de durée : 0 quand la langue est dans la cible. */
     const gap = (sec: number) => (sec < loSec ? loSec - sec : sec > hiSec ? sec - hiSec : 0);
-    const totalSeconds = (scenes: { narration: string }[], lang: string) =>
-      scenes.reduce((sum, s) => sum + estimateSpeechSeconds(s.narration ?? "", lang), 0);
 
     try {
       for (const lang of others) {
@@ -1116,6 +1204,17 @@ function Studio() {
             cta: string;
             scenes: { index: number; narration: string; overlay: string }[];
           };
+          // BUDGET DE CARACTÈRES DE CETTE LANGUE : la durée dépend du débit
+          // réel de SA voix, pas du nombre de mots français. À 6,8 c/s, une
+          // cible de 63 s ne laisse pas le même texte qu'à 10,4 c/s.
+          const cps = cpsFor(lang);
+          const budget = charBudget(midSec, cps, baseVoiceSpeed);
+          const predicted = (scenes: { narration: string }[]) =>
+            predictSeconds(
+              scenes.reduce((n, s) => n + (s.narration ?? "").trim().length, 0),
+              cps,
+              baseVoiceSpeed,
+            );
           const callTranslate = (
             src: { title: string; hook: string; cta: string; scenes: TransRes["scenes"] },
             adjust: boolean,
@@ -1137,6 +1236,7 @@ function Studio() {
                 minTotalSeconds: loSec,
                 maxTotalSeconds: hiSec,
                 adjust,
+                charBudget: budget,
               },
             }).then((r) => {
               bumpUsage((u) => ({
@@ -1146,27 +1246,33 @@ function Studio() {
               return r;
             }) as Promise<TransRes>;
 
+          const existing = only ? next[lang] : undefined;
+          const startFrom = existing ?? doc;
           let res = await callTranslate(
             {
-              title: doc.title ?? "",
-              hook: doc.hook ?? "",
-              cta: doc.cta ?? "",
-              scenes: doc.scenes.map((s) => ({
+              title: startFrom.title ?? "",
+              hook: startFrom.hook ?? "",
+              cta: startFrom.cta ?? "",
+              scenes: startFrom.scenes.map((s) => ({
                 index: s.index,
                 narration: s.narration,
                 overlay: s.overlay ?? "",
               })),
             },
-            false,
+            Boolean(existing),
           );
-          // CONTRÔLE DU TOTAL : deux passes de correction maximum sur CETTE
+          // CONTRÔLE DU TOTAL : jusqu'à trois passes de condensation sur CETTE
           // langue uniquement, puis on garde le résultat le plus proche.
           let best = res;
-          let bestGap = gap(totalSeconds(res.scenes, lang));
-          for (let pass = 0; pass < 2 && bestGap > 0 && !cancelledRef.current; pass++) {
-            setCurrentStep(`Ajustement de la durée — ${languageLabel(lang)}…`);
+          let bestGap = gap(predicted(res.scenes));
+          for (
+            let pass = 0;
+            pass < MAX_CONDENSE_PASSES && bestGap > 0 && !cancelledRef.current;
+            pass++
+          ) {
+            setCurrentStep(`Condensation — ${languageLabel(lang)}…`);
             res = await callTranslate(res, true);
-            const g = gap(totalSeconds(res.scenes, lang));
+            const g = gap(predicted(res.scenes));
             if (g < bestGap) {
               best = res;
               bestGap = g;
@@ -1175,9 +1281,18 @@ function Studio() {
           }
           res = best;
           if (bestGap > 0) {
-            toast.warning(
-              `${languageLabel(lang)} : ${Math.round(totalSeconds(res.scenes, lang))} s estimées, hors de la cible ${loSec}-${hiSec} s.`,
+            // Second levier : la vitesse de synthèse de CETTE langue (≤ 1,15).
+            const speed = plannedSpeed(predicted(res.scenes), hiSec);
+            const after = predictSeconds(
+              res.scenes.reduce((n, s) => n + (s.narration ?? "").trim().length, 0),
+              cps,
+              speed,
             );
+            if (gap(after) > 0) {
+              toast.warning(
+                `${languageLabel(lang)} : ${Math.round(after)} s prédites même à voix ×${speed.toFixed(2)}, hors de la cible ${loSec}-${hiSec} s.`,
+              );
+            }
           }
           // Les prompts visuels sont repris À L'IDENTIQUE : ils ont déjà servi.
           const byIndex = new Map(res.scenes.map((s) => [s.index, s]));
@@ -1456,7 +1571,12 @@ function Studio() {
         },
       }));
       const duration = await audioDuration(audioDataUrl);
-      const take: VoiceTake = { audio: audioDataUrl, words: words ?? [], duration };
+      // Durée RÉELLEMENT PARLÉE : les silences de tête et de queue sont rognés
+      // avant toute mesure, exactement comme au montage. Une seconde de blanc
+      // par prise, c'est huit secondes de trop sur la vidéo.
+      const win = voiceWindow(words ?? [], duration);
+      const speaking = Math.max(0.3, win ? win.end - win.start : duration);
+      const take: VoiceTake = { audio: audioDataUrl, words: words ?? [], duration, speaking };
       setStates((prev) => ({
         ...prev,
         [scene.index]: {
@@ -1465,6 +1585,21 @@ function Studio() {
           voices: { ...(prev[scene.index]?.voices ?? {}), [lang]: take },
         },
       }));
+      // DÉBIT RÉEL MÉMORISÉ : ramené à la vitesse 1,0 pour rester comparable.
+      const usedVoice = voiceForLang(lang);
+      void runRecordRate({
+        data: {
+          voiceId: usedVoice,
+          language: lang,
+          chars: characters ?? text.length,
+          seconds: normalizeSeconds(speaking, speedFor(lang)),
+        },
+      })
+        .then((r) => {
+          const rate = (r as { rate?: VoiceRate | null }).rate;
+          if (rate) setVoiceRates((p) => ({ ...p, [rateKey(usedVoice, lang)]: rate }));
+        })
+        .catch(() => undefined);
       return take;
     } catch (e) {
       patch(scene.index, { audioLoading: false });
@@ -1509,7 +1644,10 @@ function Studio() {
   const clipSecondsFor = (st: SceneState | undefined) => {
     const longest = Math.max(
       0,
-      ...langs.map((l) => st?.voices?.[l]?.duration ?? 0),
+      ...langs.map((l) => {
+        const take = st?.voices?.[l];
+        return take?.speaking ?? take?.duration ?? 0;
+      }),
     );
     return longest || undefined;
   };
@@ -1517,6 +1655,36 @@ function Studio() {
   /** Toutes les langues cochées ont-elles leur voix off sur ce plan ? */
   const hasAllVoices = (st: SceneState | undefined) =>
     langs.length > 0 && langs.every((l) => Boolean(st?.voices?.[l]?.duration));
+
+  /**
+   * Langues hors fenêtre, calculées sur un INSTANTANÉ (pas sur l'état React,
+   * qui est en retard au milieu d'un pipeline). Durée réellement parlée dès
+   * qu'une voix existe, prédiction par le débit mesuré sinon.
+   */
+  const overflowFrom = (doc: Script, snapshot: Record<number, SceneState>) => {
+    const hi = durationRange(targetSeconds).hi;
+    const out: { lang: LanguageId; over: number }[] = [];
+    for (const l of langs) {
+      const s = l === sourceLang ? doc : scriptsRef.current[l];
+      if (!s) continue;
+      const cps = cpsFor(l);
+      const predictedTotal = predictSeconds(scriptChars(s), cps, baseVoiceSpeed);
+      const speed = plannedSpeed(predictedTotal, hi);
+      const total = s.scenes.reduce((sum, sc) => {
+        const take = snapshot[sc.index]?.voices?.[l];
+        const real = take?.speaking ?? take?.duration ?? 0;
+        return (
+          sum +
+          (real > 0 ? real : predictSeconds((sc.narration ?? "").trim().length, cps, speed))
+        );
+      }, 0);
+      if (total > hi + 0.5) out.push({ lang: l, over: Math.round(total - hi) });
+    }
+    return out;
+  };
+
+  const overflowLabel = (over: { lang: LanguageId; over: number }[]) =>
+    over.map((o) => `${o.lang.toUpperCase()} +${o.over} s`).join(" · ");
 
   const onGenerateAll = async () => {
     if (!script) return;
@@ -1545,6 +1713,18 @@ function Studio() {
       // d — voix off de TOUTES les langues.
       snapshot = await generateAllVoices(script, snapshot);
       if (cancelledRef.current) return;
+
+      // MESURE AVANT DE PAYER : une langue hors fenêtre fige le défaut dans
+      // toutes les versions, puisque les clips sont communs. On n'anime pas.
+      const over = overflowFrom(script, snapshot);
+      if (over.length) {
+        toast.error(
+          `Animation bloquée — ${overflowLabel(over)}. Condense ces versions (bouton Traduire) avant d'animer : les plans sont payés une seule fois pour toutes les langues.`,
+        );
+        
+        return;
+      }
+
 
       // e/f — un seul clip par plan, dimensionné sur la langue la plus longue.
       const videoJobs: Promise<unknown>[] = [];
@@ -1869,6 +2049,43 @@ function Studio() {
         setAssembleStep("Pipeline arrêté");
         return;
       }
+
+      // BOUCLE FERMÉE : mesuré, corrigé, remesuré — et seulement ensuite animé.
+      // Deux tours de condensation maximum sur les seules langues qui débordent
+      // (la voix off est peu coûteuse ; les plans animés, eux, sont définitifs).
+      let over = overflowFrom(doc, snapshot);
+      for (let round = 0; round < 2 && over.length && !cancelledRef.current; round++) {
+        const bad = over.map((o) => o.lang);
+        setAssembleStep(`Condensation — ${bad.map((l) => languageLabel(l)).join(", ")}…`);
+        setCurrentStep(`Condensation — ${overflowLabel(over)}`);
+        await onTranslateAll(doc, false, bad);
+        if (cancelledRef.current) break;
+        // Les voix de ces langues ne correspondent plus au texte : on les refait.
+        for (const l of bad) {
+          for (const sc of doc.scenes) {
+            const st = snapshot[sc.index];
+            if (st?.voices?.[l]) {
+              const voices = { ...st.voices };
+              delete voices[l];
+              snapshot[sc.index] = { ...st, voices };
+            }
+          }
+        }
+        snapshot = await generateAllVoices(doc, snapshot);
+        over = overflowFrom(doc, snapshot);
+      }
+      if (cancelledRef.current) {
+        setAssembleStep("Pipeline arrêté");
+        return;
+      }
+      if (over.length) {
+        toast.error(
+          `Animation bloquée — ${overflowLabel(over)}. Ces versions restent hors de la cible après condensation et accélération de la voix : aucun plan animé n'a été commandé.`,
+        );
+        setAssembleStep("Durée hors cible : animation bloquée");
+        return;
+      }
+
 
       // e/f — clips animés, une seule fois, calibrés sur la langue la plus longue.
       setCurrentStep("Plans animés…");
@@ -2859,7 +3076,8 @@ function Studio() {
               <div className="mt-3 flex flex-wrap items-center gap-2">
                 <button
                   onClick={onGenerateAll}
-                  disabled={generatingAll || !imagesValidated}
+                  disabled={generatingAll || !imagesValidated || durationOverflow.length > 0}
+                  title={durationOverflow.length ? durationBlockMessage : undefined}
                   className="btn-base btn-ghost"
                 >
                   {generatingAll ? (
@@ -3012,10 +3230,12 @@ function Studio() {
                 const lo = targetSeconds;
                 const hi = durationRange(targetSeconds).hi;
                 const off = langDurations.filter((d) => d.seconds < lo || d.seconds > hi);
+                const anyMeasured = langDurations.some((d) => d.measured);
                 return (
                   <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
                     <span className="text-muted-foreground">
-                      Durée estimée (cible {lo}-{hi} s)
+                      {anyMeasured ? "Durée mesurée" : "Durée prédite (débit réel des voix)"}{" "}
+                      (cible {lo}-{hi} s)
                     </span>
                     {langDurations.map(({ lang: l, seconds, speed }) => {
                       const bad = seconds < lo || seconds > hi;
@@ -3052,6 +3272,11 @@ function Studio() {
                           )
                           .join(" · ")}
                         . Ajuste le script avant d'animer les plans.
+                      </span>
+                    )}
+                    {durationOverflow.length > 0 && (
+                      <span className="w-full font-medium text-destructive">
+                        {durationBlockMessage}
                       </span>
                     )}
                   </div>
@@ -3253,12 +3478,17 @@ function Studio() {
                         <button
                           onClick={() => onVideo(scene, undefined, script, clipSecondsFor(st))}
                           disabled={
-                            st.videoLoading || !imagesValidated || !hasAllVoices(st)
+                            st.videoLoading ||
+                            !imagesValidated ||
+                            !hasAllVoices(st) ||
+                            durationOverflow.length > 0
                           }
                           title={
-                            hasAllVoices(st)
-                              ? undefined
-                              : "Génère d'abord les voix off de toutes les langues : la longueur du plan s'y cale."
+                            durationOverflow.length
+                              ? durationBlockMessage
+                              : hasAllVoices(st)
+                                ? undefined
+                                : "Génère d'abord les voix off de toutes les langues : la longueur du plan s'y cale."
                           }
                           className="btn-base btn-ghost px-2.5 py-1.5 text-xs"
                         >

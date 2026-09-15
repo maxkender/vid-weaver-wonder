@@ -88,6 +88,8 @@ export const translateScript = createServerFn({ method: "POST" })
         maxTotalSeconds: z.number().min(10).max(180).default(66),
         /** Passe de correction de durée : le texte est déjà dans la langue cible. */
         adjust: z.boolean().default(false),
+        /** Budget de caractères total, calculé sur le débit mesuré de la voix. */
+        charBudget: z.number().int().min(80).max(6000).optional(),
       })
       .parse(input),
   )
@@ -115,6 +117,12 @@ export const translateScript = createServerFn({ method: "POST" })
           maxWords: maxWordsForSeconds(data.maxTotalSeconds, data.language),
         },
         data.adjust,
+        data.charBudget
+          ? {
+              total: data.charBudget,
+              perScene: Math.max(20, Math.round(data.charBudget / Math.max(1, data.scenes.length))),
+            }
+          : undefined,
       ),
       JSON.stringify({
         title: data.title,

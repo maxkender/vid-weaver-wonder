@@ -258,6 +258,39 @@ export type Database = {
         }
         Relationships: []
       }
+      voice_rates: {
+        Row: {
+          chars: number
+          created_at: string
+          id: string
+          language: string
+          seconds: number
+          takes: number
+          updated_at: string
+          voice_id: string
+        }
+        Insert: {
+          chars?: number
+          created_at?: string
+          id?: string
+          language: string
+          seconds?: number
+          takes?: number
+          updated_at?: string
+          voice_id: string
+        }
+        Update: {
+          chars?: number
+          created_at?: string
+          id?: string
+          language?: string
+          seconds?: number
+          takes?: number
+          updated_at?: string
+          voice_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

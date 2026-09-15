@@ -196,6 +196,13 @@ async function stepVoice(job: RenderJob, t0: number) {
     scene.audioDuration = words.length
       ? Math.max(...words.map((w) => w.end)) + 0.3
       : estimateSpeechSeconds(scene.narration, job.language);
+    // Débit réel de cette voix, mémorisé dans la même table que le studio.
+    try {
+      const { recordVoiceTake } = await import("../voice-rate.server");
+      await recordVoiceTake(voice, job.language, scene.narration.trim().length, scene.audioDuration);
+    } catch {
+      /* une mesure ne doit jamais faire échouer une production */
+    }
     await patchJob(job.id, { scenes, progress: 0.42 + 0.18 * ((i + 1) / scenes.length) });
   }
   await patchJob(job.id, { status: "clips", step: "clips", progress: 0.6 });
