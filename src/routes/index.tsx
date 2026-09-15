@@ -526,8 +526,20 @@ function Studio() {
   };
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [confirmPayload, setConfirmPayload] = useState<LaunchCost | null>(null);
-  /** Coût réellement commandé depuis le début de la session (clips payants). */
-  const [spent, setSpent] = useState({ clips: 0, seconds: 0 });
+  /** COÛT RÉEL de la vidéo en cours : quantités effectivement commandées. */
+  const [usage, setUsage] = useState<UsageReport>(emptyUsage);
+  const usageRef = useRef<UsageReport>(usage);
+  const bumpUsage = useCallback((fn: (u: UsageReport) => UsageReport) => {
+    setUsage((prev) => {
+      const next = fn(prev);
+      usageRef.current = next;
+      return next;
+    });
+  }, []);
+  const resetUsage = useCallback(() => {
+    usageRef.current = emptyUsage();
+    setUsage(usageRef.current);
+  }, []);
   const confirmResolverRef = useRef<((value: boolean) => void) | null>(null);
 
   const requestCostConfirmation = (payload: LaunchCost): Promise<boolean> => {
@@ -1039,7 +1051,7 @@ function Studio() {
       const prev = consistent ? (previousImage.current ?? null) : null;
       const story = storyContext(scene, doc);
       const sceneVisualOpts = { ...visualOpts, bible: bibleFor(doc) };
-      const { dataUrl } = (await runImage({
+      const { dataUrl, usage: imgUsage } = (await runImage({
         data: {
           imagePrompt: scene.imagePrompt,
           visual,
@@ -1049,7 +1061,8 @@ function Studio() {
           ...(ref ? { referenceImage: ref } : {}),
           ...(prev && prev !== ref ? { previousImage: prev } : {}),
         },
-      })) as { dataUrl: string };
+      })) as { dataUrl: string; usage?: TokenUsage | null };
+      bumpUsage((u) => ({ ...u, images: u.images + 1, tokens: addTokens(u.tokens, imgUsage) }));
 
       if (scene.index === 0 || !referenceImage.current) referenceImage.current = dataUrl;
       previousImage.current = dataUrl;
@@ -1123,9 +1136,9 @@ function Studio() {
       })) as { id: string };
       patch(scene.index, { videoId: id });
       // Coût RÉELLEMENT commandé (à comparer avec l'estimation d'avant départ).
-      setSpent((s) => ({
-        clips: s.clips + 1,
-        seconds: s.seconds + Number(seconds ?? 8),
+      bumpUsage((u) => ({
+        ...u,
+        clips: { count: u.clips.count + 1, seconds: u.clips.seconds + Number(seconds ?? 8) },
       }));
 
       for (let attempt = 0; attempt < 90; attempt++) {
@@ -1214,7 +1227,7 @@ function Studio() {
     const text = doc?.scenes.find((s) => s.index === scene.index)?.narration ?? scene.narration;
     patch(scene.index, { audioLoading: true });
     try {
-      const { audioDataUrl, words } = (await runVoice({
+      const { audioDataUrl, words, characters } = (await runVoice({
         data: {
           text,
           voice: voiceForLang(lang),
@@ -1224,7 +1237,14 @@ function Studio() {
           // synthèse, donc les repères mot à mot restent calés sur l'audio réel.
           speed: speedFor(lang),
         },
-      })) as { audioDataUrl: string; words?: WordTiming[] };
+      })) as { audioDataUrl: string; words?: WordTiming[]; characters?: number };
+      bumpUsage((u) => ({
+        ...u,
+        voiceChars: {
+          ...u.voiceChars,
+          [lang]: (u.voiceChars[lang] ?? 0) + (characters ?? text.length),
+        },
+      }));
       const duration = await audioDuration(audioDataUrl);
       const take: VoiceTake = { audio: audioDataUrl, words: words ?? [], duration };
       setStates((prev) => ({
@@ -1973,9 +1993,10 @@ function Studio() {
             seule fois + {cost.voices} voix off ({cost.languages} langue
             {cost.languages > 1 ? "s" : ""})
           </span>
-          {spent.clips > 0 && (
+          {usage.clips.count > 0 && (
             <span className="hidden text-xs text-foreground md:inline">
-              · Consommé : {spent.clips} clip{spent.clips > 1 ? "s" : ""} / {spent.seconds} s
+              · Consommé : {usage.clips.count} clip{usage.clips.count > 1 ? "s" : ""} /{" "}
+              {usage.clips.seconds} s
             </span>
           )}
 
@@ -2011,7 +2032,9 @@ function Studio() {
           <span className="text-xs text-muted-foreground">
             Coût estimé : {cost.clips} clip{cost.clips > 1 ? "s" : ""} × {cost.perClip} s + {cost.voices}{" "}
             voix off
-            {spent.clips > 0 ? ` · Consommé : ${spent.clips} clips / ${spent.seconds} s` : ""}
+            {usage.clips.count > 0
+              ? ` · Consommé : ${usage.clips.count} clips / ${usage.clips.seconds} s`
+              : ""}
           </span>
         </div>
       </header>
