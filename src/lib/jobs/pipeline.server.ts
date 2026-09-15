@@ -451,7 +451,11 @@ export async function runTick(origin: string) {
     if (job.status === "queued") {
       await assertRunning(job.id);
       await stepTopic(job);
-      await patchJob(job.id, { status: "scripting", step: "scripting", progress: 0.05 });
+      await patchJobIfStatus(job.id, "queued", {
+        status: "scripting",
+        step: "scripting",
+        progress: 0.05,
+      });
       job.status = "scripting";
     }
     if (job.status === "scripting") {
