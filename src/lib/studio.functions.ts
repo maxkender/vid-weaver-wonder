@@ -198,6 +198,8 @@ export const generateSceneImage = createServerFn({ method: "POST" })
         referenceImage: z.string().startsWith("data:image/").optional(),
         /** Image du plan précédent : continuité immédiate de l'histoire. */
         previousImage: z.string().startsWith("data:image/").optional(),
+        /** Type de plan imposé (échelle + cadrage), différent du plan voisin. */
+        shot: z.string().max(2000).optional(),
       })
       .parse(input),
   )
@@ -208,6 +210,7 @@ export const generateSceneImage = createServerFn({ method: "POST" })
       quality: data.quality,
       opening: data.opening,
       story: data.story,
+      shot: data.shot,
     });
     const refs = [data.referenceImage, data.previousImage].filter(
       (r): r is string => typeof r === "string" && r.length > 0,
