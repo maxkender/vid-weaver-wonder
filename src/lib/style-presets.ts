@@ -85,6 +85,9 @@ export const DEFAULT_LANGUAGE_BRIEF = [
   "Phrases courtes. UNE idée par phrase. Sujet, verbe, complément. Pas de subordonnées empilées, pas d'incises, pas de participes présents.",
   "Aucune date, aucun nom propre difficile à prononcer, aucun terme technique sans qu'il soit expliqué DANS LA MÊME PHRASE par une image concrète que tout le monde a déjà vue.",
   "Si un mot technique est vraiment indispensable au sujet, il est traduit en langage courant dès la phrase suivante (« des trichobothries. Des poils si fins qu'ils sentent l'air bouger. »).",
+  "SIMPLE NE VEUT PAS DIRE REDONDANT (règle aussi éliminatoire que la précédente) : UN SEUL qualificatif par idée, zéro adjectif de remplissage, zéro répétition d'une information déjà donnée. À bannir : « un immense trou géant, tout rond et complètement unique » (quatre qualificatifs pour une idée) → « un trou rond au milieu du front ». À bannir aussi : redire qu'on est sous terre quand la phrase précédente parlait déjà d'une grotte.",
+  "INTERDIT : les tournures enfantines et les périphrases inutiles — « la place de l'œil » → « l'œil », « le fait que » → rien, « il y a un trou » → « un trou s'ouvre ».",
+  "SI UNE PHRASE DOIT ÊTRE ALLONGÉE pour tenir la durée, on ajoute une INFORMATION : un chiffre, un lieu, une date, un geste, une conséquence concrète. JAMAIS un adjectif, un adverbe ou une reformulation de plus.",
 ].join("\n");
 
 /** ACCROCHE — le plan 1 a ses propres règles, ce sont les plus importantes. */

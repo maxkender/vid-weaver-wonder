@@ -39,6 +39,8 @@ export type Script = {
   /** Justification en une ligne du choix d'accroche, affichée dans le studio. */
   hookChoice?: string;
   scenes: Scene[];
+  /** Message clair quand la longueur reste hors cible après les 3 passes. */
+  lengthNote?: string;
   cta: string;
   hashtags: string[];
   /** Bible visuelle : personnages, palette et décors constants d'une scène à l'autre. */
@@ -204,7 +206,8 @@ export function simplifySystemPrompt(
     `Tu relis un script de vidéo courte écrit en ${langName}, destiné à des gens de 15 à 25 ans qui scrollent. Ton seul travail : la SIMPLICITÉ DES MOTS.`,
     languageBrief?.trim() || DEFAULT_LANGUAGE_BRIEF,
     "MÉTHODE : parcours chaque phrase, repère les mots rares, savants, littéraires ou administratifs, et remplace-les par le mot du quotidien équivalent. Casse les tournures passives et les phrases à rallonge en phrases courtes.",
-    "TU NE CHANGES RIEN D'AUTRE : même sens, même ton, mêmes chiffres, mêmes noms, même ordre, et surtout MÊME LONGUEUR (±3 % de caractères par scène). Tu n'ajoutes aucune information, tu n'en retires aucune.",
+    "ANTI-REDONDANCE : en simplifiant, tu SUPPRIMES les adjectifs de remplissage et les répétitions. Un seul qualificatif par idée. « un immense trou géant, tout rond et complètement unique » → « un trou rond au milieu du front ». Tu ne remplaces JAMAIS un mot savant par une périphrase enfantine (« la place de l'œil ») : tu prends le mot courant exact.",
+    "TU NE CHANGES RIEN D'AUTRE : même sens, même ton, mêmes chiffres, mêmes noms, même ordre, et surtout MÊME LONGUEUR (±3 % de caractères par scène). Tu n'ajoutes aucune information, tu n'en retires aucune. Si retirer une redondance raccourcit la phrase, tu compenses avec une INFORMATION concrète déjà présente dans le script (chiffre, lieu, geste), jamais avec un adjectif.",
     `Tu renvoies EXACTEMENT ${sceneCount} scènes, avec les MÊMES index. Si une scène est déjà parfaitement simple, tu la recopies à l'identique.`,
     'Réponds uniquement en JSON: {"scenes":[{"index":number,"narration":string}]}',
   ].join("\n");
@@ -408,9 +411,13 @@ export const TOPIC_VIRAL = [
  * vidéo. Le modèle corrige les chiffres faux, écarte le douteux et renvoie la
  * liste des faits établis dont le script aura le droit de se servir.
  */
-export function factCheckSystemPrompt(langName: string) {
+export function factCheckSystemPrompt(langName: string, languageBrief?: string) {
   return [
     `Tu es vérificateur de faits pour une chaîne de vulgarisation. Tu écris en ${langName}.`,
+    "TON RÔLE EST DE CORRIGER CE QUI EST FAUX, PAS DE REMONTER LE NIVEAU DE LANGUE. Si le fait est exact, tu recopies la formulation d'origine TELLE QUELLE, mot pour mot.",
+    "Tous tes textes (correctedTopic, facts, note) respectent la même contrainte de langue que le script :",
+    languageBrief?.trim() || DEFAULT_LANGUAGE_BRIEF,
+    "INTERDIT ABSOLU dans tes réponses : « hypothèse géomythologique », « cavité nasale », « orbite oculaire », « aurait été inspiré par », et tout mot du même registre. On dit « le trou du nez », « l'œil », « vient de ».",
     "On te donne un sujet de vidéo courte et son angle. Tu vérifies CHAQUE affirmation et CHAQUE chiffre.",
     "MÉTHODE : recalcule toi-même toute grandeur dérivée (une quantité totale divisée par une population, une moyenne, un pourcentage) au lieu de reprendre le chiffre annoncé. Exemple : 20 millions de tonnes d'or pour 8 milliards d'humains font environ 2,5 kg par personne, pas 4 kg.",
     "Corrige ce qui est faux, arrondis honnêtement, et donne l'ordre de grandeur quand la valeur exacte est inconnue.",

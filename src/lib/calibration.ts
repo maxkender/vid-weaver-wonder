@@ -44,3 +44,21 @@ export function secondsGap(chars: number, w: CharWindow, cps: number, speed = 1)
 export function narrationChars(texts: (string | undefined)[]) {
   return texts.reduce((n, t) => n + (t ?? "").trim().length, 0);
 }
+
+/** Budget de caractères d'UN plan : durée cible ÷ nombre de plans × débit mesuré. */
+export function perSceneChars(w: CharWindow, sceneCount: number) {
+  return Math.max(40, Math.round(w.target / Math.max(1, sceneCount)));
+}
+
+/**
+ * Écart plan par plan au budget : combien de caractères il MANQUE (positif) ou
+ * sont EN TROP (négatif) dans chaque narration. C'est ce qu'on donne au modèle
+ * pour qu'il corrige précisément au lieu de réécrire au jugé.
+ */
+export function sceneDeltas(texts: (string | undefined)[], w: CharWindow) {
+  const per = perSceneChars(w, texts.length);
+  return texts.map((t, index) => {
+    const chars = (t ?? "").trim().length;
+    return { index, chars, target: per, delta: per - chars };
+  });
+}
