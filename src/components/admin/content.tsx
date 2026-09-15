@@ -3,6 +3,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { Loader2, ShieldAlert, Volume2 } from "lucide-react";
 import { toast } from "sonner";
 
+import { AdminConventions } from "@/components/admin/conventions";
 import { MusicLibrary } from "@/components/music-library";
 import { ContractMarkdown } from "@/components/contract-markdown";
 import {
@@ -100,6 +101,8 @@ export function AdminContent() {
 
   return (
     <div className="space-y-4">
+      <AdminConventions />
+
       <section className="surface-card overflow-x-auto p-0">
         <table className="w-full min-w-[900px] text-sm">
           <thead className="text-left text-[11px] uppercase tracking-wide text-muted-foreground">

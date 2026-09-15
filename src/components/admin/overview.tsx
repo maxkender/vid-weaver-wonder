@@ -62,12 +62,12 @@ export function AdminOverview() {
         <Stat
           label="Téléchargements du jour"
           value={pct(data.downloadRate.done, data.downloadRate.total)}
-          hint={`${data.downloadRate.done} / ${data.downloadRate.total} posteurs`}
+          hint={`${data.downloadRate.done} / ${data.downloadRate.total} comptes`}
         />
         <Stat
           label="Publications du jour"
           value={pct(data.postRate.done, data.postRate.total)}
-          hint={`${data.postRate.done} / ${data.postRate.total} posteurs`}
+          hint={`${data.postRate.done} / ${data.postRate.total} comptes`}
         />
       </div>
 

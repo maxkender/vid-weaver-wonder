@@ -10,11 +10,36 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import {
+  DEFAULT_CONVENTIONS,
+  conventionGmail,
+  conventionHandle,
+  defaultCountryFor,
+  fillUpworkMessage,
+  generatePlatformPassword,
+  normalizeCountry,
+  type ConventionRow,
+} from "@/lib/conventions";
 
-/** Mot de passe initial commun, communiqué en clair par l'administrateur. */
-export const INITIAL_PASSWORD = "12345678";
 const LOGIN_DOMAIN = "sophia.com";
 const RENDER_BUCKET = "renders";
+
+/** Lien envoyé au posteur dans le message Upwork. */
+export const PLATFORM_URL = "https://sophia-content-creation.lovable.app/connexion";
+
+async function conventions(): Promise<ConventionRow> {
+  const db = await adminDb();
+  const { data } = await db.from("account_conventions").select("*").eq("id", 1).maybeSingle();
+  if (!data) return DEFAULT_CONVENTIONS;
+  return {
+    instagram_template: data.instagram_template,
+    gmail_template: data.gmail_template,
+    social_password: data.social_password,
+    bio_text: data.bio_text,
+    upwork_message_fr: data.upwork_message_fr,
+    upwork_message_en: data.upwork_message_en,
+  };
+}
 
 type Ctx = { supabase: { rpc: (fn: never, args: never) => Promise<{ data: unknown }> }; userId: string };
 
@@ -220,6 +245,14 @@ export const listPosters = createServerFn({ method: "POST" })
     return { posters };
   });
 
+/**
+ * Création d'un accès posteur.
+ *
+ * Le mot de passe de la plateforme est GÉNÉRÉ, différent pour chaque posteur :
+ * l'espace posteur affiche désormais le mot de passe des comptes sociaux, un
+ * mot de passe commun devinable ouvrirait ces comptes à n'importe qui.
+ * Un compte Instagram est créé du même coup, avec sa langue et son code pays.
+ */
 export const createPoster = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) =>
@@ -227,7 +260,7 @@ export const createPoster = createServerFn({ method: "POST" })
       .object({
         firstName: z.string().min(1).max(80),
         lastName: z.string().min(1).max(80),
-        country: z.string().max(4).default(""),
+        countryCode: z.string().max(4).optional(),
         language: z.enum(["fr", "en", "es", "de", "it"]).default("fr"),
       })
       .parse(d),
@@ -237,10 +270,12 @@ export const createPoster = createServerFn({ method: "POST" })
     const db = await adminDb();
     const email = await freeLogin(data.firstName, data.lastName);
     const fullName = `${data.firstName.trim()} ${data.lastName.trim()}`.trim();
+    const country = normalizeCountry(data.countryCode || defaultCountryFor(data.language));
+    const password = generatePlatformPassword();
 
     const created = await db.auth.admin.createUser({
       email,
-      password: INITIAL_PASSWORD,
+      password,
       email_confirm: true,
       user_metadata: { full_name: fullName },
     });
@@ -253,7 +288,7 @@ export const createPoster = createServerFn({ method: "POST" })
       id,
       email,
       full_name: fullName,
-      country: data.country.trim().toUpperCase() || null,
+      country: country.toUpperCase(),
       language: data.language,
       role: "poster",
       status: "active",
@@ -263,20 +298,68 @@ export const createPoster = createServerFn({ method: "POST" })
       throw new Error(error.message);
     }
 
-    await audit(actor, "poster.created", "profiles", id, { email, language: data.language });
-    return { id, email, password: INITIAL_PASSWORD };
+    const conv = await conventions();
+    const handle = conventionHandle(conv, country);
+    const gmail = conventionGmail(conv, country);
+    await db.from("poster_accounts").insert({
+      poster_id: id,
+      platform: "instagram",
+      language: data.language,
+      country_code: country,
+      handle,
+      gmail_address: gmail,
+      status: "pending",
+    });
+
+    const values = {
+      prenom: data.firstName.trim(),
+      lien: PLATFORM_URL,
+      identifiant: email,
+      motdepasse: password,
+    };
+
+    await audit(actor, "poster.created", "profiles", id, {
+      email,
+      language: data.language,
+      country,
+    });
+    return {
+      id,
+      email,
+      password,
+      handle,
+      gmail,
+      country,
+      messageFr: fillUpworkMessage(conv.upwork_message_fr, values),
+      messageEn: fillUpworkMessage(conv.upwork_message_en, values),
+    };
   });
 
+/** Régénère le mot de passe de la plateforme (jamais celui des comptes sociaux). */
 export const resetPosterPassword = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ context, data }) => {
     const actor = await requireAdmin(context);
     const db = await adminDb();
-    const res = await db.auth.admin.updateUserById(data.id, { password: INITIAL_PASSWORD });
+    const password = generatePlatformPassword();
+    const res = await db.auth.admin.updateUserById(data.id, { password });
     if (res.error) throw new Error(res.error.message);
     await audit(actor, "poster.password_reset", "profiles", data.id);
-    return { password: INITIAL_PASSWORD };
+
+    const profile = await db.from("profiles").select("email, full_name").eq("id", data.id).maybeSingle();
+    const conv = await conventions();
+    const values = {
+      prenom: (profile.data?.full_name ?? "").split(" ")[0] ?? "",
+      lien: PLATFORM_URL,
+      identifiant: profile.data?.email ?? "",
+      motdepasse: password,
+    };
+    return {
+      password,
+      messageFr: fillUpworkMessage(conv.upwork_message_fr, values),
+      messageEn: fillUpworkMessage(conv.upwork_message_en, values),
+    };
   });
 
 export const setPosterStatus = createServerFn({ method: "POST" })
@@ -370,6 +453,8 @@ export const listAllAccounts = createServerFn({ method: "POST" })
       id: string;
       poster_id: string;
       platform: string;
+      language: string;
+      country_code: string;
       handle: string;
       gmail_address: string | null;
       status: string;
@@ -377,13 +462,140 @@ export const listAllAccounts = createServerFn({ method: "POST" })
       profile_url: string | null;
       notes: string | null;
       created_at: string;
+      gmail_done_at: string | null;
+      handle_done_at: string | null;
+      photo_done_at: string | null;
+      warmup_started_at: string | null;
+      warmup_done_at: string | null;
     };
+    const conv = await conventions();
     return {
+      conventions: conv,
       accounts: ((accounts ?? []) as AccountRow[]).map((a) => ({
         ...a,
+        expected_handle: conventionHandle(conv, a.country_code),
+        expected_gmail: conventionGmail(conv, a.country_code),
         poster: byId.get(a.poster_id) ?? null,
       })),
     };
+  });
+
+/** Ajoute un compte à un posteur existant (autre langue, autre plateforme). */
+export const createAccountForPoster = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z
+      .object({
+        posterId: z.string().uuid(),
+        platform: z.enum(["instagram", "tiktok", "youtube"]).default("instagram"),
+        language: z.enum(["fr", "en", "es", "de", "it"]),
+        countryCode: z.string().max(4).optional(),
+      })
+      .parse(d),
+  )
+  .handler(async ({ context, data }) => {
+    const actor = await requireAdmin(context);
+    const db = await adminDb();
+    const country = normalizeCountry(data.countryCode || defaultCountryFor(data.language));
+    const conv = await conventions();
+    const { error } = await db.from("poster_accounts").insert({
+      poster_id: data.posterId,
+      platform: data.platform,
+      language: data.language,
+      country_code: country,
+      handle: conventionHandle(conv, country),
+      gmail_address: conventionGmail(conv, country),
+      status: "pending",
+    });
+    if (error) throw new Error(error.message);
+    await audit(actor, "account.created", "poster_accounts", data.posterId, {
+      language: data.language,
+      country,
+    });
+    return { ok: true };
+  });
+
+/** Remet une étape du parcours à zéro (le posteur devra la refaire). */
+export const resetAccountStep = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z
+      .object({
+        accountId: z.string().uuid(),
+        step: z.enum(["gmail", "handle", "photo", "warmup"]),
+      })
+      .parse(d),
+  )
+  .handler(async ({ context, data }) => {
+    const actor = await requireAdmin(context);
+    const db = await adminDb();
+    const patch: Record<string, unknown> = {};
+    if (data.step === "gmail") {
+      Object.assign(patch, {
+        gmail_done_at: null,
+        handle_done_at: null,
+        photo_done_at: null,
+        warmup_started_at: null,
+        warmup_done_at: null,
+      });
+    }
+    if (data.step === "handle") {
+      Object.assign(patch, {
+        handle_done_at: null,
+        photo_done_at: null,
+        warmup_started_at: null,
+        warmup_done_at: null,
+      });
+    }
+    if (data.step === "photo") {
+      Object.assign(patch, { photo_done_at: null, warmup_started_at: null, warmup_done_at: null });
+    }
+    if (data.step === "warmup") Object.assign(patch, { warmup_done_at: null });
+    const { error } = await db.from("poster_accounts").update(patch as never).eq("id", data.accountId);
+    if (error) throw new Error(error.message);
+    await audit(actor, `onboarding.reset_${data.step}`, "poster_accounts", data.accountId);
+    return { ok: true };
+  });
+
+/* --------------------------------------------------------- conventions */
+
+export const getConventions = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await requireAdmin(context);
+    return { conventions: await conventions() };
+  });
+
+export const updateConventions = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z
+      .object({
+        instagramTemplate: z.string().min(3).max(200).optional(),
+        gmailTemplate: z.string().min(3).max(200).optional(),
+        socialPassword: z.string().min(6).max(120).optional(),
+        bioText: z.string().max(400).optional(),
+        upworkMessageFr: z.string().max(4000).optional(),
+        upworkMessageEn: z.string().max(4000).optional(),
+      })
+      .parse(d),
+  )
+  .handler(async ({ context, data }) => {
+    const actor = await requireAdmin(context);
+    const db = await adminDb();
+    const patch: Record<string, unknown> = {};
+    if (data.instagramTemplate !== undefined) patch["instagram_template"] = data.instagramTemplate.trim();
+    if (data.gmailTemplate !== undefined) patch["gmail_template"] = data.gmailTemplate.trim();
+    if (data.socialPassword !== undefined) patch["social_password"] = data.socialPassword;
+    if (data.bioText !== undefined) patch["bio_text"] = data.bioText;
+    if (data.upworkMessageFr !== undefined) patch["upwork_message_fr"] = data.upworkMessageFr;
+    if (data.upworkMessageEn !== undefined) patch["upwork_message_en"] = data.upworkMessageEn;
+    const { error } = await db
+      .from("account_conventions")
+      .upsert({ id: 1, ...patch } as never, { onConflict: "id" });
+    if (error) throw new Error(error.message);
+    await audit(actor, "conventions.updated", "account_conventions", "1", patch);
+    return { ok: true };
   });
 
 export const updateAccount = createServerFn({ method: "POST" })
@@ -395,6 +607,9 @@ export const updateAccount = createServerFn({ method: "POST" })
         status: z.enum(["pending", "active", "suspended", "recovered"]).optional(),
         followers: z.number().int().min(0).max(100_000_000).optional(),
         handle: z.string().min(1).max(80).optional(),
+        gmail: z.string().max(160).optional(),
+        language: z.enum(["fr", "en", "es", "de", "it"]).optional(),
+        countryCode: z.string().max(4).optional(),
         profileUrl: z.string().max(300).optional(),
         notes: z.string().max(2000).optional(),
       })
@@ -407,6 +622,9 @@ export const updateAccount = createServerFn({ method: "POST" })
     if (data.status !== undefined) patch["status"] = data.status;
     if (data.followers !== undefined) patch["followers"] = data.followers;
     if (data.handle !== undefined) patch["handle"] = data.handle.trim().replace(/^@/, "");
+    if (data.gmail !== undefined) patch["gmail_address"] = data.gmail.trim().toLowerCase() || null;
+    if (data.language !== undefined) patch["language"] = data.language;
+    if (data.countryCode !== undefined) patch["country_code"] = normalizeCountry(data.countryCode);
     if (data.profileUrl !== undefined) patch["profile_url"] = data.profileUrl.trim() || null;
     if (data.notes !== undefined) patch["notes"] = data.notes.trim() || null;
     const { error } = await db.from("poster_accounts").update(patch as never).eq("id", data.id);
@@ -433,11 +651,11 @@ export const getOverview = createServerFn({ method: "POST" })
     const [{ data: profiles }, { data: accounts }, { data: videos }, { data: downloads }, { data: contracts }] =
       await Promise.all([
         db.from("profiles").select("id, role, status, language, full_name, email"),
-        db.from("poster_accounts").select("platform, status"),
+        db.from("poster_accounts").select("id, platform, status, language, warmup_done_at"),
         db.from("daily_videos").select("id, publish_date, language, status"),
         db
           .from("video_downloads")
-          .select("poster_id, daily_video_id, downloaded_at, posted_at")
+          .select("poster_id, account_id, daily_video_id, downloaded_at, posted_at")
           .gte("downloaded_at", `${isoDay(since30)}T00:00:00Z`),
         db.from("contracts").select("poster_id"),
       ]);
@@ -447,8 +665,15 @@ export const getOverview = createServerFn({ method: "POST" })
     );
     const activePosters = posters.filter((p) => p.status === "active");
 
+    const accountRows = (accounts ?? []) as {
+      id: string;
+      platform: string;
+      status: string;
+      language: string;
+      warmup_done_at: string | null;
+    }[];
     const byPlatform: Record<string, number> = {};
-    for (const a of (accounts ?? []) as { platform: string }[]) {
+    for (const a of accountRows) {
       byPlatform[a.platform] = (byPlatform[a.platform] ?? 0) + 1;
     }
 
@@ -462,15 +687,23 @@ export const getOverview = createServerFn({ method: "POST" })
     );
     const dl = (downloads ?? []) as {
       poster_id: string;
+      account_id: string | null;
       daily_video_id: string;
       downloaded_at: string;
       posted_at: string | null;
     }[];
+    // La mesure se fait au niveau du COMPTE : c'est lui qui publie.
+    const todayLanguages = new Set(todayVideos.map((v) => v.language));
+    const expectedAccounts = accountRows.filter(
+      (a) => a.warmup_done_at && todayLanguages.has(a.language),
+    ).length;
     const downloadedToday = new Set(
-      dl.filter((d) => todayIds.has(d.daily_video_id)).map((d) => d.poster_id),
+      dl.filter((d) => todayIds.has(d.daily_video_id) && d.account_id).map((d) => d.account_id!),
     );
     const postedToday = new Set(
-      dl.filter((d) => todayIds.has(d.daily_video_id) && d.posted_at).map((d) => d.poster_id),
+      dl
+        .filter((d) => todayIds.has(d.daily_video_id) && d.posted_at && d.account_id)
+        .map((d) => d.account_id!),
     );
 
     // Publications par jour sur 30 jours.
@@ -518,8 +751,8 @@ export const getOverview = createServerFn({ method: "POST" })
       byPlatform,
       videosToday: todayVideos.length,
       videosTodayByLanguage: todayVideos.map((v) => ({ language: v.language, status: v.status })),
-      downloadRate: { done: downloadedToday.size, total: activePosters.length },
-      postRate: { done: postedToday.size, total: activePosters.length },
+      downloadRate: { done: downloadedToday.size, total: expectedAccounts },
+      postRate: { done: postedToday.size, total: expectedAccounts },
       contracts: { signed: signed.size, expected: posters.length },
       series,
       silent,

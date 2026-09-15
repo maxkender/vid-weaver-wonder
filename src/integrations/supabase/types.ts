@@ -14,6 +14,42 @@ export type Database = {
   }
   public: {
     Tables: {
+      account_conventions: {
+        Row: {
+          bio_text: string
+          created_at: string
+          gmail_template: string
+          id: number
+          instagram_template: string
+          social_password: string
+          updated_at: string
+          upwork_message_en: string
+          upwork_message_fr: string
+        }
+        Insert: {
+          bio_text?: string
+          created_at?: string
+          gmail_template?: string
+          id?: number
+          instagram_template?: string
+          social_password?: string
+          updated_at?: string
+          upwork_message_en?: string
+          upwork_message_fr?: string
+        }
+        Update: {
+          bio_text?: string
+          created_at?: string
+          gmail_template?: string
+          id?: number
+          instagram_template?: string
+          social_password?: string
+          updated_at?: string
+          upwork_message_en?: string
+          upwork_message_fr?: string
+        }
+        Relationships: []
+      }
       api_clients: {
         Row: {
           active: boolean
@@ -353,43 +389,67 @@ export type Database = {
       }
       poster_accounts: {
         Row: {
+          country_code: string
           created_at: string
           followers: number
           gmail_address: string | null
+          gmail_done_at: string | null
           handle: string
+          handle_done_at: string | null
           id: string
+          language: string
           notes: string | null
+          photo_done_at: string | null
           platform: string
           poster_id: string
           profile_url: string | null
           status: string
           updated_at: string
+          warmup_checks: Json
+          warmup_done_at: string | null
+          warmup_started_at: string | null
         }
         Insert: {
+          country_code?: string
           created_at?: string
           followers?: number
           gmail_address?: string | null
+          gmail_done_at?: string | null
           handle: string
+          handle_done_at?: string | null
           id?: string
+          language?: string
           notes?: string | null
+          photo_done_at?: string | null
           platform: string
           poster_id: string
           profile_url?: string | null
           status?: string
           updated_at?: string
+          warmup_checks?: Json
+          warmup_done_at?: string | null
+          warmup_started_at?: string | null
         }
         Update: {
+          country_code?: string
           created_at?: string
           followers?: number
           gmail_address?: string | null
+          gmail_done_at?: string | null
           handle?: string
+          handle_done_at?: string | null
           id?: string
+          language?: string
           notes?: string | null
+          photo_done_at?: string | null
           platform?: string
           poster_id?: string
           profile_url?: string | null
           status?: string
           updated_at?: string
+          warmup_checks?: Json
+          warmup_done_at?: string | null
+          warmup_started_at?: string | null
         }
         Relationships: [
           {
@@ -570,6 +630,7 @@ export type Database = {
       }
       video_downloads: {
         Row: {
+          account_id: string | null
           daily_video_id: string
           downloaded_at: string
           id: string
@@ -578,6 +639,7 @@ export type Database = {
           poster_id: string
         }
         Insert: {
+          account_id?: string | null
           daily_video_id: string
           downloaded_at?: string
           id?: string
@@ -586,6 +648,7 @@ export type Database = {
           poster_id: string
         }
         Update: {
+          account_id?: string | null
           daily_video_id?: string
           downloaded_at?: string
           id?: string
@@ -594,6 +657,13 @@ export type Database = {
           poster_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "video_downloads_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "poster_accounts"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "video_downloads_daily_video_id_fkey"
             columns: ["daily_video_id"]

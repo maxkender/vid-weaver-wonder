@@ -4,6 +4,7 @@ import { ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 
 import { listAllAccounts, updateAccount } from "@/lib/admin.functions";
+import { MASTER_LANGUAGES } from "@/lib/languages";
 
 type Accounts = Awaited<ReturnType<typeof listAllAccounts>>["accounts"];
 type Account = Accounts[number];
@@ -34,17 +35,14 @@ export function AdminAccounts() {
   }, [refresh]);
 
   const countries = useMemo(
-    () =>
-      Array.from(
-        new Set(accounts.map((a) => a.poster?.country ?? "").filter(Boolean)),
-      ).sort(),
+    () => Array.from(new Set(accounts.map((a) => a.country_code).filter(Boolean))).sort(),
     [accounts],
   );
 
   const rows = accounts.filter((a) => {
     if (platform && a.platform !== platform) return false;
     if (status && a.status !== status) return false;
-    if (country && (a.poster?.country ?? "") !== country) return false;
+    if (country && a.country_code !== country) return false;
     if (search) {
       const q = search.toLowerCase();
       const hay = `${a.handle} ${a.poster?.full_name ?? ""} ${a.poster?.email ?? ""}`.toLowerCase();
@@ -115,12 +113,67 @@ export function AdminAccounts() {
             {rows.map((a: Account) => (
               <tr key={a.id} className="border-b border-border/60">
                 <td className="px-3 py-1.5 capitalize">{a.platform}</td>
-                <td className="px-3 py-1.5">@{a.handle}</td>
+                <td className="px-3 py-1.5">
+                  <input
+                    defaultValue={a.handle}
+                    onBlur={(e) => {
+                      if (e.target.value.trim() && e.target.value !== a.handle) {
+                        void patch(a.id, { handle: e.target.value.trim() });
+                      }
+                    }}
+                    className="field w-44 font-mono text-xs"
+                    aria-label="Pseudo du compte"
+                  />
+                  {a.handle !== a.expected_handle ? (
+                    <p className="mt-0.5 text-[10px] text-amber-500">
+                      diverge de {a.expected_handle}
+                    </p>
+                  ) : null}
+                  <input
+                    defaultValue={a.gmail_address ?? ""}
+                    onBlur={(e) => {
+                      if (e.target.value !== (a.gmail_address ?? "")) {
+                        void patch(a.id, { gmail: e.target.value.trim() });
+                      }
+                    }}
+                    className="field mt-1 w-56 font-mono text-[11px]"
+                    aria-label="Adresse Gmail du compte"
+                  />
+                  {a.gmail_address !== a.expected_gmail ? (
+                    <p className="mt-0.5 text-[10px] text-amber-500">
+                      diverge de {a.expected_gmail}
+                    </p>
+                  ) : null}
+                </td>
                 <td className="px-3 py-1.5 text-xs">
                   {a.poster?.full_name || a.poster?.email || "—"}
                 </td>
-                <td className="px-3 py-1.5 text-xs">{a.poster?.country ?? "—"}</td>
-                <td className="px-3 py-1.5 text-xs uppercase">{a.poster?.language ?? "—"}</td>
+                <td className="px-3 py-1.5">
+                  <input
+                    defaultValue={a.country_code}
+                    onBlur={(e) => {
+                      if (e.target.value && e.target.value !== a.country_code) {
+                        void patch(a.id, { countryCode: e.target.value });
+                      }
+                    }}
+                    className="field w-16 text-xs"
+                    aria-label="Code pays du compte"
+                  />
+                </td>
+                <td className="px-3 py-1.5">
+                  <select
+                    value={a.language}
+                    onChange={(e) => void patch(a.id, { language: e.target.value })}
+                    className="field w-24 text-xs"
+                    aria-label="Langue du compte"
+                  >
+                    {MASTER_LANGUAGES.map((l) => (
+                      <option key={l.id} value={l.id}>
+                        {l.label}
+                      </option>
+                    ))}
+                  </select>
+                </td>
                 <td className="px-3 py-1.5">
                   <select
                     value={a.status}
