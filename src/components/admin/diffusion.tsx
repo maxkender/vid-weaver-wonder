@@ -321,6 +321,55 @@ export function AdminDiffusion() {
         </button>
       </section>
 
+      {/* TRAVAUX EN ÉCHEC */}
+      <section className="surface-card p-3">
+        <div className="flex items-center justify-between gap-2">
+          <p className="label-x">Productions en échec</p>
+          <button className="btn-base btn-ghost text-xs" onClick={() => void loadFailed()}>
+            Actualiser
+          </button>
+        </div>
+        {failed.length === 0 ? (
+          <p className="mt-2 text-xs text-muted-foreground">Aucune production en échec.</p>
+        ) : (
+          <ul className="mt-2 space-y-2">
+            {failed.map((j) => (
+              <li
+                key={j.id}
+                className="flex flex-wrap items-center justify-between gap-2 rounded-[8px] border border-border p-2"
+              >
+                <div className="min-w-0">
+                  <p className="truncate text-xs font-medium">
+                    {j.language.toUpperCase()} · {j.topic ?? "sans sujet"}
+                  </p>
+                  <p className="truncate text-[11px] text-muted-foreground">
+                    Étape « {j.step} » — {j.error ?? "erreur inconnue"}
+                  </p>
+                </div>
+                <button
+                  className="btn-base btn-primary text-xs"
+                  disabled={retrying === j.id}
+                  onClick={async () => {
+                    setRetrying(j.id);
+                    try {
+                      const res = (await runRetry({ data: { id: j.id } })) as { status: string };
+                      toast.success(`Relancé à l'étape « ${res.status} » — rien n'est repayé.`);
+                      await loadFailed();
+                    } catch (e) {
+                      toast.error(e instanceof Error ? e.message : "Relance impossible");
+                    } finally {
+                      setRetrying(null);
+                    }
+                  }}
+                >
+                  {retrying === j.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null} Relancer
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
       {estimate ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
           <div className="surface-card w-full max-w-md p-4">
