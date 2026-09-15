@@ -285,8 +285,10 @@ export const TOPIC_INTRIGUE = [
 ].join("\n");
 
 /**
- * LEVIERS VIRAUX : les 9 vidéos de référence qui marchent reposent toutes sur
- * au moins un de ces cinq ressorts. Un sujet qui n'en active aucun est rejeté.
+ * LEVIERS VIRAUX : les 9 vidéos de référence qui marchent ont toutes de la
+ * matière à DÉROULER (mécanisme ou enquête) et activent au moins un de ces
+ * leviers. Un sujet qui n'en active aucun, ou qui tient entier dans sa phrase
+ * d'accroche, est rejeté.
  */
 export const TOPIC_VIRAL = [
   "RÈGLE ABSOLUE — IL FAUT DE LA MATIÈRE À DÉROULER (critère éliminatoire, à vérifier AVANT tout le reste) : le sujet doit contenir quelque chose qui se DÉROULE sur soixante secondes, c'est-à-dire soit un MÉCANISME qui s'explique en plusieurs étapes, soit une ENQUÊTE dont la vérité se découvre progressivement.",
