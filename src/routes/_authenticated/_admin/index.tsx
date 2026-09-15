@@ -2500,12 +2500,18 @@ function Studio() {
         return;
       }
       const realOver = outOfWindowFrom(doc, snapshot);
-      if (realOver.length) {
+      const clipsToPay = doc.scenes.some((sc) => !snapshot[sc.index]?.videoUrl);
+      if (realOver.length && clipsToPay) {
         toast.warning(
           `Durées mesurées hors cible — ${overflowLabel(realOver)}. Le débit des voix vient d'être recalé : relance le calibrage avant d'animer.`,
         );
         setAssembleStep("Durée mesurée hors cible : animation bloquée");
         return;
+      }
+      if (realOver.length && !clipsToPay) {
+        toast.warning(
+          `Durées hors cible — ${overflowLabel(realOver)}. Les plans animés existent déjà : le montage continue.`,
+        );
       }
 
 
