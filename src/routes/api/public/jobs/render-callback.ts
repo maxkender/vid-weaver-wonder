@@ -66,7 +66,9 @@ export const Route = createFileRoute("/api/public/jobs/render-callback")({
               await res.arrayBuffer(),
               "video/mp4",
             );
-            await patchJob(job.id, {
+            // Finalisation conditionnée : seul un travail encore en attente de
+            // rendu peut passer en « done ». Un rappel en double ne fait rien.
+            const won = await patchJobIfStatus(job.id, ["rendering", "failed"], {
               status: "done",
               step: "done",
               progress: 1,
@@ -75,6 +77,7 @@ export const Route = createFileRoute("/api/public/jobs/render-callback")({
               error: null,
               lease_until: null,
             });
+            if (!won) return Response.json({ ok: true, ignored: "already-final" });
             await logEvent(job.id, "done", "Vidéo finale disponible");
 
             // La vidéo rejoint la diffusion du jour dans sa langue, en brouillon :
