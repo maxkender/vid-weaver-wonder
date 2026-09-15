@@ -319,7 +319,7 @@ export function AdminPosters() {
                           messageFr: res.messageFr,
                           messageEn: res.messageEn,
                         });
-                        toast.success("Nouveau mot de passe généré");
+                        toast.success("Mot de passe réinitialisé");
                       }}
                     >
                       <KeyRound className="h-3.5 w-3.5" />
