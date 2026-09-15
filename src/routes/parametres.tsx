@@ -7,10 +7,16 @@ import { Toaster } from "@/components/ui/sonner";
 import sophiaLogo from "@/assets/sophia-logo.png.asset.json";
 import {
   defaultSettings,
+  isCustomField,
   loadSettings,
+  narrationPath,
   NARRATION_LABELS,
+  resetField,
   saveSettings,
+  setField,
+  visualPath,
   VISUAL_LABELS,
+  type FieldPath,
   type NarrationStyleId,
   type StudioSettings,
   type VisualStyleId,
