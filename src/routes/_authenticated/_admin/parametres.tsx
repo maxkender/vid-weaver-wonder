@@ -425,7 +425,7 @@ function SettingsPage() {
               className="field mt-1 w-full"
             />
             <span className="mt-1 block text-xs text-muted-foreground">
-              Un débit soutenu retient bien mieux l'attention sur TikTok. 1,05 par défaut ;
+              La longueur du texte est déjà calée sur la durée visée : laisse 1,00 par défaut ;
               au-delà de 1,10 la diction commence à se dégrader. Le réglage s'applique à toutes
               les langues. Une langue qui dépasse encore la durée cible après condensation du
               texte est accélérée automatiquement, sans jamais dépasser 1,15.

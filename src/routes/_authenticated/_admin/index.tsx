@@ -621,7 +621,7 @@ function Studio() {
    * les repères mot à mot renvoyés par ElevenLabs restent justes — on ne
    * recalcule jamais les sous-titres et on ne touche pas à atempo au montage.
    */
-  const baseVoiceSpeed = settings.voiceSpeed ?? 1.05;
+  const baseVoiceSpeed = settings.voiceSpeed ?? 1;
 
   /** Caractères parlés d'une version (c'est ce qu'ElevenLabs lit et facture). */
   const scriptChars = useCallback(
@@ -635,9 +635,11 @@ function Studio() {
   );
 
   /** Vitesse de synthèse à retenir pour rattraper un dépassement résiduel. */
+  // La vitesse ne bouge QUE si l'écart de durée dépasse 10 % : en dessous, le
+  // calage de longueur suffit et les deux corrections se cumuleraient.
   const plannedSpeed = useCallback(
     (predicted: number, hi: number) => {
-      const needed = predicted > hi ? (baseVoiceSpeed * predicted) / hi : baseVoiceSpeed;
+      const needed = predicted > hi * 1.1 ? (baseVoiceSpeed * predicted) / hi : baseVoiceSpeed;
       return Math.max(
         MIN_VOICE_SPEED,
         Math.min(MAX_VOICE_SPEED, Math.round(needed * 100) / 100),
