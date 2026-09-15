@@ -37,18 +37,33 @@ export function defaultCharsPerSecond(language = "fr") {
 
 /**
  * Débit à utiliser (caractères par seconde à la vitesse 1,0) : mesuré si cette
- * voix a déjà été entendue, sinon la valeur de départ de la langue. Les
- * mesures aberrantes sont ignorées.
+ * voix a déjà été entendue, sinon la valeur de départ de la langue.
+ *
+ * GARDE-FOU : une mesure ne remplace la théorie que si elle en reste PROCHE
+ * (de 0,6 à 1,8 fois). Un cumul pollué — par exemple des caractères comptés à
+ * moitié par le fournisseur — donnerait un débit deux fois trop lent, donc un
+ * budget deux fois trop court, donc des vidéos de 35 s au lieu de 62 s.
  */
+export const MEASURE_MIN_RATIO = 0.6;
+export const MEASURE_MAX_RATIO = 1.8;
+
 export function charsPerSecond(
   language: string,
   measured?: VoiceRate | null | undefined,
 ): number {
+  const theory = defaultCharsPerSecond(language);
   if (measured && measured.seconds > 1 && measured.chars > 20) {
     const cps = measured.chars / measured.seconds;
-    if (cps >= 3 && cps <= 25) return cps;
+    if (
+      cps >= 3 &&
+      cps <= 30 &&
+      cps >= theory * MEASURE_MIN_RATIO &&
+      cps <= theory * MEASURE_MAX_RATIO
+    ) {
+      return cps;
+    }
   }
-  return defaultCharsPerSecond(language);
+  return theory;
 }
 
 /** Durée prédite d'un texte à une vitesse de synthèse donnée. */
