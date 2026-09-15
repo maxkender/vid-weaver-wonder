@@ -210,6 +210,9 @@ export async function renderJob(manifest) {
       [
         "-f", "concat", "-safe", "0", "-i", "list.txt",
         "-vf", `fps=${OUTPUT_FPS},scale=${width}:${height},setsar=1,format=yuv420p`,
+        // Normalisation de sonie de la voix : toutes les langues au même niveau
+        // perçu, pour que la musique soit toujours posée pareil en dessous.
+        "-af", "loudnorm=I=-16:TP=-1.5:LRA=11",
         "-r", String(OUTPUT_FPS),
         "-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-pix_fmt", "yuv420p",
         "-c:a", "aac", "-b:a", "128k", "-ar", "44100", "-ac", "2",
