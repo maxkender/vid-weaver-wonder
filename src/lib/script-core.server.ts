@@ -41,6 +41,10 @@ export type BuildScriptInput = {
   sourceCharsPerSecond?: number | undefined;
   /** Vitesse de synthèse prévue pour la voix source. */
   voiceSpeed?: number | undefined;
+  /** Niveau de langue imposé (page Paramètres). */
+  languageBrief?: string | undefined;
+  /** Règles de l'accroche (page Paramètres). */
+  hookBrief?: string | undefined;
 };
 
 /**
