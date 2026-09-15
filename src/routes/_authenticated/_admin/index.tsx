@@ -1443,7 +1443,24 @@ function Studio() {
     return parts.join(". ").slice(0, 3500);
   };
 
-  const onImage = async (scene: Scene, doc: Script | null = script) => {
+  /**
+   * TYPES DE PLAN de la vidéo : la direction artistique ne bouge pas, mais
+   * l'échelle et le cadrage changent à chaque plan et jamais deux fois de suite.
+   */
+  const shotTypesRef = useRef<ShotTypeId[]>([]);
+  const shotTypeFor = (scene: Scene, doc: Script | null) => {
+    const all = doc?.scenes ?? [];
+    if (shotTypesRef.current.length !== all.length) {
+      shotTypesRef.current = assignShotTypes(all.map((s) => `${s.narration} ${s.imagePrompt}`));
+    }
+    return shotTypesRef.current[scene.index] ?? SHOT_TYPES[0].id;
+  };
+
+  const onImage = async (
+    scene: Scene,
+    doc: Script | null = script,
+    shotOverride?: ShotTypeId,
+  ) => {
     if (cancelledRef.current) return undefined; // appel payant : arrêt demandé
     patch(scene.index, { imageLoading: true });
     try {
