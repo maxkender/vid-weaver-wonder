@@ -1571,7 +1571,12 @@ function Studio() {
         },
       }));
       const duration = await audioDuration(audioDataUrl);
-      const take: VoiceTake = { audio: audioDataUrl, words: words ?? [], duration };
+      // Durée RÉELLEMENT PARLÉE : les silences de tête et de queue sont rognés
+      // avant toute mesure, exactement comme au montage. Une seconde de blanc
+      // par prise, c'est huit secondes de trop sur la vidéo.
+      const win = voiceWindow(words ?? [], duration);
+      const speaking = Math.max(0.3, win ? win.end - win.start : duration);
+      const take: VoiceTake = { audio: audioDataUrl, words: words ?? [], duration, speaking };
       setStates((prev) => ({
         ...prev,
         [scene.index]: {
@@ -1580,6 +1585,21 @@ function Studio() {
           voices: { ...(prev[scene.index]?.voices ?? {}), [lang]: take },
         },
       }));
+      // DÉBIT RÉEL MÉMORISÉ : ramené à la vitesse 1,0 pour rester comparable.
+      const usedVoice = voiceForLang(lang);
+      void runRecordRate({
+        data: {
+          voiceId: usedVoice,
+          language: lang,
+          chars: characters ?? text.length,
+          seconds: normalizeSeconds(speaking, speedFor(lang)),
+        },
+      })
+        .then((r) => {
+          const rate = (r as { rate?: VoiceRate | null }).rate;
+          if (rate) setVoiceRates((p) => ({ ...p, [rateKey(usedVoice, lang)]: rate }));
+        })
+        .catch(() => undefined);
       return take;
     } catch (e) {
       patch(scene.index, { audioLoading: false });
@@ -1624,7 +1644,10 @@ function Studio() {
   const clipSecondsFor = (st: SceneState | undefined) => {
     const longest = Math.max(
       0,
-      ...langs.map((l) => st?.voices?.[l]?.duration ?? 0),
+      ...langs.map((l) => {
+        const take = st?.voices?.[l];
+        return take?.speaking ?? take?.duration ?? 0;
+      }),
     );
     return longest || undefined;
   };
