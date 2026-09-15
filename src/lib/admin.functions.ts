@@ -10,11 +10,36 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import {
+  DEFAULT_CONVENTIONS,
+  conventionGmail,
+  conventionHandle,
+  defaultCountryFor,
+  fillUpworkMessage,
+  generatePlatformPassword,
+  normalizeCountry,
+  type ConventionRow,
+} from "@/lib/conventions";
 
-/** Mot de passe initial commun, communiqué en clair par l'administrateur. */
-export const INITIAL_PASSWORD = "12345678";
 const LOGIN_DOMAIN = "sophia.com";
 const RENDER_BUCKET = "renders";
+
+/** Lien envoyé au posteur dans le message Upwork. */
+export const PLATFORM_URL = "https://sophia-content-creation.lovable.app/connexion";
+
+async function conventions(): Promise<ConventionRow> {
+  const db = await adminDb();
+  const { data } = await db.from("account_conventions").select("*").eq("id", 1).maybeSingle();
+  if (!data) return DEFAULT_CONVENTIONS;
+  return {
+    instagram_template: data.instagram_template,
+    gmail_template: data.gmail_template,
+    social_password: data.social_password,
+    bio_text: data.bio_text,
+    upwork_message_fr: data.upwork_message_fr,
+    upwork_message_en: data.upwork_message_en,
+  };
+}
 
 type Ctx = { supabase: { rpc: (fn: never, args: never) => Promise<{ data: unknown }> }; userId: string };
 
