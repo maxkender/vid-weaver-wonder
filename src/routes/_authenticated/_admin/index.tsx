@@ -346,7 +346,18 @@ const HISTORY_KEY = "studio-history-v1";
 function readHistory(): HistoryItem[] {
   if (typeof window === "undefined") return [];
   try {
-    return JSON.parse(window.localStorage.getItem(HISTORY_KEY) ?? "[]") as HistoryItem[];
+    const raw = JSON.parse(window.localStorage.getItem(HISTORY_KEY) ?? "[]") as unknown;
+    if (!Array.isArray(raw)) return [];
+    // Les projets enregistrés avant ce garde-fou peuvent contenir un champ mal
+    // formé (hashtags en chaîne…) : on les remet en forme au chargement.
+    return raw.map((item) => {
+      const h = item as HistoryItem;
+      return {
+        ...h,
+        script: normalizeScript(h.script) as Script,
+        scripts: normalizeScripts(h.scripts) as Record<string, Script>,
+      };
+    });
   } catch {
     return [];
   }
