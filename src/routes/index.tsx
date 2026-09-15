@@ -1475,7 +1475,7 @@ function Studio() {
 
   const onGenerateAll = async () => {
     if (!script) return;
-    if (!(await confirmCost(script))) return;
+    if (!(await confirmWithStep(() => confirmCost(script)))) return;
     beginRun();
     setGeneratingAll(true);
     setCurrentStep("Génération des plans…");
@@ -1783,7 +1783,7 @@ function Studio() {
   const onExportEverything = async (scriptOverride?: Script, skipConfirm = false) => {
     const doc = scriptOverride ?? script;
     if (!doc) return;
-    if (!skipConfirm && !(await confirmCost(doc))) return;
+    if (!skipConfirm && !(await confirmWithStep(() => confirmCost(doc)))) return;
     if (!skipConfirm) beginRun();
     setAssembling(true);
     try {
