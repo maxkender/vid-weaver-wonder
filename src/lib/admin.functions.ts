@@ -274,7 +274,8 @@ export const createPoster = createServerFn({ method: "POST" })
     const email = await freeLogin(data.firstName, data.lastName);
     const fullName = `${data.firstName.trim()} ${data.lastName.trim()}`.trim();
     const country = normalizeCountry(data.countryCode || defaultCountryFor(data.language));
-    const password = generatePlatformPassword();
+    const conv = await conventions();
+    const password = platformPassword(conv);
 
     const created = await db.auth.admin.createUser({
       email,
