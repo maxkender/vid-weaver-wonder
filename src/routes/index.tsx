@@ -2050,6 +2050,43 @@ function Studio() {
         return;
       }
 
+      // BOUCLE FERMÉE : mesuré, corrigé, remesuré — et seulement ensuite animé.
+      // Deux tours de condensation maximum sur les seules langues qui débordent
+      // (la voix off est peu coûteuse ; les plans animés, eux, sont définitifs).
+      let over = overflowFrom(doc, snapshot);
+      for (let round = 0; round < 2 && over.length && !cancelledRef.current; round++) {
+        const bad = over.map((o) => o.lang);
+        setAssembleStep(`Condensation — ${bad.map((l) => languageLabel(l)).join(", ")}…`);
+        setCurrentStep(`Condensation — ${overflowLabel(over)}`);
+        await onTranslateAll(doc, false, bad);
+        if (cancelledRef.current) break;
+        // Les voix de ces langues ne correspondent plus au texte : on les refait.
+        for (const l of bad) {
+          for (const sc of doc.scenes) {
+            const st = snapshot[sc.index];
+            if (st?.voices?.[l]) {
+              const voices = { ...st.voices };
+              delete voices[l];
+              snapshot[sc.index] = { ...st, voices };
+            }
+          }
+        }
+        snapshot = await generateAllVoices(doc, snapshot);
+        over = overflowFrom(doc, snapshot);
+      }
+      if (cancelledRef.current) {
+        setAssembleStep("Pipeline arrêté");
+        return;
+      }
+      if (over.length) {
+        toast.error(
+          `Animation bloquée — ${overflowLabel(over)}. Ces versions restent hors de la cible après condensation et accélération de la voix : aucun plan animé n'a été commandé.`,
+        );
+        setAssembleStep("Durée hors cible : animation bloquée");
+        return;
+      }
+
+
       // e/f — clips animés, une seule fois, calibrés sur la langue la plus longue.
       setCurrentStep("Plans animés…");
       const results = await Promise.all(
