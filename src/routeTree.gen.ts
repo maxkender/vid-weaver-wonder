@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as ConnexionRouteImport } from './routes/connexion'
+import { Route as ReinitialisationRouteImport } from './routes/reinitialisation'
 import { Route as StationRouteImport } from './routes/station'
 import { Route as AuthenticatedAdminRouteRouteImport } from './routes/_authenticated/_admin/route'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
@@ -31,6 +32,11 @@ const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
 const ConnexionRoute = ConnexionRouteImport.update({
   id: '/connexion',
   path: '/connexion',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ReinitialisationRoute = ReinitialisationRouteImport.update({
+  id: '/reinitialisation',
+  path: '/reinitialisation',
   getParentRoute: () => rootRouteImport,
 } as any)
 const StationRoute = StationRouteImport.update({
@@ -99,6 +105,7 @@ const ApiPublicVideosIdRoute = ApiPublicVideosIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedAdminIndexRoute
   '/connexion': typeof ConnexionRoute
+  '/reinitialisation': typeof ReinitialisationRoute
   '/station': typeof StationRoute
   '/admin': typeof AuthenticatedAdminRoute
   '/espace': typeof AuthenticatedEspaceRoute
@@ -113,6 +120,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof AuthenticatedAdminIndexRoute
   '/connexion': typeof ConnexionRoute
+  '/reinitialisation': typeof ReinitialisationRoute
   '/station': typeof StationRoute
   '/admin': typeof AuthenticatedAdminRoute
   '/espace': typeof AuthenticatedEspaceRoute
@@ -128,6 +136,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/connexion': typeof ConnexionRoute
+  '/reinitialisation': typeof ReinitialisationRoute
   '/station': typeof StationRoute
   '/_authenticated/_admin': typeof AuthenticatedAdminRouteRouteWithChildren
   '/_authenticated/admin': typeof AuthenticatedAdminRoute
@@ -146,6 +155,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/connexion'
+    | '/reinitialisation'
     | '/station'
     | '/admin'
     | '/espace'
@@ -160,6 +170,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/connexion'
+    | '/reinitialisation'
     | '/station'
     | '/admin'
     | '/espace'
@@ -174,6 +185,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/_authenticated'
     | '/connexion'
+    | '/reinitialisation'
     | '/station'
     | '/_authenticated/_admin'
     | '/_authenticated/admin'
@@ -191,6 +203,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   ConnexionRoute: typeof ConnexionRoute
+  ReinitialisationRoute: typeof ReinitialisationRoute
   StationRoute: typeof StationRoute
   ApiPublicVideosRoute: typeof ApiPublicVideosRouteWithChildren
   ApiVideoContentIdRoute: typeof ApiVideoContentIdRoute
@@ -212,6 +225,13 @@ declare module '@tanstack/react-router' {
       path: '/connexion'
       fullPath: '/connexion'
       preLoaderRoute: typeof ConnexionRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reinitialisation': {
+      id: '/reinitialisation'
+      path: '/reinitialisation'
+      fullPath: '/reinitialisation'
+      preLoaderRoute: typeof ReinitialisationRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/station': {
@@ -349,6 +369,7 @@ const ApiPublicVideosRouteWithChildren = ApiPublicVideosRoute._addFileChildren(
 const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   ConnexionRoute: ConnexionRoute,
+  ReinitialisationRoute: ReinitialisationRoute,
   StationRoute: StationRoute,
   ApiPublicVideosRoute: ApiPublicVideosRouteWithChildren,
   ApiVideoContentIdRoute: ApiVideoContentIdRoute,
