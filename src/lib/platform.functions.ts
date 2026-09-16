@@ -14,6 +14,7 @@ import { getRequest } from "@tanstack/react-start/server";
 import { z } from "zod";
 
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { assertActiveAccess } from "@/lib/access";
 import {
   DEFAULT_CONVENTIONS,
   conventionGmail,
@@ -205,6 +206,17 @@ async function ensureProfile(userId: string, email: string): Promise<PlatformPro
   return inserted.data as PlatformProfile;
 }
 
+/**
+ * Barrière de suspension : un posteur passé en `suspended` depuis
+ * l'administration ne lit plus et ne modifie plus rien. L'admin n'est jamais
+ * concerné.
+ */
+async function requireActiveProfile(userId: string): Promise<void> {
+  const db = await admin();
+  const { data } = await db.from("profiles").select("role, status").eq("id", userId).maybeSingle();
+  assertActiveAccess(data as { role: string; status: string } | null);
+}
+
 export const getMyProfile = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
@@ -284,6 +296,7 @@ export const updateMyAccountIdentity = createServerFn({ method: "POST" })
       .parse(d),
   )
   .handler(async ({ context, data }) => {
+    await requireActiveProfile(context.userId);
     const patch: Record<string, unknown> = {};
     if (data.handle !== undefined) patch["handle"] = data.handle.trim().replace(/^@/, "");
     if (data.gmail !== undefined) patch["gmail_address"] = data.gmail.trim().toLowerCase();
@@ -310,6 +323,7 @@ export const confirmAccountStep = createServerFn({ method: "POST" })
       .parse(d),
   )
   .handler(async ({ context, data }) => {
+    await requireActiveProfile(context.userId);
     const current = await context.supabase
       .from("poster_accounts")
       .select("*")
@@ -370,6 +384,7 @@ export const setWarmupCheck = createServerFn({ method: "POST" })
       .parse(d),
   )
   .handler(async ({ context, data }) => {
+    await requireActiveProfile(context.userId);
     const current = await context.supabase
       .from("poster_accounts")
       .select("warmup_checks")
@@ -423,6 +438,7 @@ export const signContract = createServerFn({ method: "POST" })
     z.object({ fullName: z.string().min(3).max(120), accepted: z.literal(true) }).parse(d),
   )
   .handler(async ({ context, data }) => {
+    await requireActiveProfile(context.userId);
     const tpl = await context.supabase
       .from("contract_templates")
       .select("version, body")
@@ -481,6 +497,7 @@ async function diffusionToday(): Promise<string> {
 export const listMyVideos = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
+    await requireActiveProfile(context.userId);
     const accounts = await context.supabase
       .from("poster_accounts")
       .select("id, language, handle, platform, warmup_done_at")
@@ -589,6 +606,7 @@ export const getVideoLink = createServerFn({ method: "POST" })
       .parse(d),
   )
   .handler(async ({ context, data }) => {
+    await requireActiveProfile(context.userId);
     const account = await context.supabase
       .from("poster_accounts")
       .select("id")
@@ -652,6 +670,7 @@ export const markPosted = createServerFn({ method: "POST" })
       .parse(d),
   )
   .handler(async ({ context, data }) => {
+    await requireActiveProfile(context.userId);
     const account = await context.supabase
       .from("poster_accounts")
       .select("id")
