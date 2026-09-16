@@ -146,13 +146,50 @@ export const Route = createFileRoute("/api/public/jobs/render-callback")({
                 month: "2-digit",
                 day: "2-digit",
               }).format(new Date());
+              const publishDate = job.publish_date ?? localDay;
+
+              // Titre : celui du script DANS LA LANGUE de la vidéo, pas la
+              // phrase brute du sujet.
+              const scriptTitle = (
+                (job.script as { title?: string } | null)?.title ?? ""
+              ).trim();
+
+              // Légende et hashtags déjà produits à l'écriture ou à la
+              // traduction ; repli garanti si la génération est revenue vide.
+              const { buildSocialCopy } = await import("@/lib/social-copy");
+              const social = buildSocialCopy({
+                caption: job.caption ?? "",
+                hashtags: job.hashtags ?? [],
+                hook:
+                  (job.script as { hook?: string } | null)?.hook ??
+                  job.scenes[0]?.narration ??
+                  "",
+                language: job.language,
+              });
+
+              // Une légende saisie à la main par l'administrateur n'est JAMAIS
+              // réécrite.
+              const { data: current } = await db
+                .from("daily_videos")
+                .select("caption, hashtags")
+                .eq("publish_date", publishDate)
+                .eq("language", job.language)
+                .maybeSingle();
+              const existing = current as
+                | { caption?: string | null; hashtags?: string[] | null }
+                | null;
+              const keepCaption = (existing?.caption ?? "").trim();
+              const keepTags = existing?.hashtags ?? [];
+
               await db.from("daily_videos").upsert(
                 {
-                  publish_date: job.publish_date ?? localDay,
+                  publish_date: publishDate,
                   language: job.language,
                   render_id: job.id,
                   storage_path: path,
-                  title: job.topic ?? "",
+                  title: scriptTitle || job.topic || "",
+                  caption: keepCaption || social.caption,
+                  hashtags: keepTags.length ? keepTags : social.hashtags,
                   duration_sec: body.durationSec ?? job.duration_sec ?? 0,
                   status: "draft",
                 },
