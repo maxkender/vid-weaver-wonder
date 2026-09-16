@@ -78,8 +78,7 @@ export async function translateNarration(
   );
 
   const byIndex = new Map((res.scenes ?? []).map((s) => [s.index, s]));
-  const { buildSocialCopy: build } = { buildSocialCopy };
-  const social = build({
+  const social = buildSocialCopy({
     caption: res.caption,
     hashtags: res.hashtags,
     hook: scenes[0]?.narration ?? "",
