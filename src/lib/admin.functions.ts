@@ -752,7 +752,43 @@ export const getOverview = createServerFn({ method: "POST" })
 
     const signed = new Set(((contracts ?? []) as { poster_id: string }[]).map((c) => c.poster_id));
 
+    // ÉTAT DE LA DERNIÈRE NUIT : réussie, partielle ou échouée, avec la raison.
+    const { data: recentJobs } = await db
+      .from("render_jobs")
+      .select("id, language, status, step, error, created_at, publish_date")
+      .gte("created_at", new Date(Date.now() - 36 * 3600_000).toISOString())
+      .order("created_at", { ascending: false })
+      .limit(40);
+    const jobRows = (recentJobs ?? []) as {
+      language: string;
+      status: string;
+      step: string;
+      error: string | null;
+      publish_date: string | null;
+    }[];
+    const doneJobs = jobRows.filter((j) => j.status === "done");
+    const failedJobs = jobRows.filter((j) => j.status === "failed");
+    const runningJobs = jobRows.filter((j) => !["done", "failed", "cancelled"].includes(j.status));
+    const lastNight = {
+      state: !jobRows.length
+        ? ("idle" as const)
+        : runningJobs.length
+          ? ("running" as const)
+          : failedJobs.length && doneJobs.length
+            ? ("partial" as const)
+            : failedJobs.length
+              ? ("failed" as const)
+              : ("ok" as const),
+      done: doneJobs.length,
+      failed: failedJobs.length,
+      running: runningJobs.length,
+      date: jobRows.find((j) => j.publish_date)?.publish_date ?? null,
+      reason: failedJobs[0]?.error ?? null,
+      failedLanguages: [...new Set(failedJobs.map((j) => j.language))],
+    };
+
     return {
+      lastNight,
       today,
       activePosters: activePosters.length,
       totalPosters: posters.length,
@@ -819,6 +855,7 @@ export const updateDistributionSettings = createServerFn({ method: "POST" })
     const db = await adminDb();
     const patch: Record<string, unknown> = {};
     if (data.autoEnabled !== undefined) patch["auto_enabled"] = data.autoEnabled;
+    if (data.autoPublish !== undefined) patch["auto_publish"] = data.autoPublish;
     if (data.runHour !== undefined) patch["run_hour"] = data.runHour;
     if (data.languages !== undefined) patch["languages"] = data.languages;
     if (data.onFailure !== undefined) patch["on_failure"] = data.onFailure;
