@@ -24,6 +24,7 @@ import { Progress } from "@/components/ui/progress";
 import { ContractMarkdown } from "@/components/contract-markdown";
 import { supabase } from "@/integrations/supabase/client";
 import { languageLabel } from "@/lib/languages";
+import { isPast } from "@/lib/publish-day";
 import {
   WARMUP_TASKS,
   confirmAccountStep,
