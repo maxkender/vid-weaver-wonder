@@ -343,14 +343,24 @@ export async function autoProduce(): Promise<{ started?: string; reason?: string
     .update({ status: "utilise", used_at: new Date().toISOString(), video_job_id: jobId })
     .eq("id", topicRow.id);
 
+  // Horodatage DÉDIÉ : seul un vrai lancement l'écrit.
+  await db
+    .from("distribution_settings")
+    .update({ last_auto_produce_at: new Date().toISOString() })
+    .eq("id", 1);
+
+  const catchUp = decision.catchUp
+    ? ` — lancée en RATTRAPAGE (heure prévue : ${String(runHour).padStart(2, "0")}:00)`
+    : "";
   await noteRun(
     db,
-    `Production automatique lancée pour le ${date} — ${langs.length} langue(s) — sujet : ${topicRow.topic}`,
+    `Production automatique lancée pour le ${date} — ${langs.length} langue(s) — sujet : ${topicRow.topic}${catchUp}`,
   );
   await logEvent(
     jobId,
     "auto",
-    `Production automatique lancée pour la journée du ${date} (${langs.join(", ")})`,
+    `Production automatique lancée pour la journée du ${date} (${langs.join(", ")})${catchUp}`,
+    decision.catchUp ? "warn" : "info",
   );
   return { started: jobId };
 }
