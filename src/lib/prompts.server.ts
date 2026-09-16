@@ -281,6 +281,8 @@ export function translationSystemPrompt(
   },
   /** Niveau de langue imposé : une traduction ne remonte jamais d'un cran. */
   languageBrief?: string,
+  /** Demande en plus la légende et les hashtags de publication (aucun appel de plus). */
+  withSocial = false,
 ) {
   return [
     adjust
