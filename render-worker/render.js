@@ -120,11 +120,11 @@ async function renderScene(scene, dir, opts) {
     }
     stretch = Math.min(MAX_STRETCH, target / tempo / clipLen);
   }
-  // Durée du plan, EXACTEMENT comme le studio (src/lib/assemble-video.ts) :
-  // la voix commande, mais jamais au-delà de ce que la piste vidéo couvre.
-  // Une image fixe couvre n'importe quelle durée.
-  const videoSpan = stillOnly ? Infinity : clipLen * stretch;
-  const outDur = Math.min(target / tempo, videoSpan);
+  // LA VOIX COMMANDE : la durée du plan est celle dont la voix a besoin, sans
+  // jamais être plafonnée par la piste vidéo (jamais de phrase coupée).
+  // Si le clip s'arrête avant, `tpad` clone la dernière image pour couvrir
+  // l'écart — mieux vaut une image figée qu'un mot perdu.
+  const outDur = target / tempo;
 
   const { width, height } = opts;
   if (stillOnly) {
@@ -139,7 +139,7 @@ async function renderScene(scene, dir, opts) {
   const base = `scale=${width}:${height}:force_original_aspect_ratio=decrease,pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2:black,setsar=1`;
   // Filet de sécurité commun : `tpad` clone la dernière image si, malgré tout,
   // la piste vidéo s'arrêtait avant la fin du plan. Jamais de noir.
-  const pad = `,tpad=stop_mode=clone:stop_duration=2,trim=0:${outDur.toFixed(3)},setpts=PTS-STARTPTS`;
+  const pad = `,tpad=stop_mode=clone:stop_duration=5,trim=0:${outDur.toFixed(3)},setpts=PTS-STARTPTS`;
   const vf = stillOnly
     ? // Image fixe : très léger zoom lent, jamais parfaitement immobile.
       `scale=${big.w}:${big.h}:force_original_aspect_ratio=decrease,pad=${big.w}:${big.h}:(ow-iw)/2:(oh-ih)/2:black,` +
