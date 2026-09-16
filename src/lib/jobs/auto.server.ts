@@ -285,7 +285,7 @@ export async function autoProduce(): Promise<{ started?: string; reason?: string
       ? localDay(timeZone, new Date(s.last_auto_produce_at))
       : null,
   });
-  if (!decision.run) return { reason: decision.reason };
+  if (!decision.run) return { reason: decision.reason ?? "pas de lancement" };
 
   // NE JAMAIS PRODUIRE DEUX FOIS LE MÊME JOUR : on vise la prochaine date qui
   // n'a ni vidéo ni production en cours.
