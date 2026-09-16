@@ -807,6 +807,7 @@ export const updateDistributionSettings = createServerFn({ method: "POST" })
     z
       .object({
         autoEnabled: z.boolean().optional(),
+        autoPublish: z.boolean().optional(),
         runHour: z.number().int().min(0).max(23).optional(),
         languages: z.array(z.string().min(2).max(5)).max(10).optional(),
         onFailure: z.enum(["replay", "skip"]).optional(),
