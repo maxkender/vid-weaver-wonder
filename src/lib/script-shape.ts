@@ -27,6 +27,8 @@ export type SafeScript = {
   audit?: { weakest: number; reason: string; learned: string };
   scenes: SafeScene[];
   cta: string;
+  /** Légende de publication (2 à 3 phrases), dans la langue du script. */
+  caption?: string;
   hashtags: string[];
   characters?: { name: string; description: string }[];
   palette?: string;
