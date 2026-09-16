@@ -27,12 +27,20 @@ export async function translateNarration(
   scenes: JobScene[],
   language: string,
   targetSeconds: number,
-): Promise<{ title: string; scenes: { index: number; narration: string; overlay: string }[] }> {
+): Promise<{
+  title: string;
+  caption: string;
+  hashtags: string[];
+  scenes: { index: number; narration: string; overlay: string }[];
+}> {
   const { translationSystemPrompt } = await import("../prompts.server");
+  const { buildSocialCopy } = await import("../social-copy");
   const perScene = targetCharsPerShot(language, targetSeconds, scenes.length);
   const total = perScene * scenes.length;
   const res = await chatJSON<{
     title?: string;
+    caption?: string;
+    hashtags?: string[];
     scenes?: { index: number; narration?: string; overlay?: string }[];
   }>(
     "google/gemini-3.7-flash",
@@ -54,6 +62,9 @@ export async function translateNarration(
           target: perScene,
         })),
       },
+      undefined,
+      // Légende et hashtags demandés DANS ce même appel : aucun coût de plus.
+      true,
     ),
     JSON.stringify({
       title: script?.title ?? "",
@@ -67,8 +78,16 @@ export async function translateNarration(
   );
 
   const byIndex = new Map((res.scenes ?? []).map((s) => [s.index, s]));
+  const social = buildSocialCopy({
+    caption: res.caption,
+    hashtags: res.hashtags,
+    hook: scenes[0]?.narration ?? "",
+    language,
+  });
   return {
     title: res.title?.trim() || (script?.title ?? ""),
+    caption: social.caption,
+    hashtags: social.hashtags,
     scenes: scenes.map((s, i) => {
       const t = byIndex.get(s.index) ?? (res.scenes ?? [])[i];
       return {
@@ -160,6 +179,8 @@ export async function fanOutLanguages(job: RenderJob) {
       publish_date: job.publish_date ?? null,
       script,
       scenes,
+      caption: translated.caption,
+      hashtags: translated.hashtags,
       // Démarrage direct à la voix : ni script, ni image, ni clip à payer.
       status: "voice",
       step: "voice",

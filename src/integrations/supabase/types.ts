@@ -514,10 +514,12 @@ export type Database = {
           attempts: number
           auto_retries: number
           callback_url: string | null
+          caption: string | null
           client_id: string | null
           created_at: string
           duration_sec: number
           error: string | null
+          hashtags: string[]
           id: string
           include_cta: boolean
           language: string
@@ -546,10 +548,12 @@ export type Database = {
           attempts?: number
           auto_retries?: number
           callback_url?: string | null
+          caption?: string | null
           client_id?: string | null
           created_at?: string
           duration_sec?: number
           error?: string | null
+          hashtags?: string[]
           id?: string
           include_cta?: boolean
           language?: string
@@ -578,10 +582,12 @@ export type Database = {
           attempts?: number
           auto_retries?: number
           callback_url?: string | null
+          caption?: string | null
           client_id?: string | null
           created_at?: string
           duration_sec?: number
           error?: string | null
+          hashtags?: string[]
           id?: string
           include_cta?: boolean
           language?: string
@@ -758,10 +764,12 @@ export type Database = {
           attempts: number
           auto_retries: number
           callback_url: string | null
+          caption: string | null
           client_id: string | null
           created_at: string
           duration_sec: number
           error: string | null
+          hashtags: string[]
           id: string
           include_cta: boolean
           language: string

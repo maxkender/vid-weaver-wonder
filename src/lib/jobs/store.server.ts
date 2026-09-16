@@ -56,6 +56,10 @@ export type RenderJob = {
   step: string;
   progress: number;
   script: unknown;
+  /** Légende de publication, dans la langue du travail. */
+  caption: string | null;
+  /** Hashtags de publication (sans `#`), marque en tête. */
+  hashtags: string[];
   scenes: JobScene[];
   video_path: string | null;
   /** Dernier envoi du manifeste au service de rendu (attente du rappel). */

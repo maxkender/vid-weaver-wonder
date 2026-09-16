@@ -141,7 +141,24 @@ async function stepScript(job: RenderJob) {
     videoPrompt: s.videoPrompt ?? s.imagePrompt ?? "",
   }));
   if (!scenes.length) throw new Error("Script vide.");
-  await patchJob(job.id, { script, scenes, status: "images", step: "images", progress: 0.15 });
+  // Légende et hashtags : issus du même appel de texte que le script, jamais
+  // d'un appel dédié. Un repli garantit qu'ils ne sont jamais vides.
+  const { buildSocialCopy } = await import("../social-copy");
+  const social = buildSocialCopy({
+    caption: (script as { caption?: string }).caption,
+    hashtags: script.hashtags,
+    hook: script.hook || scenes[0]?.narration || "",
+    language: job.language,
+  });
+  await patchJob(job.id, {
+    script,
+    scenes,
+    caption: social.caption,
+    hashtags: social.hashtags,
+    status: "images",
+    step: "images",
+    progress: 0.15,
+  });
   await logEvent(job.id, "script", `${scenes.length} plans — ${script.title ?? ""}`);
 }
 

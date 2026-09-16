@@ -54,6 +54,8 @@ export type Script = {
   factNote?: string;
 
   cta: string;
+  /** Légende de publication (2 à 3 phrases), dans la langue du script. */
+  caption?: string;
   hashtags: string[];
   /** Bible visuelle : personnages, palette et décors constants d'une scène à l'autre. */
   characters?: CharacterSheet[];
@@ -220,7 +222,8 @@ export function scriptSystemPrompt(
       ? "UN SEUL CTA : le CTA Sophia est écrit UNIQUEMENT dans le champ cta (texte prêt à être lu à voix haute), adapté au sujet. Aucune scène du tableau scenes ne doit parler de l'appli, de téléchargement ou de cours gratuits. Le mot « Sophia » n'apparaît qu'une seule fois dans TOUT le script."
       : "AUCUNE PUBLICITÉ : le champ cta doit rester une chaîne VIDE. Le script ne mentionne JAMAIS Sophia, une application, un téléchargement, un abonnement ou un appel à l'action. Il se termine sur sa phrase de chute.",
     "hookOptions contient TROIS accroches candidates (douze mots maximum chacune). hookScores contient TROIS lignes, une par candidate, qui la notent sur les six conditions (conditions remplies / conditions manquées). hook contient celle que tu retiens, recopiée telle quelle dans la narration de la scène 1. hookChoice explique ton choix en UNE ligne.",
-    'Réponds uniquement en JSON: {"title":string,"hook":string,"hookOptions":string[],"hookScores":string[],"hookChoice":string,"characters":[{"name":string,"description":string}],"palette":string,"scenes":[{"index":number,"narration":string,"overlay":string,"imagePrompt":string,"videoPrompt":string}],"cta":string,"hashtags":string[]}',
+    socialCopyBrief(langName),
+    'Réponds uniquement en JSON: {"title":string,"hook":string,"hookOptions":string[],"hookScores":string[],"hookChoice":string,"characters":[{"name":string,"description":string}],"palette":string,"scenes":[{"index":number,"narration":string,"overlay":string,"imagePrompt":string,"videoPrompt":string}],"cta":string,"caption":string,"hashtags":string[]}',
   ].join("\n");
 }
 
@@ -253,6 +256,20 @@ export function scriptUserPrompt(kind: VideoKind, topic: string) {
 }
 
 /**
+ * LÉGENDE ET HASHTAGS de publication, demandés DANS le même appel de texte que
+ * le script ou la traduction : aucun appel payant supplémentaire.
+ */
+export function socialCopyBrief(langName: string) {
+  return [
+    `LÉGENDE ET HASHTAGS DE PUBLICATION, écrits en ${langName} comme un natif les écrirait (jamais du mot à mot).`,
+    "caption : 2 à 3 phrases MAXIMUM, assez courtes pour tenir sans « voir plus » sur Instagram. Elle raconte le fait surprenant ET pourquoi il est surprenant : une information vraie par phrase, zéro remplissage, vocabulaire simple, aucun emoji.",
+    "caption ne recopie JAMAIS l'accroche de la vidéo mot pour mot : quelqu'un qui a vu la vidéo doit y trouver quelque chose en plus.",
+    "caption se termine EXACTEMENT par cette phrase, sans rien y changer : « Télécharge Sophia pour en apprendre plus. » traduite dans la langue de sortie (en : « Download Sophia to learn more. » · es : « Descarga Sophia para aprender más. » · de : « Lade Sophia herunter, um mehr zu erfahren. » · it : « Scarica Sophia per saperne di più. »).",
+    "hashtags : exactement « culture » et « sophia » en premier (identiques dans toutes les langues), puis 3 à 5 hashtags propres au sujet DANS LA LANGUE DE SORTIE. Minuscules, sans accent, sans espace, sans ponctuation, sans le caractère #.",
+  ].join("\n");
+}
+
+/**
  * MASTER MULTILINGUE : les visuels sont fabriqués une seule fois et ne
  * contiennent aucun texte. Seule la partie parlée est traduite, scène par
  * scène, avec un plafond de mots pour tenir dans le clip déjà commandé.
@@ -281,6 +298,8 @@ export function translationSystemPrompt(
   },
   /** Niveau de langue imposé : une traduction ne remonte jamais d'un cran. */
   languageBrief?: string,
+  /** Demande en plus la légende et les hashtags de publication (aucun appel de plus). */
+  withSocial = false,
 ) {
   return [
     adjust
@@ -318,7 +337,10 @@ export function translationSystemPrompt(
     "Le mot « Sophia » reste « Sophia » dans toutes les langues.",
     "Traduis uniquement narration, overlay, title, hook et cta. Si cta est vide, laisse-le vide.",
     "overlay reste un texte incrusté très court : 3 à 6 mots.",
-    'Réponds uniquement en JSON: {"title":string,"hook":string,"cta":string,"scenes":[{"index":number,"narration":string,"overlay":string}]}',
+    withSocial ? socialCopyBrief(langName) : "",
+    withSocial
+      ? 'Réponds uniquement en JSON: {"title":string,"hook":string,"cta":string,"caption":string,"hashtags":string[],"scenes":[{"index":number,"narration":string,"overlay":string}]}'
+      : 'Réponds uniquement en JSON: {"title":string,"hook":string,"cta":string,"scenes":[{"index":number,"narration":string,"overlay":string}]}',
   ].join("\n");
 }
 
