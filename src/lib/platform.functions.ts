@@ -517,6 +517,7 @@ export const listMyVideos = createServerFn({ method: "GET" })
               .in("language", languages)
               .eq("status", "published")
               .gte("publish_date", isoDay(since))
+              .lte("publish_date", today)
               .order("publish_date", { ascending: false })
           ).data ?? []);
 
