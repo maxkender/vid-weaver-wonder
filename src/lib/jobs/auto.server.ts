@@ -21,6 +21,7 @@ import {
   isFatalFailure,
   pickPublishDate,
   resumeStatusFor,
+  shouldProduceNow,
   type SceneState,
 } from "./auto-rules";
 import { admin, logEvent } from "./store.server";
@@ -32,6 +33,8 @@ type Settings = {
   timezone?: string;
   languages?: string[];
   last_run_at?: string | null;
+  /** Horodatage DÉDIÉ au dernier vrai lancement de production (anti-doublon). */
+  last_auto_produce_at?: string | null;
 };
 
 export function localDay(timeZone: string, at = new Date()): string {
