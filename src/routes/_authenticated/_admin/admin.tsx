@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import {
   BarChart3,
   FileText,
+  Film,
   Layers,
   Lightbulb,
   Loader2,
