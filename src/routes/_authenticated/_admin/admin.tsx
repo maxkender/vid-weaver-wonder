@@ -148,6 +148,7 @@ function AdminPage() {
             {section === "accounts" ? <AdminAccounts /> : null}
             {section === "posters" ? <AdminPosters /> : null}
             {section === "diffusion" ? <AdminDiffusion /> : null}
+            {section === "videos" ? <AdminVideos /> : null}
             {section === "content" ? <AdminContent /> : null}
             {section === "journal" ? <AdminJournal /> : null}
           </main>
