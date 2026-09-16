@@ -462,6 +462,17 @@ function isoDay(d: Date) {
   return d.toISOString().slice(0, 10);
 }
 
+/** Jour courant DANS LE FUSEAU de diffusion (Europe/Paris par défaut). */
+async function diffusionToday(): Promise<string> {
+  const db = await admin();
+  const { data } = await db
+    .from("distribution_settings")
+    .select("timezone")
+    .eq("id", 1)
+    .maybeSingle();
+  return localDay((data as { timezone?: string } | null)?.timezone ?? DEFAULT_TIMEZONE);
+}
+
 /**
  * Une vidéo par COMPTE : un posteur avec un compte français et un compte
  * espagnol voit deux vidéos, chacune avec sa légende dans sa langue.
