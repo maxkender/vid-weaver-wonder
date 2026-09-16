@@ -544,6 +544,7 @@ export const listMyVideos = createServerFn({ method: "GET" })
     for (const account of ready) {
       for (const v of videos) {
         if (v.language !== account.language) continue;
+        if (!isReleased(v.publish_date, today)) continue;
         const tracked = byKey.get(key(v.id, account.id));
         list.push({
           id: v.id,
