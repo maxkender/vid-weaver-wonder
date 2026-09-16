@@ -179,6 +179,8 @@ export async function fanOutLanguages(job: RenderJob) {
       publish_date: job.publish_date ?? null,
       script,
       scenes,
+      caption: translated.caption,
+      hashtags: translated.hashtags,
       // Démarrage direct à la voix : ni script, ni image, ni clip à payer.
       status: "voice",
       step: "voice",
