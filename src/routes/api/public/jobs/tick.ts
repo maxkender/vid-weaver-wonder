@@ -10,10 +10,14 @@ export const Route = createFileRoute("/api/public/jobs/tick")({
           return Response.json({ error: "unauthorized" }, { status: 401 });
         }
         const { runTick } = await import("@/lib/jobs/pipeline.server");
+        const { runAutopilot } = await import("@/lib/jobs/auto.server");
         const origin = new URL(request.url).origin;
         try {
+          // PILOTE AUTOMATIQUE : relances, publication de la journée et
+          // lancement du jour. Aucune intervention humaine nécessaire.
+          const autopilot = await runAutopilot();
           const result = await runTick(origin);
-          return Response.json(result);
+          return Response.json({ ...result, autopilot });
         } catch (e) {
           return Response.json(
             { error: e instanceof Error ? e.message : "tick failed" },
