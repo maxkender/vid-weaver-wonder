@@ -20,6 +20,7 @@ import {
   conventionHandle,
   type ConventionRow,
 } from "@/lib/conventions";
+import { DEFAULT_TIMEZONE, isReleased, localDay } from "@/lib/publish-day";
 
 export type PlatformRole = "admin" | "poster";
 
@@ -462,6 +463,17 @@ function isoDay(d: Date) {
   return d.toISOString().slice(0, 10);
 }
 
+/** Jour courant DANS LE FUSEAU de diffusion (Europe/Paris par défaut). */
+async function diffusionToday(): Promise<string> {
+  const db = await admin();
+  const { data } = await db
+    .from("distribution_settings")
+    .select("timezone")
+    .eq("id", 1)
+    .maybeSingle();
+  return localDay((data as { timezone?: string } | null)?.timezone ?? DEFAULT_TIMEZONE);
+}
+
 /**
  * Une vidéo par COMPTE : un posteur avec un compte français et un compte
  * espagnol voit deux vidéos, chacune avec sa légende dans sa langue.
@@ -489,6 +501,9 @@ export const listMyVideos = createServerFn({ method: "GET" })
 
     const since = new Date();
     since.setDate(since.getDate() - 30);
+    // Jour de diffusion : borne HAUTE de sécurité, une journée à venir ne doit
+    // jamais être visible ni téléchargeable par un posteur.
+    const today = await diffusionToday();
 
     const videos =
       languages.length === 0
@@ -502,6 +517,7 @@ export const listMyVideos = createServerFn({ method: "GET" })
               .in("language", languages)
               .eq("status", "published")
               .gte("publish_date", isoDay(since))
+              .lte("publish_date", today)
               .order("publish_date", { ascending: false })
           ).data ?? []);
 
@@ -528,6 +544,7 @@ export const listMyVideos = createServerFn({ method: "GET" })
     for (const account of ready) {
       for (const v of videos) {
         if (v.language !== account.language) continue;
+        if (!isReleased(v.publish_date, today)) continue;
         const tracked = byKey.get(key(v.id, account.id));
         list.push({
           id: v.id,
@@ -547,7 +564,7 @@ export const listMyVideos = createServerFn({ method: "GET" })
     }
 
     return {
-      today: isoDay(new Date()),
+      today,
       accounts: rows.map((a) => ({
         id: a.id,
         language: a.language,
@@ -582,11 +599,18 @@ export const getVideoLink = createServerFn({ method: "POST" })
 
     const video = await context.supabase
       .from("daily_videos")
-      .select("id, storage_path, status")
+      .select("id, storage_path, status, publish_date")
       .eq("id", data.videoId)
       .maybeSingle();
     if (video.error) throw new Error(video.error.message);
     if (!video.data?.storage_path) throw new Error("Cette vidéo n'a pas encore de fichier.");
+
+    // Règle de sécurité : une journée à venir n'est jamais signée, même avec
+    // un identifiant deviné.
+    const today = await diffusionToday();
+    if (!isReleased(video.data.publish_date, today)) {
+      throw new Error("Cette vidéo sera disponible le jour de sa diffusion.");
+    }
 
     const db = await admin();
     const signed = await db.storage

@@ -24,6 +24,7 @@ import { Progress } from "@/components/ui/progress";
 import { ContractMarkdown } from "@/components/contract-markdown";
 import { supabase } from "@/integrations/supabase/client";
 import { languageLabel } from "@/lib/languages";
+import { isPast } from "@/lib/publish-day";
 import {
   WARMUP_TASKS,
   confirmAccountStep,
@@ -697,7 +698,8 @@ function AccountVideos({
   onChange: () => Promise<void>;
 }) {
   const video = videos.find((v) => v.publish_date === today);
-  const past = videos.filter((v) => v.publish_date !== today);
+  // Historique : uniquement des dates PASSÉES, jamais aujourd'hui ni le futur.
+  const past = videos.filter((v) => isPast(v.publish_date, today));
 
   return (
     <section className="space-y-3">
