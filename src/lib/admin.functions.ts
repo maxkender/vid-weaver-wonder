@@ -969,6 +969,84 @@ export const getAdminVideoLink = createServerFn({ method: "POST" })
     return { url: signed.data.signedUrl };
   });
 
+/* ----------------------------------------------------------- vidéothèque */
+
+export type LibraryVideo = {
+  id: string;
+  publish_date: string;
+  language: string;
+  title: string;
+  caption: string;
+  hashtags: string[];
+  duration_sec: number;
+  storage_path: string | null;
+  status: string;
+  created_at: string;
+};
+
+/**
+ * Catalogue complet des vidéos produites, toutes dates et toutes langues.
+ * RÉSERVÉ À L'ADMINISTRATION : contrairement à l'espace posteur, les journées
+ * à venir sont visibles et téléchargeables ici, c'est le stock d'avance.
+ */
+export const listAllVideos = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z
+      .object({
+        language: z.string().max(5).optional(),
+        status: z.enum(["all", "published", "draft", "missing"]).optional(),
+        search: z.string().max(120).optional(),
+        page: z.number().int().min(0).max(500).optional(),
+        pageSize: z.number().int().min(10).max(200).optional(),
+      })
+      .parse(d ?? {}),
+  )
+  .handler(async ({ context, data }) => {
+    await requireAdmin(context);
+    const db = await adminDb();
+
+    const page = data.page ?? 0;
+    const pageSize = data.pageSize ?? 50;
+    const search = (data.search ?? "").trim();
+
+    const base = () => {
+      let q = db.from("daily_videos").select("*", { count: "exact" });
+      if (data.language && data.language !== "all") q = q.eq("language", data.language);
+      if (data.status === "published") q = q.eq("status", "published");
+      if (data.status === "draft") q = q.eq("status", "draft");
+      if (data.status === "missing") q = q.is("storage_path", null);
+      if (search) q = q.ilike("title", `%${search}%`);
+      return q;
+    };
+
+    const { data: rows, count, error } = await base()
+      .order("publish_date", { ascending: false })
+      .order("language", { ascending: true })
+      .range(page * pageSize, page * pageSize + pageSize - 1);
+    if (error) throw new Error(error.message);
+
+    // Nombre de journées produites, sur le périmètre filtré.
+    const { data: dayRows } = await base().limit(2000);
+    const days = new Set(
+      ((dayRows ?? []) as { publish_date: string }[]).map((r) => r.publish_date),
+    );
+
+    return {
+      videos: ((rows ?? []) as unknown as LibraryVideo[]).map((v) => ({
+        ...v,
+        hashtags: v.hashtags ?? [],
+        duration_sec: Number(v.duration_sec ?? 0),
+      })),
+      total: count ?? 0,
+      days: days.size,
+      page,
+      pageSize,
+      today: isoDay(new Date()),
+    };
+  });
+
+
 /** Estimation AVANT dépense : quantités et coût indicatif d'une production. */
 export const estimateProduction = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
