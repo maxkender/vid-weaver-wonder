@@ -120,11 +120,11 @@ async function renderScene(scene, dir, opts) {
     }
     stretch = Math.min(MAX_STRETCH, target / tempo / clipLen);
   }
-  // Durée du plan, EXACTEMENT comme le studio (src/lib/assemble-video.ts) :
-  // la voix commande, mais jamais au-delà de ce que la piste vidéo couvre.
-  // Une image fixe couvre n'importe quelle durée.
-  const videoSpan = stillOnly ? Infinity : clipLen * stretch;
-  const outDur = Math.min(target / tempo, videoSpan);
+  // LA VOIX COMMANDE : la durée du plan est celle dont la voix a besoin, sans
+  // jamais être plafonnée par la piste vidéo (jamais de phrase coupée).
+  // Si le clip s'arrête avant, `tpad` clone la dernière image pour couvrir
+  // l'écart — mieux vaut une image figée qu'un mot perdu.
+  const outDur = target / tempo;
 
   const { width, height } = opts;
   if (stillOnly) {
