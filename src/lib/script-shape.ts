@@ -133,6 +133,7 @@ export function normalizeScript(value: unknown): SafeScript {
     scenes: scenesRaw.map(asScene),
     cta: asText(o["cta"]),
     hashtags: asHashtags(o["hashtags"]),
+    ...(asText(o["caption"]).trim() ? { caption: asText(o["caption"]).trim() } : {}),
     ...(hookOptions.length ? { hookOptions } : {}),
     ...(hookScores.length ? { hookScores } : {}),
     ...(hookChoice ? { hookChoice } : {}),
