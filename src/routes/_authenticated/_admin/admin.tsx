@@ -23,7 +23,7 @@ import { AdminDiffusion } from "@/components/admin/diffusion";
 import { AdminContent } from "@/components/admin/content";
 import { AdminJournal } from "@/components/admin/journal";
 
-export const Route = createFileRoute("/_authenticated/admin")({
+export const Route = createFileRoute("/_authenticated/_admin/admin")({
   head: () => ({
     meta: [
       { title: "Administration — plateforme de diffusion" },
@@ -105,7 +105,7 @@ function AdminPage() {
             })}
           </nav>
           <div className="mt-4 space-y-0.5 border-t border-border pt-3">
-            <Link to="/" className="flex items-center gap-2 rounded-[8px] px-2 py-1.5 text-xs text-muted-foreground hover:bg-muted">
+            <Link to="/studio" className="flex items-center gap-2 rounded-[8px] px-2 py-1.5 text-xs text-muted-foreground hover:bg-muted">
               Studio de production
             </Link>
             <button

@@ -107,7 +107,7 @@ function SettingsPage() {
     <main className="mx-auto w-full max-w-4xl px-4 py-6">
       <Toaster position="top-center" />
       <div className="mb-5 flex flex-wrap items-center gap-3 border-b border-border pb-3">
-        <Link to="/" className="btn-base btn-ghost px-2.5 py-1.5 text-xs">
+        <Link to="/studio" className="btn-base btn-ghost px-2.5 py-1.5 text-xs">
           <ArrowLeft className="h-3.5 w-3.5" /> Retour au studio
         </Link>
         <h1 className="text-[15px] font-semibold tracking-tight">Paramètres</h1>

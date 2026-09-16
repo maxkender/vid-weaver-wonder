@@ -144,7 +144,7 @@ function TopicQueuePage() {
       <Toaster position="top-center" />
 
       <div className="mb-5 flex flex-wrap items-center gap-3 border-b border-border pb-3">
-        <Link to="/" className="btn-base btn-ghost px-2.5 py-1.5 text-xs">
+        <Link to="/studio" className="btn-base btn-ghost px-2.5 py-1.5 text-xs">
           <ArrowLeft className="h-3.5 w-3.5" /> Studio
         </Link>
         <h1 className="text-[15px] font-semibold tracking-tight">File de sujets</h1>
@@ -336,7 +336,7 @@ function TopicQueuePage() {
               </span>
               {t.video_job_id && (
                 <Link
-                  to="/"
+                  to="/studio"
                   search={{ projet: t.video_job_id } as never}
                   className="btn-base btn-ghost px-2 py-1 text-xs"
                 >

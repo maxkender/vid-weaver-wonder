@@ -204,7 +204,7 @@ function StationPage() {
       <Toaster />
       <div className="mb-5 flex items-center gap-3 border-b border-border pb-3">
         <Button asChild variant="ghost" size="icon">
-          <Link to="/" aria-label="Retour au studio">
+          <Link to="/studio" aria-label="Retour au studio">
             <ArrowLeft />
           </Link>
         </Button>
