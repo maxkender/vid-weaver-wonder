@@ -318,7 +318,10 @@ export function translationSystemPrompt(
     "Le mot « Sophia » reste « Sophia » dans toutes les langues.",
     "Traduis uniquement narration, overlay, title, hook et cta. Si cta est vide, laisse-le vide.",
     "overlay reste un texte incrusté très court : 3 à 6 mots.",
-    'Réponds uniquement en JSON: {"title":string,"hook":string,"cta":string,"scenes":[{"index":number,"narration":string,"overlay":string}]}',
+    withSocial ? socialCopyBrief(langName) : "",
+    withSocial
+      ? 'Réponds uniquement en JSON: {"title":string,"hook":string,"cta":string,"caption":string,"hashtags":string[],"scenes":[{"index":number,"narration":string,"overlay":string}]}'
+      : 'Réponds uniquement en JSON: {"title":string,"hook":string,"cta":string,"scenes":[{"index":number,"narration":string,"overlay":string}]}',
   ].join("\n");
 }
 
