@@ -501,6 +501,9 @@ export const listMyVideos = createServerFn({ method: "GET" })
 
     const since = new Date();
     since.setDate(since.getDate() - 30);
+    // Jour de diffusion : borne HAUTE de sécurité, une journée à venir ne doit
+    // jamais être visible ni téléchargeable par un posteur.
+    const today = await diffusionToday();
 
     const videos =
       languages.length === 0
