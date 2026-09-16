@@ -139,7 +139,7 @@ async function renderScene(scene, dir, opts) {
   const base = `scale=${width}:${height}:force_original_aspect_ratio=decrease,pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2:black,setsar=1`;
   // Filet de sécurité commun : `tpad` clone la dernière image si, malgré tout,
   // la piste vidéo s'arrêtait avant la fin du plan. Jamais de noir.
-  const pad = `,tpad=stop_mode=clone:stop_duration=2,trim=0:${outDur.toFixed(3)},setpts=PTS-STARTPTS`;
+  const pad = `,tpad=stop_mode=clone:stop_duration=5,trim=0:${outDur.toFixed(3)},setpts=PTS-STARTPTS`;
   const vf = stillOnly
     ? // Image fixe : très léger zoom lent, jamais parfaitement immobile.
       `scale=${big.w}:${big.h}:force_original_aspect_ratio=decrease,pad=${big.w}:${big.h}:(ow-iw)/2:(oh-ih)/2:black,` +
