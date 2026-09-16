@@ -236,6 +236,7 @@ export type Database = {
           created_at: string
           id: number
           languages: string[]
+          last_auto_produce_at: string | null
           last_run_at: string | null
           last_run_result: string | null
           on_failure: string
@@ -249,6 +250,7 @@ export type Database = {
           created_at?: string
           id?: number
           languages?: string[]
+          last_auto_produce_at?: string | null
           last_run_at?: string | null
           last_run_result?: string | null
           on_failure?: string
@@ -262,6 +264,7 @@ export type Database = {
           created_at?: string
           id?: number
           languages?: string[]
+          last_auto_produce_at?: string | null
           last_run_at?: string | null
           last_run_result?: string | null
           on_failure?: string

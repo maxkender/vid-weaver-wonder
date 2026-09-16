@@ -21,6 +21,7 @@ import {
   isFatalFailure,
   pickPublishDate,
   resumeStatusFor,
+  shouldProduceNow,
   type SceneState,
 } from "./auto-rules";
 import { admin, logEvent } from "./store.server";
@@ -32,6 +33,8 @@ type Settings = {
   timezone?: string;
   languages?: string[];
   last_run_at?: string | null;
+  /** Horodatage DÉDIÉ au dernier vrai lancement de production (anti-doublon). */
+  last_auto_produce_at?: string | null;
 };
 
 export function localDay(timeZone: string, at = new Date()): string {
@@ -271,10 +274,18 @@ export async function autoProduce(): Promise<{ started?: string; reason?: string
 
   const timeZone = s.timezone ?? "Europe/Paris";
   const today = localDay(timeZone);
-  if (localHour(timeZone) !== (s.run_hour ?? 0)) return { reason: "hors de l'heure de production" };
-  if (s.last_run_at && localDay(timeZone, new Date(s.last_run_at)) === today) {
-    return { reason: "déjà lancée aujourd'hui" };
-  }
+  const runHour = s.run_hour ?? 0;
+  // ANTI-DOUBLON : uniquement l'horodatage DÉDIÉ aux vrais lancements. Une
+  // publication automatique plus tôt dans la journée n'empêche plus rien.
+  const decision = shouldProduceNow({
+    localHour: localHour(timeZone),
+    runHour,
+    today,
+    lastProduceDay: s.last_auto_produce_at
+      ? localDay(timeZone, new Date(s.last_auto_produce_at))
+      : null,
+  });
+  if (!decision.run) return { reason: decision.reason ?? "pas de lancement" };
 
   // NE JAMAIS PRODUIRE DEUX FOIS LE MÊME JOUR : on vise la prochaine date qui
   // n'a ni vidéo ni production en cours.
@@ -332,14 +343,24 @@ export async function autoProduce(): Promise<{ started?: string; reason?: string
     .update({ status: "utilise", used_at: new Date().toISOString(), video_job_id: jobId })
     .eq("id", topicRow.id);
 
+  // Horodatage DÉDIÉ : seul un vrai lancement l'écrit.
+  await db
+    .from("distribution_settings")
+    .update({ last_auto_produce_at: new Date().toISOString() })
+    .eq("id", 1);
+
+  const catchUp = decision.catchUp
+    ? ` — lancée en RATTRAPAGE (heure prévue : ${String(runHour).padStart(2, "0")}:00)`
+    : "";
   await noteRun(
     db,
-    `Production automatique lancée pour le ${date} — ${langs.length} langue(s) — sujet : ${topicRow.topic}`,
+    `Production automatique lancée pour le ${date} — ${langs.length} langue(s) — sujet : ${topicRow.topic}${catchUp}`,
   );
   await logEvent(
     jobId,
     "auto",
-    `Production automatique lancée pour la journée du ${date} (${langs.join(", ")})`,
+    `Production automatique lancée pour la journée du ${date} (${langs.join(", ")})${catchUp}`,
+    decision.catchUp ? "warn" : "info",
   );
   return { started: jobId };
 }

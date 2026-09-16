@@ -5,7 +5,44 @@ import {
   isFatalFailure,
   pickPublishDate,
   resumeStatusFor,
+  shouldProduceNow,
 } from "./auto-rules";
+
+describe("shouldProduceNow", () => {
+  it("une publication plus tôt dans la journée n'empêche pas le lancement", () => {
+    // `last_run_at` peut avoir bougé (publication) ; seul l'horodatage dédié compte.
+    expect(
+      shouldProduceNow({ localHour: 9, runHour: 0, today: "2026-09-16", lastProduceDay: null }).run,
+    ).toBe(true);
+  });
+  it("le lancement se rattrape après l'heure prévue", () => {
+    const d = shouldProduceNow({
+      localHour: 5,
+      runHour: 0,
+      today: "2026-09-16",
+      lastProduceDay: "2026-09-15",
+    });
+    expect(d).toEqual({ run: true, catchUp: true });
+  });
+  it("ne lance pas avant l'heure ni deux fois le même jour", () => {
+    expect(
+      shouldProduceNow({ localHour: 3, runHour: 5, today: "2026-09-16", lastProduceDay: null }).run,
+    ).toBe(false);
+    expect(
+      shouldProduceNow({
+        localHour: 9,
+        runHour: 0,
+        today: "2026-09-16",
+        lastProduceDay: "2026-09-16",
+      }).run,
+    ).toBe(false);
+  });
+  it("à l'heure pile, ce n'est pas un rattrapage", () => {
+    expect(
+      shouldProduceNow({ localHour: 0, runHour: 0, today: "2026-09-16", lastProduceDay: null }),
+    ).toEqual({ run: true, catchUp: false });
+  });
+});
 
 describe("isFatalFailure", () => {
   it("garde le veto sur crédits, paiement et politique", () => {

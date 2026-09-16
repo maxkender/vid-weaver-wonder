@@ -1,0 +1,1 @@
+ALTER TABLE public.distribution_settings ADD COLUMN IF NOT EXISTS last_auto_produce_at timestamp with time zone;
