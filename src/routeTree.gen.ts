@@ -14,10 +14,10 @@ import { Route as ConnexionRouteImport } from './routes/connexion'
 import { Route as ReinitialisationRouteImport } from './routes/reinitialisation'
 import { Route as StationRouteImport } from './routes/station'
 import { Route as AuthenticatedAdminRouteRouteImport } from './routes/_authenticated/_admin/route'
-import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 import { Route as AuthenticatedEspaceRouteImport } from './routes/_authenticated/espace'
-import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/_admin/index'
+import { Route as AuthenticatedAdminAdminRouteImport } from './routes/_authenticated/_admin/admin'
 import { Route as AuthenticatedAdminParametresRouteImport } from './routes/_authenticated/_admin/parametres'
+import { Route as AuthenticatedAdminStudioRouteImport } from './routes/_authenticated/_admin/studio'
 import { Route as AuthenticatedAdminSujetsRouteImport } from './routes/_authenticated/_admin/sujets'
 import { Route as ApiPublicVideosRouteImport } from './routes/api/public/videos'
 import { Route as ApiVideoContentIdRouteImport } from './routes/api/video-content.$id'
@@ -48,25 +48,26 @@ const AuthenticatedAdminRouteRoute = AuthenticatedAdminRouteRouteImport.update({
   id: '/_admin',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
-const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
-  id: '/admin',
-  path: '/admin',
-  getParentRoute: () => AuthenticatedRouteRoute,
-} as any)
 const AuthenticatedEspaceRoute = AuthenticatedEspaceRouteImport.update({
   id: '/espace',
   path: '/espace',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
-const AuthenticatedAdminIndexRoute = AuthenticatedAdminIndexRouteImport.update({
-  id: '/',
-  path: '/',
+const AuthenticatedAdminAdminRoute = AuthenticatedAdminAdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
   getParentRoute: () => AuthenticatedAdminRouteRoute,
 } as any)
 const AuthenticatedAdminParametresRoute =
   AuthenticatedAdminParametresRouteImport.update({
     id: '/parametres',
     path: '/parametres',
+    getParentRoute: () => AuthenticatedAdminRouteRoute,
+  } as any)
+const AuthenticatedAdminStudioRoute =
+  AuthenticatedAdminStudioRouteImport.update({
+    id: '/studio',
+    path: '/studio',
     getParentRoute: () => AuthenticatedAdminRouteRoute,
   } as any)
 const AuthenticatedAdminSujetsRoute =
@@ -103,13 +104,14 @@ const ApiPublicVideosIdRoute = ApiPublicVideosIdRouteImport.update({
 } as any)
 
 export interface FileRoutesByFullPath {
-  '/': typeof AuthenticatedAdminIndexRoute
+  '/': typeof AuthenticatedAdminRouteRouteWithChildren
   '/connexion': typeof ConnexionRoute
   '/reinitialisation': typeof ReinitialisationRoute
   '/station': typeof StationRoute
-  '/admin': typeof AuthenticatedAdminRoute
   '/espace': typeof AuthenticatedEspaceRoute
+  '/admin': typeof AuthenticatedAdminAdminRoute
   '/parametres': typeof AuthenticatedAdminParametresRoute
+  '/studio': typeof AuthenticatedAdminStudioRoute
   '/sujets': typeof AuthenticatedAdminSujetsRoute
   '/api/public/videos': typeof ApiPublicVideosRouteWithChildren
   '/api/video-content/$id': typeof ApiVideoContentIdRoute
@@ -118,13 +120,14 @@ export interface FileRoutesByFullPath {
   '/api/public/videos/$id': typeof ApiPublicVideosIdRoute
 }
 export interface FileRoutesByTo {
-  '/': typeof AuthenticatedAdminIndexRoute
+  '/': typeof AuthenticatedAdminRouteRouteWithChildren
   '/connexion': typeof ConnexionRoute
   '/reinitialisation': typeof ReinitialisationRoute
   '/station': typeof StationRoute
-  '/admin': typeof AuthenticatedAdminRoute
   '/espace': typeof AuthenticatedEspaceRoute
+  '/admin': typeof AuthenticatedAdminAdminRoute
   '/parametres': typeof AuthenticatedAdminParametresRoute
+  '/studio': typeof AuthenticatedAdminStudioRoute
   '/sujets': typeof AuthenticatedAdminSujetsRoute
   '/api/public/videos': typeof ApiPublicVideosRouteWithChildren
   '/api/video-content/$id': typeof ApiVideoContentIdRoute
@@ -139,13 +142,13 @@ export interface FileRoutesById {
   '/reinitialisation': typeof ReinitialisationRoute
   '/station': typeof StationRoute
   '/_authenticated/_admin': typeof AuthenticatedAdminRouteRouteWithChildren
-  '/_authenticated/admin': typeof AuthenticatedAdminRoute
   '/_authenticated/espace': typeof AuthenticatedEspaceRoute
+  '/_authenticated/_admin/admin': typeof AuthenticatedAdminAdminRoute
   '/_authenticated/_admin/parametres': typeof AuthenticatedAdminParametresRoute
+  '/_authenticated/_admin/studio': typeof AuthenticatedAdminStudioRoute
   '/_authenticated/_admin/sujets': typeof AuthenticatedAdminSujetsRoute
   '/api/public/videos': typeof ApiPublicVideosRouteWithChildren
   '/api/video-content/$id': typeof ApiVideoContentIdRoute
-  '/_authenticated/_admin/': typeof AuthenticatedAdminIndexRoute
   '/api/public/jobs/render-callback': typeof ApiPublicJobsRenderCallbackRoute
   '/api/public/jobs/tick': typeof ApiPublicJobsTickRoute
   '/api/public/videos/$id': typeof ApiPublicVideosIdRoute
@@ -157,9 +160,10 @@ export interface FileRouteTypes {
     | '/connexion'
     | '/reinitialisation'
     | '/station'
-    | '/admin'
     | '/espace'
+    | '/admin'
     | '/parametres'
+    | '/studio'
     | '/sujets'
     | '/api/public/videos'
     | '/api/video-content/$id'
@@ -172,9 +176,10 @@ export interface FileRouteTypes {
     | '/connexion'
     | '/reinitialisation'
     | '/station'
-    | '/admin'
     | '/espace'
+    | '/admin'
     | '/parametres'
+    | '/studio'
     | '/sujets'
     | '/api/public/videos'
     | '/api/video-content/$id'
@@ -188,13 +193,13 @@ export interface FileRouteTypes {
     | '/reinitialisation'
     | '/station'
     | '/_authenticated/_admin'
-    | '/_authenticated/admin'
     | '/_authenticated/espace'
+    | '/_authenticated/_admin/admin'
     | '/_authenticated/_admin/parametres'
+    | '/_authenticated/_admin/studio'
     | '/_authenticated/_admin/sujets'
     | '/api/public/videos'
     | '/api/video-content/$id'
-    | '/_authenticated/_admin/'
     | '/api/public/jobs/render-callback'
     | '/api/public/jobs/tick'
     | '/api/public/videos/$id'
@@ -248,13 +253,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminRouteRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/admin': {
-      id: '/_authenticated/admin'
-      path: '/admin'
-      fullPath: '/admin'
-      preLoaderRoute: typeof AuthenticatedAdminRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
     '/_authenticated/espace': {
       id: '/_authenticated/espace'
       path: '/espace'
@@ -262,11 +260,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedEspaceRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/_admin/': {
-      id: '/_authenticated/_admin/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof AuthenticatedAdminIndexRouteImport
+    '/_authenticated/_admin/admin': {
+      id: '/_authenticated/_admin/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AuthenticatedAdminAdminRouteImport
       parentRoute: typeof AuthenticatedAdminRouteRoute
     }
     '/_authenticated/_admin/parametres': {
@@ -274,6 +272,13 @@ declare module '@tanstack/react-router' {
       path: '/parametres'
       fullPath: '/parametres'
       preLoaderRoute: typeof AuthenticatedAdminParametresRouteImport
+      parentRoute: typeof AuthenticatedAdminRouteRoute
+    }
+    '/_authenticated/_admin/studio': {
+      id: '/_authenticated/_admin/studio'
+      path: '/studio'
+      fullPath: '/studio'
+      preLoaderRoute: typeof AuthenticatedAdminStudioRouteImport
       parentRoute: typeof AuthenticatedAdminRouteRoute
     }
     '/_authenticated/_admin/sujets': {
@@ -322,16 +327,18 @@ declare module '@tanstack/react-router' {
 }
 
 interface AuthenticatedAdminRouteRouteChildren {
+  AuthenticatedAdminAdminRoute: typeof AuthenticatedAdminAdminRoute
   AuthenticatedAdminParametresRoute: typeof AuthenticatedAdminParametresRoute
+  AuthenticatedAdminStudioRoute: typeof AuthenticatedAdminStudioRoute
   AuthenticatedAdminSujetsRoute: typeof AuthenticatedAdminSujetsRoute
-  AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
 }
 
 const AuthenticatedAdminRouteRouteChildren: AuthenticatedAdminRouteRouteChildren =
   {
+    AuthenticatedAdminAdminRoute: AuthenticatedAdminAdminRoute,
     AuthenticatedAdminParametresRoute: AuthenticatedAdminParametresRoute,
+    AuthenticatedAdminStudioRoute: AuthenticatedAdminStudioRoute,
     AuthenticatedAdminSujetsRoute: AuthenticatedAdminSujetsRoute,
-    AuthenticatedAdminIndexRoute: AuthenticatedAdminIndexRoute,
   }
 
 const AuthenticatedAdminRouteRouteWithChildren =
@@ -341,13 +348,11 @@ const AuthenticatedAdminRouteRouteWithChildren =
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAdminRouteRoute: typeof AuthenticatedAdminRouteRouteWithChildren
-  AuthenticatedAdminRoute: typeof AuthenticatedAdminRoute
   AuthenticatedEspaceRoute: typeof AuthenticatedEspaceRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAdminRouteRoute: AuthenticatedAdminRouteRouteWithChildren,
-  AuthenticatedAdminRoute: AuthenticatedAdminRoute,
   AuthenticatedEspaceRoute: AuthenticatedEspaceRoute,
 }
 
