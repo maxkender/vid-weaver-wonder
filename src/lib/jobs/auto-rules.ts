@@ -76,6 +76,28 @@ export function pickPublishDate(
   return null;
 }
 
+/**
+ * DÉCIDE S'IL FAUT LANCER LA PRODUCTION DU JOUR.
+ *
+ * Règle : dès que l'heure prévue est ARRIVÉE OU DÉPASSÉE et qu'aucune
+ * production n'a été lancée aujourd'hui (horodatage DÉDIÉ, jamais touché par
+ * la publication), on lance. Une heure ratée se rattrape donc toute seule.
+ */
+export function shouldProduceNow(input: {
+  localHour: number;
+  runHour: number;
+  today: string;
+  lastProduceDay: string | null;
+}): { run: boolean; catchUp: boolean; reason?: string } {
+  if (input.lastProduceDay === input.today) {
+    return { run: false, catchUp: false, reason: "déjà lancée aujourd'hui" };
+  }
+  if (input.localHour < input.runHour) {
+    return { run: false, catchUp: false, reason: "hors de l'heure de production" };
+  }
+  return { run: true, catchUp: input.localHour > input.runHour };
+}
+
 /** Décision de publication automatique d'une journée. */
 export function decidePublishDay(input: {
   activeLanguages: string[];
