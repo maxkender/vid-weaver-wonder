@@ -209,8 +209,8 @@ export function AdminPosters() {
         </div>
         <p className="mt-2 text-[11px] text-muted-foreground">
           L'identifiant n'est pas une vraie boîte mail : il sert uniquement à se connecter ici. Le mot
-          de passe de la plateforme est généré, différent pour chaque posteur, et affiché une seule
-          fois ci-dessous.
+          de passe de la plateforme est celui défini dans les conventions : il est le même pour tous
+          les posteurs et reste consultable dans l'onglet Conventions.
         </p>
 
         {created ? (

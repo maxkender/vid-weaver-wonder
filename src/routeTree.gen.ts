@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
+import { Route as AccesSuspenduRouteImport } from './routes/acces-suspendu'
 import { Route as ConnexionRouteImport } from './routes/connexion'
 import { Route as ReinitialisationRouteImport } from './routes/reinitialisation'
 import { Route as StationRouteImport } from './routes/station'
@@ -33,6 +34,11 @@ const IndexRoute = IndexRouteImport.update({
 } as any)
 const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
   id: '/_authenticated',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AccesSuspenduRoute = AccesSuspenduRouteImport.update({
+  id: '/acces-suspendu',
+  path: '/acces-suspendu',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ConnexionRoute = ConnexionRouteImport.update({
@@ -111,6 +117,7 @@ const ApiPublicVideosIdRoute = ApiPublicVideosIdRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/acces-suspendu': typeof AccesSuspenduRoute
   '/connexion': typeof ConnexionRoute
   '/reinitialisation': typeof ReinitialisationRoute
   '/station': typeof StationRoute
@@ -127,6 +134,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/acces-suspendu': typeof AccesSuspenduRoute
   '/connexion': typeof ConnexionRoute
   '/reinitialisation': typeof ReinitialisationRoute
   '/station': typeof StationRoute
@@ -145,6 +153,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
+  '/acces-suspendu': typeof AccesSuspenduRoute
   '/connexion': typeof ConnexionRoute
   '/reinitialisation': typeof ReinitialisationRoute
   '/station': typeof StationRoute
@@ -164,6 +173,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/acces-suspendu'
     | '/connexion'
     | '/reinitialisation'
     | '/station'
@@ -180,6 +190,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/acces-suspendu'
     | '/connexion'
     | '/reinitialisation'
     | '/station'
@@ -197,6 +208,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/_authenticated'
+    | '/acces-suspendu'
     | '/connexion'
     | '/reinitialisation'
     | '/station'
@@ -216,6 +228,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
+  AccesSuspenduRoute: typeof AccesSuspenduRoute
   ConnexionRoute: typeof ConnexionRoute
   ReinitialisationRoute: typeof ReinitialisationRoute
   StationRoute: typeof StationRoute
@@ -239,6 +252,13 @@ declare module '@tanstack/react-router' {
       path: ''
       fullPath: '/'
       preLoaderRoute: typeof AuthenticatedRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/acces-suspendu': {
+      id: '/acces-suspendu'
+      path: '/acces-suspendu'
+      fullPath: '/acces-suspendu'
+      preLoaderRoute: typeof AccesSuspenduRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/connexion': {
@@ -390,6 +410,7 @@ const ApiPublicVideosRouteWithChildren = ApiPublicVideosRoute._addFileChildren(
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
+  AccesSuspenduRoute: AccesSuspenduRoute,
   ConnexionRoute: ConnexionRoute,
   ReinitialisationRoute: ReinitialisationRoute,
   StationRoute: StationRoute,
