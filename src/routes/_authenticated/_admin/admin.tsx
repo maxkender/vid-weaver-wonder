@@ -50,6 +50,7 @@ const SECTIONS = [
   { id: "accounts", label: "Comptes", icon: Layers },
   { id: "posters", label: "Posteurs", icon: Users },
   { id: "diffusion", label: "Diffusion", icon: Send },
+  { id: "videos", label: "Vidéos", icon: Film },
   { id: "content", label: "Réglages de contenu", icon: FileText },
   { id: "journal", label: "Journal", icon: ScrollText },
 ] as const;
