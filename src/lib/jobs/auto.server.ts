@@ -274,10 +274,18 @@ export async function autoProduce(): Promise<{ started?: string; reason?: string
 
   const timeZone = s.timezone ?? "Europe/Paris";
   const today = localDay(timeZone);
-  if (localHour(timeZone) !== (s.run_hour ?? 0)) return { reason: "hors de l'heure de production" };
-  if (s.last_run_at && localDay(timeZone, new Date(s.last_run_at)) === today) {
-    return { reason: "déjà lancée aujourd'hui" };
-  }
+  const runHour = s.run_hour ?? 0;
+  // ANTI-DOUBLON : uniquement l'horodatage DÉDIÉ aux vrais lancements. Une
+  // publication automatique plus tôt dans la journée n'empêche plus rien.
+  const decision = shouldProduceNow({
+    localHour: localHour(timeZone),
+    runHour,
+    today,
+    lastProduceDay: s.last_auto_produce_at
+      ? localDay(timeZone, new Date(s.last_auto_produce_at))
+      : null,
+  });
+  if (!decision.run) return { reason: decision.reason };
 
   // NE JAMAIS PRODUIRE DEUX FOIS LE MÊME JOUR : on vise la prochaine date qui
   // n'a ni vidéo ni production en cours.
