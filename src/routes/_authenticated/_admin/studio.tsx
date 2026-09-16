@@ -211,7 +211,7 @@ function UsageRecap({
   );
 }
 
-export const Route = createFileRoute("/_authenticated/_admin/")({
+export const Route = createFileRoute("/_authenticated/_admin/studio")({
   head: () => ({
     meta: [
       { title: "Studio CG — Générateur de vidéos de faits fascinants" },

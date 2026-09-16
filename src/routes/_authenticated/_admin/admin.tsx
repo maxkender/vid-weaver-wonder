@@ -23,7 +23,7 @@ import { AdminDiffusion } from "@/components/admin/diffusion";
 import { AdminContent } from "@/components/admin/content";
 import { AdminJournal } from "@/components/admin/journal";
 
-export const Route = createFileRoute("/_authenticated/admin")({
+export const Route = createFileRoute("/_authenticated/_admin/admin")({
   head: () => ({
     meta: [
       { title: "Administration — plateforme de diffusion" },
