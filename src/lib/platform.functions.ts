@@ -599,11 +599,18 @@ export const getVideoLink = createServerFn({ method: "POST" })
 
     const video = await context.supabase
       .from("daily_videos")
-      .select("id, storage_path, status")
+      .select("id, storage_path, status, publish_date")
       .eq("id", data.videoId)
       .maybeSingle();
     if (video.error) throw new Error(video.error.message);
     if (!video.data?.storage_path) throw new Error("Cette vidéo n'a pas encore de fichier.");
+
+    // Règle de sécurité : une journée à venir n'est jamais signée, même avec
+    // un identifiant deviné.
+    const today = await diffusionToday();
+    if (!isReleased(video.data.publish_date, today)) {
+      throw new Error("Cette vidéo sera disponible le jour de sa diffusion.");
+    }
 
     const db = await admin();
     const signed = await db.storage
