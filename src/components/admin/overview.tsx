@@ -44,8 +44,42 @@ export function AdminOverview() {
 
   const max = Math.max(1, ...data.series.map((s) => s.count));
 
+  const night = data.lastNight;
+  const nightLabel =
+    night.state === "ok"
+      ? "Dernière production : réussie"
+      : night.state === "partial"
+        ? "Dernière production : partielle"
+        : night.state === "failed"
+          ? "Dernière production : échouée"
+          : night.state === "running"
+            ? "Production en cours"
+            : "Aucune production depuis 36 h";
+  const nightTone =
+    night.state === "ok"
+      ? "border-primary/40 bg-primary/10 text-primary"
+      : night.state === "running"
+        ? "border-border bg-muted/40 text-foreground"
+        : night.state === "idle"
+          ? "border-border bg-muted/30 text-muted-foreground"
+          : "border-destructive/50 bg-destructive/10 text-destructive";
+
   return (
     <div className="space-y-4">
+      <div className={`surface-card border p-3 ${nightTone}`}>
+        <p className="text-sm font-medium">{nightLabel}</p>
+        <p className="mt-0.5 text-[11px] opacity-90">
+          {night.done} langue(s) terminée(s) · {night.failed} en échec · {night.running} en cours
+          {night.date ? ` · journée du ${night.date}` : ""}
+          {night.failedLanguages.length
+            ? ` · langues en échec : ${night.failedLanguages.join(", ").toUpperCase()}`
+            : ""}
+        </p>
+        {night.reason ? (
+          <p className="mt-0.5 text-[11px] opacity-90">Raison : {night.reason}</p>
+        ) : null}
+      </div>
+
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <Stat
           label="Posteurs actifs"
