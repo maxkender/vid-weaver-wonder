@@ -62,6 +62,9 @@ export async function translateNarration(
           target: perScene,
         })),
       },
+      undefined,
+      // Légende et hashtags demandés DANS ce même appel : aucun coût de plus.
+      true,
     ),
     JSON.stringify({
       title: script?.title ?? "",
@@ -75,8 +78,17 @@ export async function translateNarration(
   );
 
   const byIndex = new Map((res.scenes ?? []).map((s) => [s.index, s]));
+  const { buildSocialCopy: build } = { buildSocialCopy };
+  const social = build({
+    caption: res.caption,
+    hashtags: res.hashtags,
+    hook: scenes[0]?.narration ?? "",
+    language,
+  });
   return {
     title: res.title?.trim() || (script?.title ?? ""),
+    caption: social.caption,
+    hashtags: social.hashtags,
     scenes: scenes.map((s, i) => {
       const t = byIndex.get(s.index) ?? (res.scenes ?? [])[i];
       return {
