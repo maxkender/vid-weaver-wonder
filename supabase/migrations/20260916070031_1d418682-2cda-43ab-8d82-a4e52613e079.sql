@@ -1,0 +1,2 @@
+ALTER TABLE public.render_jobs ADD COLUMN IF NOT EXISTS auto_retries integer NOT NULL DEFAULT 0;
+ALTER TABLE public.distribution_settings ADD COLUMN IF NOT EXISTS auto_publish boolean NOT NULL DEFAULT true;

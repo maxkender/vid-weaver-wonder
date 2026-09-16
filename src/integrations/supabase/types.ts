@@ -232,6 +232,7 @@ export type Database = {
       distribution_settings: {
         Row: {
           auto_enabled: boolean
+          auto_publish: boolean
           created_at: string
           id: number
           languages: string[]
@@ -244,6 +245,7 @@ export type Database = {
         }
         Insert: {
           auto_enabled?: boolean
+          auto_publish?: boolean
           created_at?: string
           id?: number
           languages?: string[]
@@ -256,6 +258,7 @@ export type Database = {
         }
         Update: {
           auto_enabled?: boolean
+          auto_publish?: boolean
           created_at?: string
           id?: number
           languages?: string[]
@@ -506,6 +509,7 @@ export type Database = {
       render_jobs: {
         Row: {
           attempts: number
+          auto_retries: number
           callback_url: string | null
           client_id: string | null
           created_at: string
@@ -537,6 +541,7 @@ export type Database = {
         }
         Insert: {
           attempts?: number
+          auto_retries?: number
           callback_url?: string | null
           client_id?: string | null
           created_at?: string
@@ -568,6 +573,7 @@ export type Database = {
         }
         Update: {
           attempts?: number
+          auto_retries?: number
           callback_url?: string | null
           client_id?: string | null
           created_at?: string
@@ -747,6 +753,7 @@ export type Database = {
         Args: { lease_seconds?: number }
         Returns: {
           attempts: number
+          auto_retries: number
           callback_url: string | null
           client_id: string | null
           created_at: string
