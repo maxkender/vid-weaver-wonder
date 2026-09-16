@@ -253,6 +253,20 @@ export function scriptUserPrompt(kind: VideoKind, topic: string) {
 }
 
 /**
+ * LÉGENDE ET HASHTAGS de publication, demandés DANS le même appel de texte que
+ * le script ou la traduction : aucun appel payant supplémentaire.
+ */
+export function socialCopyBrief(langName: string) {
+  return [
+    `LÉGENDE ET HASHTAGS DE PUBLICATION, écrits en ${langName} comme un natif les écrirait (jamais du mot à mot).`,
+    "caption : 2 à 3 phrases MAXIMUM, assez courtes pour tenir sans « voir plus » sur Instagram. Elle raconte le fait surprenant ET pourquoi il est surprenant : une information vraie par phrase, zéro remplissage, vocabulaire simple, aucun emoji.",
+    "caption ne recopie JAMAIS l'accroche de la vidéo mot pour mot : quelqu'un qui a vu la vidéo doit y trouver quelque chose en plus.",
+    "caption se termine EXACTEMENT par cette phrase, sans rien y changer : « Télécharge Sophia pour en apprendre plus. » traduite dans la langue de sortie (en : « Download Sophia to learn more. » · es : « Descarga Sophia para aprender más. » · de : « Lade Sophia herunter, um mehr zu erfahren. » · it : « Scarica Sophia per saperne di più. »).",
+    "hashtags : exactement « culture » et « sophia » en premier (identiques dans toutes les langues), puis 3 à 5 hashtags propres au sujet DANS LA LANGUE DE SORTIE. Minuscules, sans accent, sans espace, sans ponctuation, sans le caractère #.",
+  ].join("\n");
+}
+
+/**
  * MASTER MULTILINGUE : les visuels sont fabriqués une seule fois et ne
  * contiennent aucun texte. Seule la partie parlée est traduite, scène par
  * scène, avec un plafond de mots pour tenir dans le clip déjà commandé.
