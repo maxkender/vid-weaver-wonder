@@ -564,7 +564,7 @@ export const listMyVideos = createServerFn({ method: "GET" })
     }
 
     return {
-      today: isoDay(new Date()),
+      today,
       accounts: rows.map((a) => ({
         id: a.id,
         language: a.language,
