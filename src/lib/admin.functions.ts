@@ -1126,13 +1126,10 @@ export const retryJob = createServerFn({ method: "POST" })
       narration?: string;
     }[];
 
-    let status = "queued";
-    if (!row.topic) status = "queued";
-    else if (!scenes.length) status = "scripting";
-    else if (scenes.some((s) => !s.imagePath)) status = "images";
-    else if (scenes.some((s) => (s.narration ?? "").trim() && !s.audioPath)) status = "voice";
-    else if (scenes.some((s) => !s.clipPath && !s.clipFailed)) status = "clips";
-    else status = "rendering";
+    // Même règle que la relance automatique : on reprend à la première étape
+    // non produite, rien de déjà payé n'est refait.
+    const { resumeStatusFor } = await import("@/lib/jobs/auto-rules");
+    const status = resumeStatusFor({ topic: row.topic, scenes });
 
     const { error: upErr } = await db
       .from("render_jobs")
