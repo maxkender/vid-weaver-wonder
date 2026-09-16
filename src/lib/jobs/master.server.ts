@@ -27,12 +27,20 @@ export async function translateNarration(
   scenes: JobScene[],
   language: string,
   targetSeconds: number,
-): Promise<{ title: string; scenes: { index: number; narration: string; overlay: string }[] }> {
+): Promise<{
+  title: string;
+  caption: string;
+  hashtags: string[];
+  scenes: { index: number; narration: string; overlay: string }[];
+}> {
   const { translationSystemPrompt } = await import("../prompts.server");
+  const { buildSocialCopy } = await import("../social-copy");
   const perScene = targetCharsPerShot(language, targetSeconds, scenes.length);
   const total = perScene * scenes.length;
   const res = await chatJSON<{
     title?: string;
+    caption?: string;
+    hashtags?: string[];
     scenes?: { index: number; narration?: string; overlay?: string }[];
   }>(
     "google/gemini-3.7-flash",
