@@ -54,6 +54,8 @@ export type Script = {
   factNote?: string;
 
   cta: string;
+  /** Légende de publication (2 à 3 phrases), dans la langue du script. */
+  caption?: string;
   hashtags: string[];
   /** Bible visuelle : personnages, palette et décors constants d'une scène à l'autre. */
   characters?: CharacterSheet[];
