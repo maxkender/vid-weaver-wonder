@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import {
   BarChart3,
   FileText,
+  Film,
   Layers,
   Lightbulb,
   Loader2,
@@ -20,6 +21,7 @@ import { AdminTopics } from "@/components/admin/topics";
 import { AdminAccounts } from "@/components/admin/accounts";
 import { AdminPosters } from "@/components/admin/posters";
 import { AdminDiffusion } from "@/components/admin/diffusion";
+import { AdminVideos } from "@/components/admin/videos";
 import { AdminContent } from "@/components/admin/content";
 import { AdminJournal } from "@/components/admin/journal";
 
@@ -49,6 +51,7 @@ const SECTIONS = [
   { id: "accounts", label: "Comptes", icon: Layers },
   { id: "posters", label: "Posteurs", icon: Users },
   { id: "diffusion", label: "Diffusion", icon: Send },
+  { id: "videos", label: "Vidéos", icon: Film },
   { id: "content", label: "Réglages de contenu", icon: FileText },
   { id: "journal", label: "Journal", icon: ScrollText },
 ] as const;
@@ -145,6 +148,7 @@ function AdminPage() {
             {section === "accounts" ? <AdminAccounts /> : null}
             {section === "posters" ? <AdminPosters /> : null}
             {section === "diffusion" ? <AdminDiffusion /> : null}
+            {section === "videos" ? <AdminVideos /> : null}
             {section === "content" ? <AdminContent /> : null}
             {section === "journal" ? <AdminJournal /> : null}
           </main>
