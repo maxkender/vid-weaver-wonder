@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as ConnexionRouteImport } from './routes/connexion'
 import { Route as ReinitialisationRouteImport } from './routes/reinitialisation'
@@ -25,6 +26,11 @@ import { Route as ApiPublicJobsRenderCallbackRouteImport } from './routes/api/pu
 import { Route as ApiPublicJobsTickRouteImport } from './routes/api/public/jobs/tick'
 import { Route as ApiPublicVideosIdRouteImport } from './routes/api/public/videos.$id'
 
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
   id: '/_authenticated',
   getParentRoute: () => rootRouteImport,
@@ -104,7 +110,7 @@ const ApiPublicVideosIdRoute = ApiPublicVideosIdRouteImport.update({
 } as any)
 
 export interface FileRoutesByFullPath {
-  '/': typeof AuthenticatedAdminRouteRouteWithChildren
+  '/': typeof IndexRoute
   '/connexion': typeof ConnexionRoute
   '/reinitialisation': typeof ReinitialisationRoute
   '/station': typeof StationRoute
@@ -120,7 +126,7 @@ export interface FileRoutesByFullPath {
   '/api/public/videos/$id': typeof ApiPublicVideosIdRoute
 }
 export interface FileRoutesByTo {
-  '/': typeof AuthenticatedAdminRouteRouteWithChildren
+  '/': typeof IndexRoute
   '/connexion': typeof ConnexionRoute
   '/reinitialisation': typeof ReinitialisationRoute
   '/station': typeof StationRoute
@@ -137,6 +143,7 @@ export interface FileRoutesByTo {
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
+  '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/connexion': typeof ConnexionRoute
   '/reinitialisation': typeof ReinitialisationRoute
@@ -188,6 +195,7 @@ export interface FileRouteTypes {
     | '/api/public/videos/$id'
   id:
     | '__root__'
+    | '/'
     | '/_authenticated'
     | '/connexion'
     | '/reinitialisation'
@@ -206,6 +214,7 @@ export interface FileRouteTypes {
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
+  IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   ConnexionRoute: typeof ConnexionRoute
   ReinitialisationRoute: typeof ReinitialisationRoute
@@ -218,6 +227,13 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authenticated': {
       id: '/_authenticated'
       path: ''
@@ -372,6 +388,7 @@ const ApiPublicVideosRouteWithChildren = ApiPublicVideosRoute._addFileChildren(
 )
 
 const rootRouteChildren: RootRouteChildren = {
+  IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   ConnexionRoute: ConnexionRoute,
   ReinitialisationRoute: ReinitialisationRoute,
