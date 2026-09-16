@@ -105,12 +105,15 @@ export async function patchJobIfStatus(
 ): Promise<boolean> {
   const db = await admin();
   const expected = Array.isArray(expectedStatus) ? expectedStatus : [expectedStatus];
-  const { data } = await db
+  const { data, error } = await db
     .from("render_jobs")
     .update(patch)
     .eq("id", jobId)
     .in("status", expected)
     .select("id");
+  // Une écriture refusée par la base (colonne inconnue, contrainte) ne doit
+  // jamais être confondue avec « le travail est déjà final ».
+  if (error) throw new Error(`Écriture du travail impossible : ${error.message}`);
   return ((data ?? []) as unknown[]).length > 0;
 }
 

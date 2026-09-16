@@ -47,6 +47,12 @@ export const Route = createFileRoute("/api/public/jobs/render-callback")({
         // RAPPEL IDEMPOTENT : un travail déjà terminé n'est jamais réécrit, et
         // la vidéo du jour n'est pas retouchée par un rappel en double.
         if (job.status === "done" || job.status === "cancelled") {
+          await logEvent(
+            job.id,
+            "callback",
+            `Rappel ignoré : travail déjà « ${job.status} »`,
+            "warn",
+          );
           return Response.json({ ok: true, ignored: job.status });
         }
 
@@ -72,18 +78,29 @@ export const Route = createFileRoute("/api/public/jobs/render-callback")({
               await res.arrayBuffer(),
               "video/mp4",
             );
-            // Finalisation conditionnée : seul un travail encore en attente de
-            // rendu peut passer en « done ». Un rappel en double ne fait rien.
-            const won = await patchJobIfStatus(job.id, ["rendering", "failed"], {
-              status: "done",
-              step: "done",
-              progress: 1,
-              video_path: path,
-              video_duration: body.durationSec ?? null,
-              error: null,
-              lease_until: null,
-            });
-            if (!won) return Response.json({ ok: true, ignored: "already-final" });
+            // Règle unique : tout travail qui n'est pas déjà terminé ou annulé
+            // est finalisé par un rappel valide. Aucun autre critère ne bloque.
+            const won = await patchJobIfStatus(
+              job.id,
+              ["queued", "scripting", "images", "voice", "clips", "rendering", "failed"],
+              {
+                status: "done",
+                step: "done",
+                progress: 1,
+                video_path: path,
+                error: null,
+                lease_until: null,
+              },
+            );
+            if (!won) {
+              await logEvent(
+                job.id,
+                "callback",
+                "Rappel refusé : le travail est passé à un état final pendant le traitement",
+                "warn",
+              );
+              return Response.json({ ok: true, ignored: "already-final" });
+            }
             await logEvent(job.id, "done", "Vidéo finale disponible");
 
             // La vidéo rejoint la diffusion du jour dans sa langue, en brouillon :
