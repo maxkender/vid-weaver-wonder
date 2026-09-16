@@ -1,0 +1,1 @@
+ALTER TABLE public.render_jobs ADD COLUMN IF NOT EXISTS caption text, ADD COLUMN IF NOT EXISTS hashtags text[] NOT NULL DEFAULT '{}'::text[];
