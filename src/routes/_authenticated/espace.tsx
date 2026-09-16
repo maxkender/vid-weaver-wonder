@@ -783,7 +783,10 @@ function TodayVideo({ video, onChange }: { video: DailyVideo; onChange: () => Pr
     }
   };
 
-  const hashtags = video.hashtags.join(" ");
+  // Le « # » est ajouté à l'affichage : il n'est jamais stocké.
+  const hashtags = video.hashtags
+    .map((h) => `#${h.replace(/^#+/, "")}`)
+    .join(" ");
 
   return (
     <div className="rounded-xl border border-border bg-card p-4">
