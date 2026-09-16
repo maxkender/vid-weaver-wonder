@@ -256,6 +256,14 @@ export function AdminDiffusion() {
             />
             Production automatique activée
           </label>
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={settings?.auto_publish !== false}
+              onChange={(e) => void patchSettings({ data: { autoPublish: e.target.checked } } as never)}
+            />
+            Publier automatiquement la journée
+          </label>
           <div>
             <p className="label-x">Heure de production (Paris)</p>
             <select

@@ -64,12 +64,35 @@ export const Route = createFileRoute("/api/public/jobs/render-callback")({
             lease_until: null,
           });
         } else {
-          const res = await fetch(body.videoUrl);
-          if (!res.ok) {
+          // Le rendu est PAYÉ et RÉUSSI : un hoquet réseau ne doit pas le
+          // perdre. Trois tentatives, attentes croissantes.
+          let res: Response | null = null;
+          let lastError = "";
+          for (const wait of [0, 2_000, 8_000]) {
+            if (wait) await new Promise((r) => setTimeout(r, wait));
+            try {
+              const attempt = await fetch(body.videoUrl);
+              if (attempt.ok) {
+                res = attempt;
+                break;
+              }
+              lastError = `HTTP ${attempt.status}`;
+            } catch (e) {
+              lastError = e instanceof Error ? e.message : String(e);
+            }
+          }
+          if (!res) {
+            // Échec marqué : la relance automatique le reprendra à l'étape rendu.
+            await logEvent(
+              job.id,
+              "callback",
+              `Téléchargement du MP4 impossible après 3 tentatives (${lastError})`,
+              "error",
+            );
             await patchJob(job.id, {
               status: "failed",
               step: "failed",
-              error: `téléchargement du MP4 impossible (${res.status})`,
+              error: `téléchargement du MP4 impossible (${lastError})`,
               lease_until: null,
             });
           } else {
