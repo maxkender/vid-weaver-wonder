@@ -1138,9 +1138,11 @@ export const retryJob = createServerFn({ method: "POST" })
         step: status,
         error: null,
         lease_until: null,
-        // Relance manuelle : le compteur d'envois au service de rendu repart à zéro.
+        // Relance manuelle : compteurs d'envoi ET de relances automatiques
+        // remis à zéro (le travail redevient éligible au pilote automatique).
         rendering_sent_at: null,
         rendering_sends: 0,
+        auto_retries: 0,
       })
       .eq("id", data.id);
     if (upErr) throw new Error(upErr.message);
