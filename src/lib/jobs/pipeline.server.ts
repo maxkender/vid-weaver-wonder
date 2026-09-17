@@ -141,9 +141,10 @@ async function stepScript(job: RenderJob) {
         "warn",
       );
     } else {
-      // Persisté AVANT l'appel IA : si la fonction est tuée pendant l'appel,
-      // le compteur a quand même avancé (pas de tentatives infinies).
-      await patchJob(job.id, { script: { ...script, v2StoryboardTries: tries + 1 } });
+      // Sur l'objet script (pas une copie) : le patchJob final réécrit `script`
+      // avec la palette, il doit conserver le compteur.
+      script.v2StoryboardTries = tries + 1;
+      await patchJob(job.id, { script });
       const { storyboardV2 } = await import("./storyboard-v2.server");
       scenes = await storyboardV2(job, script, scenes);
     }
