@@ -17,15 +17,30 @@ export const CAPTION_SIZE_RATIO = 0.081;
 /** Largeur maximale d'une ligne, relative au côté du carré. */
 export const CAPTION_MAX_WIDTH_RATIO = 0.86 / 0.88;
 
+/**
+ * Réglages de géométrie optionnels, portés par le manifeste. Absents, les
+ * constantes ci-dessus s'appliquent : un manifeste d'avant reste rendu à
+ * l'identique.
+ */
+export function resolveGeometry(overrides = {}) {
+  const margin = Number(overrides.squareMarginRatio);
+  const offset = Number(overrides.squareCenterOffsetRatio);
+  return {
+    marginRatio: Number.isFinite(margin) && margin >= 0 && margin < 0.4 ? margin : SQUARE_MARGIN_RATIO,
+    centerOffsetRatio:
+      Number.isFinite(offset) && Math.abs(offset) < 0.3 ? offset : SQUARE_CENTER_OFFSET_RATIO,
+  };
+}
+
 /** Côté de la fenêtre carrée centrée dans un cadre width × height. */
-export function squareSide(width, height) {
-  return Math.round(Math.min(width * (1 - 2 * SQUARE_MARGIN_RATIO), height));
+export function squareSide(width, height, geometry = resolveGeometry()) {
+  return Math.round(Math.min(width * (1 - 2 * geometry.marginRatio), height));
 }
 
 /** Position du carré centré. */
-export function squareBox(width, height) {
-  const side = squareSide(width, height);
-  const centerY = height * (0.5 + SQUARE_CENTER_OFFSET_RATIO);
+export function squareBox(width, height, geometry = resolveGeometry()) {
+  const side = squareSide(width, height, geometry);
+  const centerY = height * (0.5 + geometry.centerOffsetRatio);
   return {
     side,
     x: Math.round((width - side) / 2),

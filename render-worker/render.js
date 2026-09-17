@@ -15,6 +15,7 @@ import { join } from "node:path";
 
 import { buildAss, shiftTimings, smoothTimings, voiceWindow } from "./captions.js";
 import { buildMaskPng } from "./mask.js";
+import { resolveGeometry, squareBox } from "./geometry.js";
 
 const FONT_FILE = process.env.CAPTION_FONT_FILE ?? "/usr/share/fonts/truetype/poppins/Poppins-ExtraBold.ttf";
 const FONT_NAME = process.env.CAPTION_FONT_NAME ?? "Poppins";
@@ -147,7 +148,13 @@ async function renderScene(scene, dir, opts) {
       `d=${Math.max(1, Math.ceil(outDur * OUTPUT_FPS))}:s=${width}x${height}:fps=${OUTPUT_FPS},setsar=1,fps=${OUTPUT_FPS}${pad}`
     : `${base}${stretch > 1.001 ? `,setpts=PTS*${stretch.toFixed(4)}` : ""},fps=${OUTPUT_FPS}${pad}`;
 
-  const chain = [`[0:v]${vf}[base]`];
+  // Fenêtre carrée personnalisée (manifeste) : le plan entier est réduit à la
+  // largeur de la fenêtre et recentré sur elle, pour qu'aucun bord de l'image
+  // ne soit mangé par le masque. Sans réglage, rien ne change.
+  const fit = opts.fitToWindow
+    ? `,scale=${opts.fitToWindow.side}:-2,pad=${width}:${height}:(ow-iw)/2:${opts.fitToWindow.top}:black,setsar=1`
+    : "";
+  const chain = [`[0:v]${vf}${fit}[base]`];
   let last = "base";
   let nextInput = 2;
 
@@ -165,7 +172,7 @@ async function renderScene(scene, dir, opts) {
   if (tempo > 1.001) {
     groups = groups.map((g) => ({ word: g.word, start: g.start / tempo, end: g.end / tempo }));
   }
-  const ass = buildAss(groups, { width, height, fontName: FONT_NAME });
+  const ass = buildAss(groups, { width, height, fontName: FONT_NAME, geometry: opts.geometry });
   if (ass) {
     const assName = `subs-${i}.ass`;
     await writeFile(join(dir, assName), ass, "utf8");
@@ -220,8 +227,18 @@ export async function renderJob(manifest) {
     const height = manifest.height ?? 1920;
     const squareMask = Boolean(manifest.squareMask);
     const maskName = "mask.png";
-    if (squareMask) await writeFile(join(dir, maskName), buildMaskPng(width, height));
-    const opts = { width, height, squareMask, maskName };
+    // Géométrie : constantes historiques sauf si le manifeste en porte une autre.
+    const customGeometry =
+      manifest.squareMarginRatio !== undefined || manifest.squareCenterOffsetRatio !== undefined;
+    const geometry = resolveGeometry(manifest);
+    if (squareMask) await writeFile(join(dir, maskName), buildMaskPng(width, height, geometry));
+    let fitToWindow = null;
+    if (squareMask && customGeometry) {
+      const box = squareBox(width, height, geometry);
+      const scaledHeight = Math.round((height * box.side) / width);
+      fitToWindow = { side: box.side, top: Math.round(box.centerY - scaledHeight / 2) };
+    }
+    const opts = { width, height, squareMask, maskName, geometry, fitToWindow };
 
     const parts = [];
     let duration = 0;
@@ -232,6 +249,9 @@ export async function renderJob(manifest) {
     }
 
     await writeFile(join(dir, "list.txt"), parts.map((p) => `file '${p}'`).join("\n"));
+    // Sonie cible : -16 LUFS par défaut (inchangé), réglable par le manifeste.
+    const requested = Number(manifest.loudnessTarget);
+    const loudnessTarget = Number.isFinite(requested) && requested <= -8 && requested >= -30 ? requested : -16;
     // TOUJOURS ré-encoder : la copie de flux laisse des trous et une dérive audio.
     await run(
       [
@@ -239,7 +259,7 @@ export async function renderJob(manifest) {
         "-vf", `fps=${OUTPUT_FPS},scale=${width}:${height},setsar=1,format=yuv420p`,
         // Normalisation de sonie de la voix : toutes les langues au même niveau
         // perçu, pour que la musique soit toujours posée pareil en dessous.
-        "-af", "loudnorm=I=-16:TP=-1.5:LRA=11",
+        "-af", `loudnorm=I=${loudnessTarget}:TP=-1.5:LRA=11`,
         "-r", String(OUTPUT_FPS),
         "-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-pix_fmt", "yuv420p",
         "-c:a", "aac", "-b:a", "128k", "-ar", "44100", "-ac", "2",
