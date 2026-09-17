@@ -123,6 +123,35 @@ async function stepTopic(job: RenderJob) {
 async function stepScript(job: RenderJob) {
   const { buildScript } = await import("../script-core.server");
   const isV2 = job.visual_style === "papercraft_v2";
+
+  // ---- v2 : PASSAGE 2 — le script est déjà écrit, on ne fait que le storyboard.
+  if (isV2 && job.script && job.scenes?.length) {
+    const script = job.script as Script;
+    let scenes: JobScene[] = job.scenes;
+    // Garde-fou : après trop de tentatives, on ne repaie plus le storyboard
+    // et on garde les plans v1 tels quels — le job n'échoue jamais ici.
+    if (job.step === "storyboard" && (job.attempts ?? 0) > 8) {
+      await logEvent(
+        job.id,
+        "script",
+        "Storyboard v2 abandonné après plusieurs essais : plans v1 conservés",
+        "warn",
+      );
+    } else {
+      const { storyboardV2 } = await import("./storyboard-v2.server");
+      scenes = await storyboardV2(job, script, scenes);
+    }
+    await patchJob(job.id, {
+      script,
+      scenes,
+      status: "images",
+      step: "images",
+      progress: 0.15,
+    });
+    await logEvent(job.id, "script", `${scenes.length} plans — ${script.title ?? ""}`);
+    return;
+  }
+
   // Le script source est calibré pour TOUTES les langues de la production :
   // c'est ce qui permet de n'écrire qu'une fois et de ne traduire ensuite.
   const productionLanguages = [
@@ -148,12 +177,36 @@ async function stepScript(job: RenderJob) {
     videoPrompt: s.videoPrompt ?? s.imagePrompt ?? "",
   }));
   if (!scenes.length) throw new Error("Script vide.");
+
+  // ---- v2 : PASSAGE 1 — on persiste le script tout de suite, le storyboard
+  // viendra au prochain passage. Si la plateforme tue la fonction, rien n'est
+  // perdu : le script et la légende sont déjà en base.
   if (isV2) {
-    const { storyboardV2 } = await import("./storyboard-v2.server");
-    scenes = await storyboardV2(job, script, scenes);
+    const { buildSocialCopy } = await import("../social-copy");
+    const social = buildSocialCopy({
+      caption: (script as { caption?: string }).caption,
+      hashtags: script.hashtags,
+      hook: script.hook || scenes[0]?.narration || "",
+      language: job.language,
+    });
+    await patchJob(job.id, {
+      script,
+      scenes,
+      caption: social.caption,
+      hashtags: social.hashtags,
+      status: "scripting",
+      step: "storyboard",
+      progress: 0.1,
+    });
+    await logEvent(
+      job.id,
+      "script",
+      `Script écrit (${scenes.length} scènes) — storyboard au prochain passage`,
+    );
+    return;
   }
-  // Légende et hashtags : issus du même appel de texte que le script, jamais
-  // d'un appel dédié. Un repli garantit qu'ils ne sont jamais vides.
+
+  // ---- v1 : comportement historique, inchangé (un seul passage).
   const { buildSocialCopy } = await import("../social-copy");
   const social = buildSocialCopy({
     caption: (script as { caption?: string }).caption,
