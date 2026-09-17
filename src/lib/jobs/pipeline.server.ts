@@ -172,7 +172,8 @@ async function stepScript(job: RenderJob) {
     sceneCount: isV2 ? 6 : 5,
     targetSeconds: job.duration_sec,
     language: job.language,
-    includeCta: job.include_cta !== false,
+    // Papier v2 : jamais de plan CTA (choix client), quel que soit le réglage du job.
+    includeCta: isV2 ? false : job.include_cta !== false,
     productionLanguages,
     extraBrief: isV2 ? V2_WRITING_BRIEF : undefined,
   });
