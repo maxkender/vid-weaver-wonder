@@ -137,7 +137,7 @@ const escapeAss = (t) => t.replace(/\\/g, "\\\\").replace(/\{/g, "(").replace(/\
 export function buildAss(groups, { width, height, fontName = "Poppins", geometry }) {
   if (!groups?.length) return null;
   const { side, centerY } = squareBox(width, height, geometry);
-  const baseSize = Math.round(side * CAPTION_SIZE_RATIO);
+  const baseSize = Math.round(side * CAPTION_SIZE_RATIO * (geometry?.captionScale ?? 1));
   const maxWidth = side * CAPTION_MAX_WIDTH_RATIO;
   // Contour : le navigateur trace un lineWidth centré, donc la moitié déborde.
   const outline = Math.max(2, Math.round(Math.max(4, baseSize * 0.06) / 2));
