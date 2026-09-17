@@ -225,8 +225,8 @@ export function scriptSystemPrompt(
       : "AUCUNE PUBLICITÉ : le champ cta doit rester une chaîne VIDE. Le script ne mentionne JAMAIS Sophia, une application, un téléchargement, un abonnement ou un appel à l'action. Il se termine sur sa phrase de chute.",
     "hookOptions contient TROIS accroches candidates (douze mots maximum chacune). hookScores contient TROIS lignes, une par candidate, qui la notent sur les six conditions (conditions remplies / conditions manquées). hook contient celle que tu retiens, recopiée telle quelle dans la narration de la scène 1. hookChoice explique ton choix en UNE ligne.",
     socialCopyBrief(langName),
-    ...(extraBrief?.trim() ? ["", `RÈGLE N°1 QUATER — PLANS :\n${extraBrief.trim()}`] : []),
     'Réponds uniquement en JSON: {"title":string,"hook":string,"hookOptions":string[],"hookScores":string[],"hookChoice":string,"characters":[{"name":string,"description":string}],"palette":string,"scenes":[{"index":number,"narration":string,"overlay":string,"imagePrompt":string,"videoPrompt":string}],"cta":string,"caption":string,"hashtags":string[]}',
+    ...(extraBrief?.trim() ? ["", `RÈGLE N°1 QUATER — PLANS :\n${extraBrief.trim()}`] : []),
   ].join("\n");
 }
 
