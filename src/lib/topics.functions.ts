@@ -222,19 +222,21 @@ export const proposeTopicBatch = createServerFn({ method: "POST" })
       .limit(200);
     const avoid = ((existing ?? []) as { topic: string }[]).map((r) => r.topic);
 
-    const res = await chatJSON<{ topics: { topic: string; angle: string; lever: string }[] }>(
+    const res = await chatJSON<{
+      topics: { topic: string; angle: string; lever: string; category: string }[];
+    }>(
       "google/gemini-3.7-flash",
       [
         "Tu proposes des sujets de vidéos courtes de culture générale pour TikTok, en français.",
         TOPIC_BRIEF[data.narrationStyle],
         TOPIC_INTRIGUE,
         TOPIC_VIRAL,
-        `Propose exactement ${data.count} sujets DIFFÉRENTS, répartis sur les TROIS familles validées (questions du quotidien, grands épisodes d'histoire connus de tous, mythes et fictions connus de tous).`,
+        `Propose exactement ${data.count} sujets DIFFÉRENTS : au moins la moitié dans les familles TOI et LE VERTIGE, le reste réparti sur les trois autres familles validées.`,
         "Chaque sujet est formulé comme la première phrase de la vidéo : une seule phrase de 8 à 20 mots, mots du quotidien.",
         "RÈGLE ÉLIMINATOIRE : le spectateur doit avoir DÉJÀ EU LA QUESTION EN TÊTE et croire connaître la réponse. Pour chaque sujet, tu nommes dans « lever » la RÉPONSE COMMUNE que le spectateur a dans la tête et que la vidéo va lui retirer. Si tu ne peux pas la nommer, change de sujet.",
         "Évite les sujets ultra rebattus traités mille fois à l'identique (pyramides, Mozart enfant prodige, Grande Muraille visible de l'espace, Einstein mauvais élève).",
         "CHAQUE sujet doit avoir de quoi DÉROULER 60 secondes : un mécanisme en plusieurs étapes. Avant de retenir un sujet, écris mentalement ses trois étapes de déroulé ; si tu n'en trouves pas trois qui apportent chacune une information nouvelle, remplace-le.",
-        'Réponds uniquement en JSON: {"topics": [{"topic": string, "angle": string (la vraie explication en une phrase), "lever": string (la réponse commune fausse ou incomplète que la vidéo retire)}]}',
+        'Réponds uniquement en JSON: {"topics": [{"topic": string, "angle": string (la vraie explication en une phrase), "lever": string (la réponse commune fausse ou incomplète que la vidéo retire), "category": "psycho" | "vertige" | "science" | "episodes" | "mythes" (psycho pour la famille TOI, vertige pour LE VERTIGE, science pour les questions du quotidien, episodes pour l\'histoire, mythes pour les mythes et fictions)}]}',
 
       ].join("\n"),
       avoid.length
@@ -251,6 +253,9 @@ export const proposeTopicBatch = createServerFn({ method: "POST" })
         topic: String(t.topic ?? "").trim(),
         angle: String(t.angle ?? "").trim(),
         lever: String(t.lever ?? "").trim(),
+        category: ["psycho", "vertige", "science", "episodes", "mythes"].includes(t.category)
+          ? t.category
+          : "aleatoire",
       }))
       .filter((t) => {
         const key = t.topic.toLowerCase();
@@ -272,7 +277,7 @@ export const proposeTopicBatch = createServerFn({ method: "POST" })
         topic: t.topic,
         angle: [t.angle, t.lever ? `Levier : ${t.lever}` : ""].filter(Boolean).join(" — "),
         narration_style: data.narrationStyle,
-        category: "aleatoire",
+        category: t.category,
         status: "propose",
         position: position++,
       })),
