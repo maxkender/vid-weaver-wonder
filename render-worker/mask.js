@@ -73,11 +73,11 @@ function inside(px, py, box) {
 const cache = new Map();
 
 /** PNG du masque : noir opaque hors du carré, transparent dedans. */
-export function buildMaskPng(width, height) {
-  const key = `${width}x${height}`;
+export function buildMaskPng(width, height, geometry) {
+  const box = squareBox(width, height, geometry);
+  const key = `${width}x${height}:${box.side}:${box.y}`;
   const hit = cache.get(key);
   if (hit) return hit;
-  const box = squareBox(width, height);
   const rgba = Buffer.alloc(width * height * 4);
   for (let py = 0; py < height; py++) {
     for (let px = 0; px < width; px++) {

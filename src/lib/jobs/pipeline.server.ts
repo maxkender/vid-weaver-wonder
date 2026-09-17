@@ -462,6 +462,7 @@ async function stepRender(job: RenderJob, origin: string) {
     callbackUrl: `${origin}/api/public/jobs/render-callback`,
     scenes,
     ...(music ? { musicUrl: music.url, musicVolume: 0.22, ...(music.gainDb !== null ? { musicGainDb: music.gainDb } : {}) } : {}),
+    ...(job.visual_style === "papercraft_v2" ? { squareMarginRatio: 0.07, squareCenterOffsetRatio: 0, loudnessTarget: -14 } : {}),
   });
 
   const res = await fetch(`${url.replace(/\/$/, "")}/render`, {

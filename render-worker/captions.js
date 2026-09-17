@@ -134,9 +134,9 @@ const escapeAss = (t) => t.replace(/\\/g, "\\\\").replace(/\{/g, "(").replace(/\
  * Fichier ASS complet pour un plan. Renvoie null si aucun mot.
  * `fontName` doit être installée dans le conteneur (Poppins ExtraBold).
  */
-export function buildAss(groups, { width, height, fontName = "Poppins" }) {
+export function buildAss(groups, { width, height, fontName = "Poppins", geometry }) {
   if (!groups?.length) return null;
-  const { side, centerY } = squareBox(width, height);
+  const { side, centerY } = squareBox(width, height, geometry);
   const baseSize = Math.round(side * CAPTION_SIZE_RATIO);
   const maxWidth = side * CAPTION_MAX_WIDTH_RATIO;
   // Contour : le navigateur trace un lineWidth centré, donc la moitié déborde.
