@@ -6,6 +6,18 @@ export const TOPIC_CATEGORIES = [
     brief: "",
   },
   {
+    id: "psycho",
+    label: "Toi : cerveau, corps, émotions",
+    brief:
+      "ce qui se passe dans le corps et la tête du spectateur sans qu'il le sache (mémoire, décisions, douleur, émotions, sommeil, perception), avec une expérience scientifique précise à dérouler",
+  },
+  {
+    id: "vertige",
+    label: "Vertige : conscience, mort, temps, univers",
+    brief:
+      "une idée qu'on ne peut plus désapprendre sur la conscience, la mort, le temps ou l'univers, expliquée simplement avec un mécanisme ou une mesure réelle",
+  },
+  {
     id: "histoire",
     label: "Grande question d'histoire",
     brief:
