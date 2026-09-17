@@ -24,7 +24,7 @@ import {
   DEFAULT_OPENING_MOTION,
   DEFAULT_QUALITY,
   DEFAULT_VISUAL_BRIEF,
-  V2_SHOT_BRIEF,
+  V2_WRITING_BRIEF,
 } from "../style-presets";
 import type { VisualStyleId } from "../style-presets";
 import {
@@ -133,14 +133,14 @@ async function stepScript(job: RenderJob) {
     topic: job.topic ?? "",
     kind: "culture",
     style: job.narration_style as "revelation",
-    sceneCount: isV2 ? 16 : 5,
+    sceneCount: isV2 ? 6 : 5,
     targetSeconds: job.duration_sec,
     language: job.language,
     includeCta: job.include_cta !== false,
     productionLanguages,
-    extraBrief: isV2 ? V2_SHOT_BRIEF : undefined,
+    extraBrief: isV2 ? V2_WRITING_BRIEF : undefined,
   });
-  const scenes: JobScene[] = (script.scenes ?? []).map((s, i) => ({
+  let scenes: JobScene[] = (script.scenes ?? []).map((s, i) => ({
     index: i,
     narration: s.narration ?? "",
     overlay: s.overlay ?? "",
@@ -148,6 +148,10 @@ async function stepScript(job: RenderJob) {
     videoPrompt: s.videoPrompt ?? s.imagePrompt ?? "",
   }));
   if (!scenes.length) throw new Error("Script vide.");
+  if (isV2) {
+    const { storyboardV2 } = await import("./storyboard-v2.server");
+    scenes = await storyboardV2(job, script, scenes);
+  }
   // Légende et hashtags : issus du même appel de texte que le script, jamais
   // d'un appel dédié. Un repli garantit qu'ils ne sont jamais vides.
   const { buildSocialCopy } = await import("../social-copy");
