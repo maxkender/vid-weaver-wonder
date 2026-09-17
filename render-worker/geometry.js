@@ -25,10 +25,12 @@ export const CAPTION_MAX_WIDTH_RATIO = 0.86 / 0.88;
 export function resolveGeometry(overrides = {}) {
   const margin = Number(overrides.squareMarginRatio);
   const offset = Number(overrides.squareCenterOffsetRatio);
+  const scale = Number(overrides.captionScale);
   return {
     marginRatio: Number.isFinite(margin) && margin >= 0 && margin < 0.4 ? margin : SQUARE_MARGIN_RATIO,
     centerOffsetRatio:
       Number.isFinite(offset) && Math.abs(offset) < 0.3 ? offset : SQUARE_CENTER_OFFSET_RATIO,
+    captionScale: Number.isFinite(scale) && scale >= 0.5 && scale <= 2 ? scale : 1,
   };
 }
 
