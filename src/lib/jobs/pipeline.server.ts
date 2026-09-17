@@ -133,7 +133,7 @@ async function stepScript(job: RenderJob) {
     topic: job.topic ?? "",
     kind: "culture",
     style: job.narration_style as "revelation",
-    sceneCount: isV2 ? 14 : 5,
+    sceneCount: isV2 ? 16 : 5,
     targetSeconds: job.duration_sec,
     language: job.language,
     includeCta: job.include_cta !== false,
