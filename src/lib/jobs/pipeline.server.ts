@@ -89,11 +89,6 @@ function isPapercraftSquare(visual: string) {
   return visual === "papercraft" || visual === "papercraft_v2";
 }
 
-function v2HeroClipIndexes(total: number) {
-  const last = Math.max(0, total - 1);
-  return new Set([0, ...Array.from({ length: 5 }, (_, i) => Math.round(((i + 1) * last) / 5))]);
-}
-
 // ---------------------------------------------------------------- étape 1
 
 async function stepTopic(job: RenderJob) {
