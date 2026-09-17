@@ -171,15 +171,36 @@ export const Route = createFileRoute("/api/public/jobs/render-callback")({
               // réécrite.
               const { data: current } = await db
                 .from("daily_videos")
-                .select("caption, hashtags")
+                .select("caption, hashtags, render_id")
                 .eq("publish_date", publishDate)
                 .eq("language", job.language)
                 .maybeSingle();
               const existing = current as
-                | { caption?: string | null; hashtags?: string[] | null }
+                | {
+                    caption?: string | null;
+                    hashtags?: string[] | null;
+                    render_id?: string | null;
+                  }
                 | null;
               const keepCaption = (existing?.caption ?? "").trim();
               const keepTags = existing?.hashtags ?? [];
+
+              // Garde anti-écrasement : un rendu SANS date de diffusion
+              // (test studio, renvoi manuel) ne remplace jamais la vidéo
+              // d'une journée déjà occupée par un autre rendu. Les jobs de
+              // nuit, qui portent toujours une date, ne sont pas concernés.
+              if (
+                !job.publish_date &&
+                existing?.render_id &&
+                existing.render_id !== job.id
+              ) {
+                await logEvent(
+                  job.id,
+                  "done",
+                  "Vidéo hors diffusion : la journée a déjà sa vidéo, rien n'a été remplacé",
+                );
+                return Response.json({ ok: true });
+              }
 
               await db.from("daily_videos").upsert(
                 {
