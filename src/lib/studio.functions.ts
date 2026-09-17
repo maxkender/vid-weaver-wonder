@@ -23,7 +23,7 @@ import { TOPIC_CATEGORIES, TOPIC_CATEGORY_IDS } from "./topic-categories";
 import { LANGUAGE_IDS, languageName } from "./languages";
 
 
-const visualEnum = z.enum(["papercraft", "cinematique", "documentaire", "retro"]);
+const visualEnum = z.enum(["papercraft", "papercraft_v2", "cinematique", "documentaire", "retro"]);
 
 export const generateScript = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) =>

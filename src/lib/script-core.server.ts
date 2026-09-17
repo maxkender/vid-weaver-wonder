@@ -63,6 +63,8 @@ export type BuildScriptInput = {
   structureBrief?: string | undefined;
   /** Relecture finale « à quelle seconde je scrolle ? » (page Paramètres). */
   auditBrief?: string | undefined;
+  /** Règle de plans ajoutée uniquement quand un style expérimental la demande. */
+  extraBrief?: string | undefined;
 };
 
 /**
@@ -153,6 +155,7 @@ export async function buildScript(data: BuildScriptInput): Promise<Script> {
       data.languageBrief,
       data.hookBrief,
       data.structureBrief,
+      data.extraBrief,
     ),
     `${scriptUserPrompt(data.kind, data.topic)}\nÉcris tout le script en ${langName}.`,
     ),

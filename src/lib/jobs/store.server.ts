@@ -27,6 +27,8 @@ export type JobScene = {
   /** Job vidéo du gateway en cours (reprise sans repayer). */
   clipJobId?: string;
   clipFailed?: boolean;
+  /** Plan volontairement rendu en image fixe (utilisé par les styles qui limitent les clips). */
+  motion?: "still";
   words?: { word: string; start: number; end: number }[];
   audioDuration?: number;
 };

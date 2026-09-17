@@ -269,7 +269,7 @@ type NarrationStyle =
   | "storytelling"
   | "listicle"
   | "mecanique";
-type VisualStyle = "papercraft" | "cinematique" | "documentaire" | "retro";
+type VisualStyle = "papercraft" | "papercraft_v2" | "cinematique" | "documentaire" | "retro";
 
 type Scene = {
   index: number;
@@ -424,6 +424,7 @@ const STYLES: { id: NarrationStyle; label: string; hint: string }[] = [
 
 const VISUALS: { id: VisualStyle; label: string }[] = [
   { id: "papercraft", label: "Papier découpé" },
+  { id: "papercraft_v2", label: "Papier découpé v2 (test)" },
   { id: "cinematique", label: "Cinématique" },
   { id: "documentaire", label: "Documentaire" },
   { id: "retro", label: "Rétro 70s" },

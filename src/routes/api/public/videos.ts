@@ -19,7 +19,7 @@ const NARRATION = [
   "listicle",
   "mecanique",
 ] as const;
-const VISUAL = ["papercraft", "cinematique", "documentaire", "retro"] as const;
+const VISUAL = ["papercraft", "papercraft_v2", "cinematique", "documentaire", "retro"] as const;
 
 const bodySchema = z.object({
   posterId: z.string().min(1).max(120),

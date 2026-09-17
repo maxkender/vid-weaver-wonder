@@ -9,7 +9,7 @@ export type NarrationStyleId =
   | "storytelling"
   | "listicle"
   | "mecanique";
-export type VisualStyleId = "papercraft" | "cinematique" | "documentaire" | "retro";
+export type VisualStyleId = "papercraft" | "papercraft_v2" | "cinematique" | "documentaire" | "retro";
 
 export const NARRATION_LABELS: Record<NarrationStyleId, string> = {
   question: "Grande question",
@@ -21,6 +21,7 @@ export const NARRATION_LABELS: Record<NarrationStyleId, string> = {
 
 export const VISUAL_LABELS: Record<VisualStyleId, string> = {
   papercraft: "Papier découpé",
+  papercraft_v2: "Papier découpé v2 (test)",
   cinematique: "Cinématique",
   documentaire: "Documentaire",
   retro: "Rétro 70s",
@@ -42,6 +43,8 @@ export const DEFAULT_STYLE_BRIEF: Record<NarrationStyleId, string> = {
 export const DEFAULT_VISUAL_BRIEF: Record<VisualStyleId, string> = {
   papercraft:
     "handmade layered paper cut-out diorama photographed head-on, flat frontal composition, stacked planes of matte construction paper with torn deckled edges and visible paper grain, simple bold silhouettes with no fine detail, characters and objects built from flat cut shapes with slight relief, soft diffused studio light casting gentle drop shadows between paper layers, a cohesive limited palette of 4 to 5 flat matte paper colors chosen to fit the mood of this specific scene, no gradients, no realistic textures, no 3D render look, stop-motion paper animation aesthetic, calm and graphic, quiet minimal background of layered paper shapes, and ALWAYS exactly ONE element in a vivid saturated red (the recurring red accent object of this video), placed at the center of the composition or right next to the main subject so it pops against the cool palette — never two or more red elements, a single red focal point per shot",
+  papercraft_v2:
+    "handmade layered paper cut-out diorama photographed head-on, 4 to 6 stacked planes of matte construction paper with torn deckled edges, visible paper grain and crisp cast shadows between the layers, ONE warm directional key light from the upper left so every layer throws a soft shadow on the one behind it. STRICT PALETTE for the whole video: two dominant paper tones chosen once for the whole story (for example deep navy + slate, or cream + sand), one light cream paper, and a single vivid red — nothing else, no gradients, no realistic textures, no 3D render look. HUMAN FIGURES ARE ALWAYS FLAT FACELESS PAPER SILHOUETTES: no eyes, no mouth, no facial features, no hair detail, one simple bold body shape; when a person appears it IS the single red element of the shot, and it is SMALL in a WIDE set (less than a third of the frame height) with generous empty space around it. Every shot is a VISUAL METAPHOR of its sentence built from one or two clear paper objects (a head made of clock gears for time, polaroids flying away for memories, a row of identical houses for routine, uneven stacks of books for memory) — never a literal illustration of a person doing the action. Wide compositions with a clear horizon, or one single object isolated on plain paper. No text, no letters, no numbers, no logos.",
   cinematique:
     "photorealistic cinematic still, anamorphic lens, dramatic volumetric lighting, shallow depth of field, rich film grain, teal and amber grade",
   documentaire:
@@ -52,6 +55,8 @@ export const DEFAULT_VISUAL_BRIEF: Record<VisualStyleId, string> = {
 export const DEFAULT_QUALITY: Record<VisualStyleId, string> = {
   papercraft:
     "shot straight on like a real photograph of a physical paper set, shallow relief depth, crisp paper edges, no digital illustration look, no cartoon outlines, no glossy plastic, no clay",
+  papercraft_v2:
+    "shot straight on like a real photograph of a physical paper set, shallow relief depth, crisp paper edges, no digital illustration look, no cartoon outlines, no faces, no glossy plastic, no clay",
   cinematique: "ultra detailed, high fidelity",
   documentaire: "ultra detailed, realistic",
   retro: "detailed, analog film look",
@@ -59,6 +64,8 @@ export const DEFAULT_QUALITY: Record<VisualStyleId, string> = {
 
 export const DEFAULT_MOTION: Record<VisualStyleId, string> = {
   papercraft:
+    "Smooth continuous paper animation: the paper layers glide over each other in one steady, perfectly fluid motion, gentle parallax between the depth planes, slow constant camera push, motion rendered at full frame rate with natural motion blur. Absolutely no stop-motion, no frame-by-frame stepping, no discrete jumps, no jitter, no shaking, no strobing: the paper moves as if pushed by one slow, steady hand.",
+  papercraft_v2:
     "Smooth continuous paper animation: the paper layers glide over each other in one steady, perfectly fluid motion, gentle parallax between the depth planes, slow constant camera push, motion rendered at full frame rate with natural motion blur. Absolutely no stop-motion, no frame-by-frame stepping, no discrete jumps, no jitter, no shaking, no strobing: the paper moves as if pushed by one slow, steady hand.",
   cinematique: "Slow cinematic camera movement, subtle parallax.",
   documentaire: "Handheld documentary camera, very subtle movement.",
@@ -233,6 +240,9 @@ export const DEFAULT_SHOT_BRIEF = [
   "En revanche le SUJET, l'ÉCHELLE et le CADRAGE changent à chaque plan. Deux plans qui se suivent ne montrent JAMAIS le même sujet, dans le même décor, à la même distance.",
   "Chaque plan reçoit un TYPE DE PLAN imposé, choisi selon ce que raconte son texte, et deux plans voisins ne peuvent jamais partager le même type : très gros plan sur un détail · plan large sur un lieu · objet seul sur fond uni · mains qui tiennent ou manipulent · coupe ou schéma en papier découpé · silhouette à contre-jour · carte vue du dessus · visage en gros plan.",
 ].join("\n");
+
+export const V2_SHOT_BRIEF =
+  "PLANS (papier v2) : UN PLAN PAR PHRASE de la narration — une phrase = un plan = une image ; chaque narration de plan fait UNE seule phrase courte. Chaque imagePrompt décrit UNE MÉTAPHORE VISUELLE de la phrase, jamais une personne en train de vivre l'action : une idée abstraite devient un objet en papier (le temps → une tête faite d'engrenages d'horloge ; les souvenirs → des polaroïds qui s'envolent ; la routine → des maisons identiques ; la mémoire → des piles de livres inégales). Les personnages sont TOUJOURS des silhouettes de papier SANS VISAGE, petites dans un décor large ; jamais de gros plan sur un visage, jamais d'expression. Deux plans voisins changent de sujet, d'échelle et de cadrage. La palette (deux tons de papier + crème + un seul rouge) et la lumière restent les mêmes sur toute la vidéo : note-les dans le champ palette du script.";
 
 export const DEFAULT_OPENING_IMAGE =
   "OPENING SHOT COMPOSITION — treat this like a poster, not an ambient illustration. ONE single subject, huge in the frame, filling most of the square, instantly readable on a phone in a third of a second. The red accent element is clearly visible on or right next to that subject. No empty scenery, no wide establishing shot, no crowded or talkative composition, no small distant subject.";
@@ -412,7 +422,7 @@ export function defaultSettings(): StudioSettings {
       brief: DEFAULT_VISUAL_BRIEF[k],
       quality: DEFAULT_QUALITY[k],
       motion: DEFAULT_MOTION[k],
-      square: k === "papercraft",
+      square: k === "papercraft" || k === "papercraft_v2",
     };
   });
   return {
