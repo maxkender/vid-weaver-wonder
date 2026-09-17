@@ -191,8 +191,10 @@ async function stepImages(job: RenderJob, t0: number) {
 
     const refs: string[] = [];
     if (scenes[0]?.imagePath) refs.push(await downloadAsDataUrl(scenes[0].imagePath));
-    const prev = scenes[i - 1]?.imagePath;
-    if (prev && prev !== scenes[0]?.imagePath) refs.push(await downloadAsDataUrl(prev));
+    if (!isV2) {
+      const prev = scenes[i - 1]?.imagePath;
+      if (prev && prev !== scenes[0]?.imagePath) refs.push(await downloadAsDataUrl(prev));
+    }
 
     const base = coverPrompt(scene.imagePrompt || scene.narration, visual, square, {
       bible,
@@ -205,7 +207,7 @@ async function stepImages(job: RenderJob, t0: number) {
     const prompt = refs.length
       ? `${base}\n\n${
           isV2
-            ? "The attached image(s) are a STYLE REFERENCE: keep EXACTLY the same paper materials, the same palette, the same lighting, and the same single faceless red paper silhouette as the recurring figure (same simple body shape, no facial features). Do not copy the composition — render the new scene described above as the next shot of that same story."
+            ? "The attached image is a STYLE REFERENCE ONLY: reuse its paper material, its exact palette, its lighting and its single faceless red paper silhouette (same simple body shape). Do NOT reuse its composition, its framing, its camera distance, its background layout or any frame or border: build a completely different composition for the new scene described above, filling the whole square edge to edge."
             : `The attached image${refs.length > 1 ? "s are" : " is"} a STYLE AND CHARACTER REFERENCE: keep EXACTLY the same characters (same faces, same hair, same clothing shapes and colours), the same materials, palette and lighting, so the video reads as one single illustrated story. Do not copy the composition — render the new scene described above as the next shot of that same story.`
         }`
       : base;
@@ -292,18 +294,13 @@ async function stepClips(job: RenderJob, t0: number) {
   const square = isPapercraftSquare(visual);
   const scenes = job.scenes;
   const bible = bibleOf(job.script as Script | null);
-  const v2Heroes = isV2 ? v2HeroClipIndexes(scenes.length) : null;
 
   for (let i = 0; i < scenes.length; i++) {
     if (outOfTime(t0)) return false;
     const scene = scenes[i]!;
+    // En v2, tous les plans reçoivent un clip animé. Le garde « still »
+    // reste pour les jobs existants déjà marqués.
     if (scene.clipPath || scene.clipFailed || scene.motion === "still") continue;
-
-    if (isV2 && !v2Heroes?.has(i)) {
-      scene.motion = "still";
-      await patchJob(job.id, { scenes });
-      continue;
-    }
 
     // Un seul clip en vol à la fois : le gateway limite fortement la vidéo.
     if (!scene.clipJobId) {
