@@ -149,6 +149,7 @@ export async function fanOutLanguages(job: RenderJob) {
       if (s.imagePath) scene.imagePath = s.imagePath;
       if (s.clipPath) scene.clipPath = s.clipPath;
       if (s.clipFailed) scene.clipFailed = true;
+      if (s.motion === "still") scene.motion = "still";
       return scene;
     });
 

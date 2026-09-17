@@ -20,7 +20,7 @@ export type NarrationStyle =
   | "mecanique";
 
 /** Direction artistique des visuels. */
-export type VisualStyle = "papercraft" | "cinematique" | "documentaire" | "retro";
+export type VisualStyle = "papercraft" | "papercraft_v2" | "cinematique" | "documentaire" | "retro";
 
 export type Scene = {
   index: number;
@@ -127,6 +127,8 @@ export function scriptSystemPrompt(
   hookBrief?: string,
   /** Fonction de chaque plan, information nouvelle et densité (Paramètres). */
   structureBrief?: string,
+  /** Règle de plans ajoutée uniquement pour certains styles expérimentaux. */
+  extraBrief?: string,
 ) {
   // Fourchette resserrée : la borne basse ne doit jamais autoriser un plan de 3 s.
   const lo = Math.max(14, Math.round(wordsPerScene - 2));
@@ -224,6 +226,7 @@ export function scriptSystemPrompt(
     "hookOptions contient TROIS accroches candidates (douze mots maximum chacune). hookScores contient TROIS lignes, une par candidate, qui la notent sur les six conditions (conditions remplies / conditions manquées). hook contient celle que tu retiens, recopiée telle quelle dans la narration de la scène 1. hookChoice explique ton choix en UNE ligne.",
     socialCopyBrief(langName),
     'Réponds uniquement en JSON: {"title":string,"hook":string,"hookOptions":string[],"hookScores":string[],"hookChoice":string,"characters":[{"name":string,"description":string}],"palette":string,"scenes":[{"index":number,"narration":string,"overlay":string,"imagePrompt":string,"videoPrompt":string}],"cta":string,"caption":string,"hashtags":string[]}',
+    ...(extraBrief?.trim() ? ["", `RÈGLE N°1 QUATER — PLANS :\n${extraBrief.trim()}`] : []),
   ].join("\n");
 }
 

@@ -24,6 +24,7 @@ import {
   DEFAULT_OPENING_MOTION,
   DEFAULT_QUALITY,
   DEFAULT_VISUAL_BRIEF,
+  V2_SHOT_BRIEF,
 } from "../style-presets";
 import type { VisualStyleId } from "../style-presets";
 import {
@@ -84,6 +85,15 @@ function storyOf(scenes: JobScene[], index: number) {
     .join(" ");
 }
 
+function isPapercraftSquare(visual: string) {
+  return visual === "papercraft" || visual === "papercraft_v2";
+}
+
+function v2HeroClipIndexes(total: number) {
+  const last = Math.max(0, total - 1);
+  return new Set([0, ...Array.from({ length: 5 }, (_, i) => Math.round(((i + 1) * last) / 5))]);
+}
+
 // ---------------------------------------------------------------- étape 1
 
 async function stepTopic(job: RenderJob) {
@@ -117,6 +127,7 @@ async function stepTopic(job: RenderJob) {
 
 async function stepScript(job: RenderJob) {
   const { buildScript } = await import("../script-core.server");
+  const isV2 = job.visual_style === "papercraft_v2";
   // Le script source est calibré pour TOUTES les langues de la production :
   // c'est ce qui permet de n'écrire qu'une fois et de ne traduire ensuite.
   const productionLanguages = [
@@ -127,11 +138,12 @@ async function stepScript(job: RenderJob) {
     topic: job.topic ?? "",
     kind: "culture",
     style: job.narration_style as "revelation",
-    sceneCount: 5,
+    sceneCount: isV2 ? 14 : 5,
     targetSeconds: job.duration_sec,
     language: job.language,
     includeCta: job.include_cta !== false,
     productionLanguages,
+    extraBrief: isV2 ? V2_SHOT_BRIEF : undefined,
   });
   const scenes: JobScene[] = (script.scenes ?? []).map((s, i) => ({
     index: i,
@@ -167,7 +179,8 @@ async function stepScript(job: RenderJob) {
 async function stepImages(job: RenderJob, t0: number) {
   const script = job.script as Script | null;
   const visual = job.visual_style as VisualStyleId;
-  const square = visual === "papercraft";
+  const isV2 = job.visual_style === "papercraft_v2";
+  const square = isPapercraftSquare(visual);
   const scenes = job.scenes;
   const bible = bibleOf(script);
 
@@ -190,7 +203,11 @@ async function stepImages(job: RenderJob, t0: number) {
       story: storyOf(scenes, i),
     });
     const prompt = refs.length
-      ? `${base}\n\nThe attached image${refs.length > 1 ? "s are" : " is"} a STYLE AND CHARACTER REFERENCE: keep EXACTLY the same characters (same faces, same hair, same clothing shapes and colours), the same materials, palette and lighting, so the video reads as one single illustrated story. Do not copy the composition — render the new scene described above as the next shot of that same story.`
+      ? `${base}\n\n${
+          isV2
+            ? "The attached image(s) are a STYLE REFERENCE: keep EXACTLY the same paper materials, the same palette, the same lighting, and the same single faceless red paper silhouette as the recurring figure (same simple body shape, no facial features). Do not copy the composition — render the new scene described above as the next shot of that same story."
+            : `The attached image${refs.length > 1 ? "s are" : " is"} a STYLE AND CHARACTER REFERENCE: keep EXACTLY the same characters (same faces, same hair, same clothing shapes and colours), the same materials, palette and lighting, so the video reads as one single illustrated story. Do not copy the composition — render the new scene described above as the next shot of that same story.`
+        }`
       : base;
 
     const dataUrl = await generateImageDataUrl(prompt, refs);
@@ -271,14 +288,22 @@ async function stepVoice(job: RenderJob, t0: number) {
 
 async function stepClips(job: RenderJob, t0: number) {
   const visual = job.visual_style as VisualStyleId;
-  const square = visual === "papercraft";
+  const isV2 = job.visual_style === "papercraft_v2";
+  const square = isPapercraftSquare(visual);
   const scenes = job.scenes;
   const bible = bibleOf(job.script as Script | null);
+  const v2Heroes = isV2 ? v2HeroClipIndexes(scenes.length) : null;
 
   for (let i = 0; i < scenes.length; i++) {
     if (outOfTime(t0)) return false;
     const scene = scenes[i]!;
-    if (scene.clipPath || scene.clipFailed) continue;
+    if (scene.clipPath || scene.clipFailed || scene.motion === "still") continue;
+
+    if (isV2 && !v2Heroes?.has(i)) {
+      scene.motion = "still";
+      await patchJob(job.id, { scenes });
+      continue;
+    }
 
     // Un seul clip en vol à la fois : le gateway limite fortement la vidéo.
     if (!scene.clipJobId) {
@@ -433,7 +458,7 @@ async function stepRender(job: RenderJob, origin: string) {
     width: 1080,
     height: 1920,
     visualStyle: job.visual_style,
-    squareMask: job.visual_style === "papercraft",
+    squareMask: isPapercraftSquare(job.visual_style),
     callbackUrl: `${origin}/api/public/jobs/render-callback`,
     scenes,
     ...(music ? { musicUrl: music.url, musicVolume: 0.22, ...(music.gainDb !== null ? { musicGainDb: music.gainDb } : {}) } : {}),
