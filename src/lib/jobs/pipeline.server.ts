@@ -128,9 +128,12 @@ async function stepScript(job: RenderJob) {
   if (isV2 && job.script && job.scenes?.length) {
     const script = job.script as Script;
     let scenes: JobScene[] = job.scenes;
-    // Garde-fou : après trop de tentatives, on ne repaie plus le storyboard
-    // et on garde les plans v1 tels quels — le job n'échoue jamais ici.
-    if (job.step === "storyboard" && (job.attempts ?? 0) > 8) {
+    // Garde-fou compté sur les SEULES tentatives de storyboard (jamais sur
+    // `attempts`, qui cumule toutes les réclamations du job depuis sa création)
+    // : après 3 essais, on ne repaie plus le storyboard et on garde les plans
+    // v1 tels quels — le job n'échoue jamais ici.
+    const tries = Number((script as { v2StoryboardTries?: number }).v2StoryboardTries ?? 0);
+    if (tries >= 3) {
       await logEvent(
         job.id,
         "script",
@@ -138,6 +141,10 @@ async function stepScript(job: RenderJob) {
         "warn",
       );
     } else {
+      // Sur l'objet script (pas une copie) : le patchJob final réécrit `script`
+      // avec la palette, il doit conserver le compteur.
+      script.v2StoryboardTries = tries + 1;
+      await patchJob(job.id, { script });
       const { storyboardV2 } = await import("./storyboard-v2.server");
       scenes = await storyboardV2(job, script, scenes);
     }

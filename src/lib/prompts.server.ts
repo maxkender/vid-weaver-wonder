@@ -48,6 +48,8 @@ export type Script = {
    */
   audit?: { weakest: number; reason: string; learned: string };
   scenes: Scene[];
+  /** Nombre de tentatives du storyboard v2 (persisté avant chaque appel IA). */
+  v2StoryboardTries?: number;
   /** Message clair quand la longueur reste hors cible après les 3 passes. */
   lengthNote?: string;
   /** Faits corrigés par la vérification plan par plan. */
