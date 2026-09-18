@@ -7,6 +7,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { UiLangProvider, UiLangSwitch, useUi } from "@/components/ui-lang-switch";
 import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/reinitialisation")({
@@ -27,10 +28,15 @@ export const Route = createFileRoute("/reinitialisation")({
       { name: "twitter:card", content: "summary" },
     ],
   }),
-  component: ResetPage,
+  component: () => (
+    <UiLangProvider>
+      <ResetPage />
+    </UiLangProvider>
+  ),
 });
 
 function ResetPage() {
+  const { t } = useUi();
   const navigate = useNavigate();
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
@@ -41,10 +47,10 @@ function ResetPage() {
     try {
       const { error } = await supabase.auth.updateUser({ password });
       if (error) throw error;
-      toast.success("Mot de passe mis à jour");
+      toast.success(t("reset.done"));
       await navigate({ to: "/espace", replace: true });
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Mise à jour impossible");
+      toast.error(err instanceof Error ? err.message : t("reset.failed"));
     } finally {
       setBusy(false);
     }
@@ -54,9 +60,12 @@ function ResetPage() {
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <Toaster />
       <form onSubmit={submit} className="w-full max-w-sm space-y-4 rounded-xl border border-border bg-card p-5">
-        <h1 className="text-lg font-semibold text-foreground">Nouveau mot de passe</h1>
+        <div className="flex items-center justify-between gap-2">
+          <h1 className="text-lg font-semibold text-foreground">{t("reset.title")}</h1>
+          <UiLangSwitch />
+        </div>
         <div className="space-y-1.5">
-          <Label htmlFor="mdp">Mot de passe</Label>
+          <Label htmlFor="mdp">{t("reset.password")}</Label>
           <Input
             id="mdp"
             type="password"
@@ -69,7 +78,7 @@ function ResetPage() {
         </div>
         <Button type="submit" className="h-11 w-full" disabled={busy}>
           {busy ? <Loader2 className="mr-2 size-4 animate-spin" /> : null}
-          Enregistrer
+          {t("reset.save")}
         </Button>
       </form>
     </div>

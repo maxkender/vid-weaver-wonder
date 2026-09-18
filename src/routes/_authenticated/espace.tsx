@@ -22,9 +22,11 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
 import { ContractMarkdown } from "@/components/contract-markdown";
+import { UiLangProvider, UiLangSwitch, useUi } from "@/components/ui-lang-switch";
 import { supabase } from "@/integrations/supabase/client";
 import { languageLabel } from "@/lib/languages";
 import { isPast } from "@/lib/publish-day";
+import { localeOf } from "@/lib/ui-lang";
 import {
   WARMUP_TASKS,
   confirmAccountStep,
@@ -62,15 +64,50 @@ export const Route = createFileRoute("/_authenticated/espace")({
       { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
-  component: PosterSpace,
+  component: () => (
+    <UiLangProvider>
+      <PosterSpace />
+    </UiLangProvider>
+  ),
 });
 
-function frDate(iso: string) {
-  const [y, m, d] = iso.split("-");
-  return `${d}/${m}/${y}`;
+/**
+ * Enregistre la vidéo sur l'appareil.
+ *
+ * Sur iPhone, l'attribut `download` d'un lien est ignoré pour une URL d'un
+ * autre domaine : on passe donc par la feuille de partage iOS, qui propose
+ * « Enregistrer la vidéo » (pellicule). Partout ailleurs, on retombe sur un
+ * vrai téléchargement.
+ *
+ * Renvoie "shared" | "downloaded" | "cancelled".
+ */
+async function saveVideo(url: string, filename: string) {
+  try {
+    const res = await fetch(url);
+    const blob = await res.blob();
+    const file = new File([blob], filename, { type: blob.type || "video/mp4" });
+    if (navigator.canShare?.({ files: [file] })) {
+      await navigator.share({ files: [file] });
+      return "shared" as const;
+    }
+  } catch (e) {
+    // L'utilisateur a fermé la feuille de partage : ce n'est pas une erreur.
+    if ((e as Error)?.name === "AbortError") return "cancelled" as const;
+    // Tout autre échec (partage refusé par le navigateur, fetch bloqué) :
+    // on continue vers le lien de téléchargement ci-dessous.
+  }
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.rel = "noopener";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  return "downloaded" as const;
 }
 
 function CopyField({ label, value }: { label: string; value: string }) {
+  const { t } = useUi();
   const [done, setDone] = useState(false);
   return (
     <div className="rounded-lg border border-border bg-background p-3">
@@ -84,7 +121,7 @@ function CopyField({ label, value }: { label: string; value: string }) {
           onClick={async () => {
             await navigator.clipboard.writeText(value);
             setDone(true);
-            toast.success(`${label} copié`);
+            toast.success(t("common.copied", { label }));
             setTimeout(() => setDone(false), 1500);
           }}
         >
@@ -99,6 +136,7 @@ type SpaceData = Awaited<ReturnType<typeof getMySpace>>;
 type VideosData = Awaited<ReturnType<typeof listMyVideos>>;
 
 function PosterSpace() {
+  const { t } = useUi();
   const navigate = useNavigate();
   const [profile, setProfile] = useState<PlatformProfile | null>(null);
   const [space, setSpace] = useState<SpaceData | null>(null);
@@ -117,7 +155,7 @@ function PosterSpace() {
         await navigate({ to: "/admin", replace: true });
         return;
       }
-      const [s, c, t, v] = await Promise.all([
+      const [s, c, tpl, v] = await Promise.all([
         getMySpace(),
         getMyContract(),
         getActiveContractTemplate(),
@@ -125,14 +163,14 @@ function PosterSpace() {
       ]);
       setSpace(s);
       setContract(c.contract);
-      setTemplate(t.template);
+      setTemplate(tpl.template);
       setVideoData(v);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Chargement impossible");
+      toast.error(e instanceof Error ? e.message : t("common.loadFailed"));
     } finally {
       setLoading(false);
     }
-  }, [navigate]);
+  }, [navigate, t]);
 
   useEffect(() => {
     void refresh();
@@ -154,7 +192,6 @@ function PosterSpace() {
   const accounts = space?.accounts ?? [];
   const hasContract = Boolean(contract);
   const allWarm = accounts.length > 0 && accounts.every((a) => a.warmup_done_at);
-  const ready = allWarm && hasContract;
 
   return (
     <div className="min-h-screen bg-background pb-16">
@@ -162,24 +199,24 @@ function PosterSpace() {
       <header className="sticky top-0 z-20 border-b border-border bg-background/95 backdrop-blur">
         <div className="mx-auto flex max-w-3xl items-center justify-between gap-3 px-4 py-3">
           <div className="min-w-0">
-            <p className="truncate text-sm font-semibold text-foreground">Mon espace</p>
+            <p className="truncate text-sm font-semibold text-foreground">{t("space.title")}</p>
             <p className="truncate text-xs text-muted-foreground">{profile?.email}</p>
           </div>
-          <Button variant="ghost" size="sm" onClick={onSignOut}>
-            <LogOut className="size-4" />
-            <span className="sr-only sm:not-sr-only sm:ml-2">Déconnexion</span>
-          </Button>
+          <div className="flex shrink-0 items-center gap-2">
+            <UiLangSwitch />
+            <Button variant="ghost" size="sm" onClick={onSignOut}>
+              <LogOut className="size-4" />
+              <span className="sr-only sm:not-sr-only sm:ml-2">{t("space.signout")}</span>
+            </Button>
+          </div>
         </div>
       </header>
 
       <main className="mx-auto max-w-3xl space-y-4 px-4 py-5">
         {accounts.length === 0 ? (
           <section className="rounded-xl border border-border bg-card p-6 text-center">
-            <h1 className="text-base font-semibold text-foreground">Ton compte est en préparation</h1>
-            <p className="mt-2 text-sm text-muted-foreground">
-              L'administrateur doit d'abord t'attribuer un compte à créer. Reviens dans quelques
-              minutes, tout s'affichera ici.
-            </p>
+            <h1 className="text-base font-semibold text-foreground">{t("space.pending.title")}</h1>
+            <p className="mt-2 text-sm text-muted-foreground">{t("space.pending.body")}</p>
           </section>
         ) : (
           <>
@@ -271,6 +308,7 @@ function AccountOnboarding({
   bio: string;
   onChange: () => Promise<void>;
 }) {
+  const { t } = useUi();
   const done = stepsDone(account);
   if (done === 4) {
     return (
@@ -283,7 +321,7 @@ function AccountOnboarding({
               {account.gmail_address}
             </p>
           </div>
-          <Badge variant="secondary">Compte prêt</Badge>
+          <Badge variant="secondary">{t("onb.accountReady")}</Badge>
         </div>
         <FixValues account={account} onChange={onChange} />
       </section>
@@ -295,15 +333,12 @@ function AccountOnboarding({
       <section className="rounded-xl border border-border bg-card p-4">
         <div className="flex items-center justify-between gap-3">
           <h1 className="text-base font-semibold text-foreground">
-            Compte {languageLabel(account.language)}
+            {t("onb.accountTitle", { language: languageLabel(account.language) })}
           </h1>
-          <span className="text-xs text-muted-foreground">Étape {done + 1} sur 5</span>
+          <span className="text-xs text-muted-foreground">{t("onb.stepOf", { n: done + 1 })}</span>
         </div>
         <Progress value={(done / 5) * 100} className="mt-3 h-2" />
-        <p className="mt-3 text-sm text-muted-foreground">
-          Suis les étapes dans l'ordre. Chaque valeur à recopier est affichée avec un bouton pour la
-          copier.
-        </p>
+        <p className="mt-3 text-sm text-muted-foreground">{t("onb.intro")}</p>
       </section>
 
       <StepGmail account={account} password={socialPassword} onChange={onChange} />
@@ -315,6 +350,7 @@ function AccountOnboarding({
 }
 
 function useStep(onChange: () => Promise<void>) {
+  const { t } = useUi();
   const [busy, setBusy] = useState(false);
   const run = async (fn: () => Promise<unknown>, ok: string) => {
     setBusy(true);
@@ -323,7 +359,7 @@ function useStep(onChange: () => Promise<void>) {
       await onChange();
       toast.success(ok);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Action impossible");
+      toast.error(e instanceof Error ? e.message : t("common.actionFailed"));
     } finally {
       setBusy(false);
     }
@@ -340,21 +376,20 @@ function StepGmail({
   password: string;
   onChange: () => Promise<void>;
 }) {
+  const { t } = useUi();
   const { busy, run } = useStep(onChange);
   const [gmail, setGmail] = useState(account.gmail_address || account.expected_gmail);
   const active = !account.gmail_done_at;
 
   return (
-    <StepShell n={1} title="Créer l'adresse Gmail" active={active} done={Boolean(account.gmail_done_at)}>
-      <p className="mb-3 text-sm text-muted-foreground">
-        C'est une adresse dédiée à cette activité : n'utilise jamais ton adresse personnelle.
-      </p>
+    <StepShell n={1} title={t("step1.title")} active={active} done={Boolean(account.gmail_done_at)}>
+      <p className="mb-3 text-sm text-muted-foreground">{t("step1.body")}</p>
       <div className="space-y-2">
-        <CopyField label="Adresse à créer" value={account.expected_gmail} />
-        <CopyField label="Mot de passe à utiliser" value={password} />
+        <CopyField label={t("step1.expected")} value={account.expected_gmail} />
+        <CopyField label={t("step1.password")} value={password} />
       </div>
       <div className="mt-3 space-y-1.5">
-        <Label htmlFor={`gmail-${account.id}`}>Adresse réellement créée</Label>
+        <Label htmlFor={`gmail-${account.id}`}>{t("step1.actual")}</Label>
         <Input
           id={`gmail-${account.id}`}
           type="email"
@@ -362,9 +397,7 @@ function StepGmail({
           value={gmail}
           onChange={(e) => setGmail(e.target.value)}
         />
-        <p className="text-xs text-muted-foreground">
-          Si cette adresse était déjà prise, corrige-la ici : l'administrateur le verra.
-        </p>
+        <p className="text-xs text-muted-foreground">{t("step1.hint")}</p>
       </div>
       <Button
         className="mt-4 h-12 w-full"
@@ -373,11 +406,11 @@ function StepGmail({
           run(async () => {
             await updateMyAccountIdentity({ data: { accountId: account.id, gmail: gmail.trim() } });
             await confirmAccountStep({ data: { accountId: account.id, step: "gmail" } });
-          }, "Adresse Gmail enregistrée")
+          }, t("step1.ok"))
         }
       >
         {busy ? <Loader2 className="mr-2 size-4 animate-spin" /> : null}
-        L'adresse est créée, continuer
+        {t("step1.cta")}
       </Button>
     </StepShell>
   );
@@ -392,6 +425,7 @@ function StepHandle({
   password: string;
   onChange: () => Promise<void>;
 }) {
+  const { t } = useUi();
   const { busy, run } = useStep(onChange);
   const [handle, setHandle] = useState(account.handle || account.expected_handle);
   const active = Boolean(account.gmail_done_at) && !account.handle_done_at;
@@ -399,27 +433,25 @@ function StepHandle({
   return (
     <StepShell
       n={2}
-      title="Créer le compte Instagram"
+      title={t("step2.title")}
       active={active}
       done={Boolean(account.handle_done_at)}
     >
       <p className="mb-3 text-sm text-muted-foreground">
-        Crée le compte AVEC l'adresse Gmail de l'étape 1 ({account.gmail_address}).
+        {t("step2.body", { gmail: account.gmail_address ?? "" })}
       </p>
       <div className="space-y-2">
-        <CopyField label="Pseudo à créer" value={account.expected_handle} />
-        <CopyField label="Mot de passe à utiliser" value={password} />
+        <CopyField label={t("step2.expected")} value={account.expected_handle} />
+        <CopyField label={t("step1.password")} value={password} />
       </div>
       <div className="mt-3 space-y-1.5">
-        <Label htmlFor={`handle-${account.id}`}>Pseudo réellement créé</Label>
+        <Label htmlFor={`handle-${account.id}`}>{t("step2.actual")}</Label>
         <Input
           id={`handle-${account.id}`}
           value={handle}
           onChange={(e) => setHandle(e.target.value)}
         />
-        <p className="text-xs text-muted-foreground">
-          Si le pseudo était déjà pris, saisis celui que tu as obtenu.
-        </p>
+        <p className="text-xs text-muted-foreground">{t("step2.hint")}</p>
       </div>
       <Button
         className="mt-4 h-12 w-full"
@@ -428,11 +460,11 @@ function StepHandle({
           run(async () => {
             await updateMyAccountIdentity({ data: { accountId: account.id, handle: handle.trim() } });
             await confirmAccountStep({ data: { accountId: account.id, step: "handle" } });
-          }, "Compte Instagram enregistré")
+          }, t("step2.ok"))
         }
       >
         {busy ? <Loader2 className="mr-2 size-4 animate-spin" /> : null}
-        Le compte est créé, continuer
+        {t("step2.cta")}
       </Button>
     </StepShell>
   );
@@ -447,14 +479,13 @@ function StepPhoto({
   bio: string;
   onChange: () => Promise<void>;
 }) {
+  const { t } = useUi();
   const { busy, run } = useStep(onChange);
   const active = Boolean(account.handle_done_at) && !account.photo_done_at;
 
   return (
-    <StepShell n={3} title="Photo de profil et biographie" active={active} done={Boolean(account.photo_done_at)}>
-      <p className="mb-3 text-sm text-muted-foreground">
-        Télécharge le logo Sophia et mets-le en photo de profil, puis colle la biographie.
-      </p>
+    <StepShell n={3} title={t("step3.title")} active={active} done={Boolean(account.photo_done_at)}>
+      <p className="mb-3 text-sm text-muted-foreground">{t("step3.body")}</p>
       <a
         href={sophiaLogo.url}
         download="sophia-photo-de-profil.png"
@@ -462,32 +493,33 @@ function StepPhoto({
       >
         <img
           src={sophiaLogo.url}
-          alt="Logo Sophia à utiliser en photo de profil"
+          alt={t("step3.photoAlt")}
           className="size-14 rounded-lg object-cover"
         />
         <span className="flex items-center gap-2 text-sm font-medium text-foreground">
-          <ImageDown className="size-4" /> Télécharger la photo de profil
+          <ImageDown className="size-4" /> {t("step3.photo")}
         </span>
       </a>
-      <CopyField label="Biographie du compte" value={bio} />
+      <CopyField label={t("step3.bio")} value={bio} />
       <Button
         className="mt-4 h-12 w-full"
         disabled={busy}
         onClick={() =>
           run(
             () => confirmAccountStep({ data: { accountId: account.id, step: "photo" } }),
-            "Photo et biographie enregistrées",
+            t("step3.ok"),
           )
         }
       >
         {busy ? <Loader2 className="mr-2 size-4 animate-spin" /> : null}
-        C'est fait, démarrer la chauffe de 24 h
+        {t("step3.cta")}
       </Button>
     </StepShell>
   );
 }
 
 function StepWarmup({ account, onChange }: { account: PosterAccount; onChange: () => Promise<void> }) {
+  const { t } = useUi();
   const { busy, run } = useStep(onChange);
   const active = Boolean(account.photo_done_at) && !account.warmup_done_at;
   const started = account.warmup_started_at ? new Date(account.warmup_started_at).getTime() : 0;
@@ -496,8 +528,8 @@ function StepWarmup({ account, onChange }: { account: PosterAccount; onChange: (
 
   useEffect(() => {
     if (!active) return;
-    const t = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(t);
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
   }, [active]);
 
   const left = Math.max(0, endsAt - now);
@@ -507,13 +539,10 @@ function StepWarmup({ account, onChange }: { account: PosterAccount; onChange: (
   const over = left === 0 && started > 0;
 
   return (
-    <StepShell n={4} title="Chauffe du compte — 24 heures" active={active} done={Boolean(account.warmup_done_at)}>
+    <StepShell n={4} title={t("step4.title")} active={active} done={Boolean(account.warmup_done_at)}>
       <div className="flex items-start gap-3 rounded-lg border border-destructive/40 bg-destructive/10 p-3">
         <AlertTriangle className="mt-0.5 size-5 shrink-0 text-destructive" />
-        <p className="text-sm text-foreground">
-          Aucune publication pendant 24 heures : un compte neuf qui publie tout de suite est traité
-          comme un robot et sa portée est bridée durablement.
-        </p>
+        <p className="text-sm text-foreground">{t("step4.warning")}</p>
       </div>
 
       <div className="mt-3 flex items-center justify-center gap-2 rounded-lg border border-border bg-background p-4">
@@ -535,7 +564,7 @@ function StepWarmup({ account, onChange }: { account: PosterAccount; onChange: (
                 await onChange();
               }}
             />
-            <span>{task.label}</span>
+            <span>{t(`warmup.${task.id}`)}</span>
           </li>
         ))}
       </ul>
@@ -546,18 +575,19 @@ function StepWarmup({ account, onChange }: { account: PosterAccount; onChange: (
         onClick={() =>
           run(
             () => confirmAccountStep({ data: { accountId: account.id, step: "warmup" } }),
-            "Compte prêt à publier",
+            t("step4.ok"),
           )
         }
       >
         {busy ? <Loader2 className="mr-2 size-4 animate-spin" /> : null}
-        {over ? "Les 24 h sont passées, continuer" : "Disponible à la fin du compte à rebours"}
+        {over ? t("step4.cta") : t("step4.wait")}
       </Button>
     </StepShell>
   );
 }
 
 function FixValues({ account, onChange }: { account: PosterAccount; onChange: () => Promise<void> }) {
+  const { t } = useUi();
   const [open, setOpen] = useState(false);
   const [handle, setHandle] = useState(account.handle);
   const [gmail, setGmail] = useState(account.gmail_address ?? "");
@@ -570,21 +600,23 @@ function FixValues({ account, onChange }: { account: PosterAccount; onChange: ()
     <div className="mt-3">
       {diverges ? (
         <p className="mb-2 text-xs text-muted-foreground">
-          Ces valeurs diffèrent de la convention ({account.expected_handle} ·{" "}
-          {account.expected_gmail}).
+          {t("onb.fixNote", {
+            handle: account.expected_handle,
+            gmail: account.expected_gmail,
+          })}
         </p>
       ) : null}
       <Button variant="ghost" size="sm" className="px-0" onClick={() => setOpen((v) => !v)}>
-        {open ? "Fermer" : "Corriger mon pseudo ou mon adresse"}
+        {open ? t("common.close") : t("onb.fixOpen")}
       </Button>
       {open ? (
         <div className="mt-2 space-y-2 rounded-lg border border-border bg-background p-3">
           <div className="space-y-1.5">
-            <Label htmlFor={`fix-handle-${account.id}`}>Pseudo</Label>
+            <Label htmlFor={`fix-handle-${account.id}`}>{t("onb.handle")}</Label>
             <Input id={`fix-handle-${account.id}`} value={handle} onChange={(e) => setHandle(e.target.value)} />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor={`fix-gmail-${account.id}`}>Adresse Gmail</Label>
+            <Label htmlFor={`fix-gmail-${account.id}`}>{t("onb.gmail")}</Label>
             <Input id={`fix-gmail-${account.id}`} value={gmail} onChange={(e) => setGmail(e.target.value)} />
           </div>
           <Button
@@ -597,16 +629,16 @@ function FixValues({ account, onChange }: { account: PosterAccount; onChange: ()
                   data: { accountId: account.id, handle: handle.trim(), gmail: gmail.trim() },
                 });
                 await onChange();
-                toast.success("Valeurs mises à jour");
+                toast.success(t("common.saved"));
                 setOpen(false);
               } catch (e) {
-                toast.error(e instanceof Error ? e.message : "Enregistrement impossible");
+                toast.error(e instanceof Error ? e.message : t("common.saveFailed"));
               } finally {
                 setBusy(false);
               }
             }}
           >
-            Enregistrer
+            {t("common.save")}
           </Button>
         </div>
       ) : null}
@@ -625,6 +657,7 @@ function StepContract({
   template: { version: number; title: string; body: string } | null;
   onDone: () => Promise<void>;
 }) {
+  const { t } = useUi();
   const [name, setName] = useState("");
   const [accepted, setAccepted] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -636,16 +669,16 @@ function StepContract({
     try {
       await signContract({ data: { fullName: name.trim(), accepted: true } });
       await onDone();
-      toast.success("Contrat signé");
+      toast.success(t("step5.ok"));
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Signature impossible");
+      toast.error(e instanceof Error ? e.message : t("step5.failed"));
     } finally {
       setBusy(false);
     }
   };
 
   return (
-    <StepShell n={5} title="Lire et signer le contrat" active={active} done={false}>
+    <StepShell n={5} title={t("step5.title")} active={active} done={false}>
       {template ? (
         <>
           <p className="mb-2 text-sm font-medium text-foreground">{template.title}</p>
@@ -653,18 +686,18 @@ function StepContract({
             <ContractMarkdown body={template.body} />
           </div>
           <div className="mt-4 space-y-1.5">
-            <Label htmlFor="signature">Ton nom complet, en toutes lettres</Label>
+            <Label htmlFor="signature">{t("step5.name")}</Label>
             <Input
               id="signature"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Prénom Nom"
+              placeholder={t("step5.namePlaceholder")}
               autoComplete="name"
             />
           </div>
           <label className="mt-3 flex items-start gap-2 text-sm text-muted-foreground">
             <Checkbox checked={accepted} onCheckedChange={(v) => setAccepted(v === true)} />
-            <span>J'ai lu et j'accepte l'intégralité du contrat ci-dessus.</span>
+            <span>{t("step5.accept")}</span>
           </label>
           <Button
             className="mt-4 h-12 w-full"
@@ -672,11 +705,11 @@ function StepContract({
             disabled={busy || !accepted || name.trim().length < 3}
           >
             {busy ? <Loader2 className="mr-2 size-4 animate-spin" /> : null}
-            Signer et accéder à mon espace
+            {t("step5.cta")}
           </Button>
         </>
       ) : (
-        <p className="text-sm text-muted-foreground">Aucun contrat n'est disponible pour l'instant.</p>
+        <p className="text-sm text-muted-foreground">{t("step5.none")}</p>
       )}
     </StepShell>
   );
@@ -697,6 +730,7 @@ function AccountVideos({
   warmDone?: boolean;
   onChange: () => Promise<void>;
 }) {
+  const { t } = useUi();
   const video = videos.find((v) => v.publish_date === today);
   // Historique : uniquement des dates PASSÉES, jamais aujourd'hui ni le futur.
   const past = videos.filter((v) => isPast(v.publish_date, today));
@@ -707,21 +741,18 @@ function AccountVideos({
         <h2 className="text-sm font-semibold text-foreground">
           @{account.handle} · {languageLabel(account.language)}
         </h2>
-        {video?.posted_at ? <Badge variant="secondary">Publiée</Badge> : null}
+        {video?.posted_at ? <Badge variant="secondary">{t("video.posted")}</Badge> : null}
       </div>
       {!warmDone ? (
         <p className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-200">
-          Ton compte n'a pas terminé ses 24 h de chauffe. Prépare ta publication, mais ne publie
-          qu'une fois la chauffe validée.
+          {t("video.warmNote")}
         </p>
       ) : null}
       {video ? (
         <TodayVideo video={video} onChange={onChange} />
       ) : (
         <div className="rounded-xl border border-border bg-card p-6 text-center">
-          <p className="text-sm text-muted-foreground">
-            La vidéo du jour n'est pas encore publiée pour ce compte. Reviens un peu plus tard.
-          </p>
+          <p className="text-sm text-muted-foreground">{t("video.none")}</p>
         </div>
       )}
       {past.length > 0 ? <History videos={past} /> : null}
@@ -730,6 +761,7 @@ function AccountVideos({
 }
 
 function TodayVideo({ video, onChange }: { video: DailyVideo; onChange: () => Promise<void> }) {
+  const { t, day } = useUi();
   const [src, setSrc] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [postUrl, setPostUrl] = useState("");
@@ -747,26 +779,23 @@ function TodayVideo({ video, onChange }: { video: DailyVideo; onChange: () => Pr
     };
   }, [video.id, video.account_id]);
 
-  const copy = async (text: string, what: string) => {
+  const copy = async (text: string, okMessage: string) => {
     await navigator.clipboard.writeText(text);
-    toast.success(`${what} copiée`);
+    toast.success(okMessage);
   };
 
   const download = async () => {
     setBusy(true);
     try {
       const res = await getVideoLink({
-        data: { videoId: video.id, accountId: video.account_id, track: true },
+        data: { videoId: video.id, accountId: video.account_id, track: true, download: true },
       });
-      const a = document.createElement("a");
-      a.href = res.url;
-      a.download = `video-${video.publish_date}-${video.language}.mp4`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
+      const outcome = await saveVideo(res.url, `video-${video.publish_date}-${video.language}.mp4`);
+      if (outcome === "shared") toast.success(t("video.saved"));
+      if (outcome === "downloaded") toast.success(t("video.downloaded"));
       await onChange();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Téléchargement impossible");
+      toast.error(e instanceof Error ? e.message : t("video.saveFailed"));
     } finally {
       setBusy(false);
     }
@@ -779,9 +808,9 @@ function TodayVideo({ video, onChange }: { video: DailyVideo; onChange: () => Pr
       });
       setPostUrl("");
       await onChange();
-      toast.success("Publication enregistrée");
+      toast.success(t("video.declareOk"));
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Enregistrement impossible");
+      toast.error(e instanceof Error ? e.message : t("common.saveFailed"));
     }
   };
 
@@ -792,7 +821,9 @@ function TodayVideo({ video, onChange }: { video: DailyVideo; onChange: () => Pr
 
   return (
     <div className="rounded-xl border border-border bg-card p-4">
-      <h3 className="text-base font-semibold text-foreground">Vidéo du {frDate(video.publish_date)}</h3>
+      <h3 className="text-base font-semibold text-foreground">
+        {t("video.titleOf", { date: day(video.publish_date) })}
+      </h3>
       {video.title ? <p className="mt-1 text-sm text-muted-foreground">{video.title}</p> : null}
 
       <div className="mt-3 overflow-hidden rounded-lg border border-border bg-background">
@@ -807,15 +838,22 @@ function TodayVideo({ video, onChange }: { video: DailyVideo; onChange: () => Pr
 
       <Button className="mt-3 h-12 w-full text-base" onClick={download} disabled={busy}>
         {busy ? <Loader2 className="mr-2 size-4 animate-spin" /> : <Download className="mr-2 size-5" />}
-        Télécharger le MP4
+        {t("video.save")}
       </Button>
+      <p className="mt-1.5 text-center text-xs text-muted-foreground">{t("video.saveHint")}</p>
 
       {video.caption ? (
         <div className="mt-4 rounded-lg border border-border bg-background p-3">
           <div className="flex items-center justify-between gap-2">
-            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Légende</p>
-            <Button variant="ghost" size="sm" onClick={() => copy(video.caption, "Légende")}>
-              <Copy className="mr-1.5 size-3.5" /> Copier
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              {t("video.caption")}
+            </p>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => copy(video.caption, t("video.captionCopied"))}
+            >
+              <Copy className="mr-1.5 size-3.5" /> {t("common.copy")}
             </Button>
           </div>
           <p className="mt-1 whitespace-pre-wrap text-sm text-foreground">{video.caption}</p>
@@ -825,9 +863,15 @@ function TodayVideo({ video, onChange }: { video: DailyVideo; onChange: () => Pr
       {hashtags ? (
         <div className="mt-2 rounded-lg border border-border bg-background p-3">
           <div className="flex items-center justify-between gap-2">
-            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Hashtags</p>
-            <Button variant="ghost" size="sm" onClick={() => copy(hashtags, "Liste de hashtags")}>
-              <Copy className="mr-1.5 size-3.5" /> Copier
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              {t("video.hashtags")}
+            </p>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => copy(hashtags, t("video.hashtagsCopied"))}
+            >
+              <Copy className="mr-1.5 size-3.5" /> {t("common.copy")}
             </Button>
           </div>
           <p className="mt-1 break-words text-sm text-foreground">{hashtags}</p>
@@ -835,7 +879,7 @@ function TodayVideo({ video, onChange }: { video: DailyVideo; onChange: () => Pr
       ) : null}
 
       <div className="mt-4 space-y-2 rounded-lg border border-border bg-background p-3">
-        <Label htmlFor={`lien-${video.account_id}`}>J'ai publié — colle le lien de ta publication</Label>
+        <Label htmlFor={`lien-${video.account_id}`}>{t("video.declareLabel")}</Label>
         <Input
           id={`lien-${video.account_id}`}
           value={postUrl}
@@ -849,7 +893,7 @@ function TodayVideo({ video, onChange }: { video: DailyVideo; onChange: () => Pr
           onClick={declare}
           disabled={!/^https?:\/\//.test(postUrl.trim())}
         >
-          Enregistrer ma publication
+          {t("video.declareCta")}
         </Button>
         {video.posted_url ? (
           <a
@@ -867,25 +911,24 @@ function TodayVideo({ video, onChange }: { video: DailyVideo; onChange: () => Pr
 }
 
 function History({ videos }: { videos: DailyVideo[] }) {
+  const { t, day } = useUi();
+
   const download = async (v: DailyVideo) => {
     try {
       const res = await getVideoLink({
-        data: { videoId: v.id, accountId: v.account_id, track: true },
+        data: { videoId: v.id, accountId: v.account_id, track: true, download: true },
       });
-      const a = document.createElement("a");
-      a.href = res.url;
-      a.download = `video-${v.publish_date}-${v.language}.mp4`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
+      const outcome = await saveVideo(res.url, `video-${v.publish_date}-${v.language}.mp4`);
+      if (outcome === "shared") toast.success(t("video.saved"));
+      if (outcome === "downloaded") toast.success(t("video.downloaded"));
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Téléchargement impossible");
+      toast.error(e instanceof Error ? e.message : t("video.saveFailed"));
     }
   };
 
   return (
     <div className="rounded-xl border border-border bg-card p-4">
-      <h3 className="mb-3 text-sm font-semibold text-foreground">30 derniers jours</h3>
+      <h3 className="mb-3 text-sm font-semibold text-foreground">{t("history.title")}</h3>
       <ul className="space-y-2">
         {videos.map((v) => (
           <li
@@ -893,9 +936,13 @@ function History({ videos }: { videos: DailyVideo[] }) {
             className="flex items-center justify-between gap-2 rounded-lg border border-border bg-background px-3 py-2"
           >
             <div className="min-w-0">
-              <p className="truncate text-sm text-foreground">{frDate(v.publish_date)}</p>
+              <p className="truncate text-sm text-foreground">{day(v.publish_date)}</p>
               <p className="truncate text-xs text-muted-foreground">
-                {v.posted_at ? "Publiée" : v.downloaded_at ? "Téléchargée" : "Non téléchargée"}
+                {v.posted_at
+                  ? t("history.posted")
+                  : v.downloaded_at
+                    ? t("history.downloaded")
+                    : t("history.notDownloaded")}
                 {v.title ? ` · ${v.title}` : ""}
               </p>
             </div>
@@ -918,8 +965,11 @@ function ContractCard({
   contract: SignedContract | null;
   profile: PlatformProfile | null;
 }) {
+  const { t, lang } = useUi();
   const [open, setOpen] = useState(false);
   if (!contract) return null;
+
+  const locale = localeOf(lang);
 
   const downloadPdf = async () => {
     const { jsPDF } = await import("jspdf");
@@ -954,9 +1004,12 @@ function ContractCard({
 
     y += 12;
     write(
-      `Signé électroniquement par ${contract.signed_full_name} (${profile?.email ?? ""}) le ${new Date(
-        contract.signed_at,
-      ).toLocaleString("fr-FR")} — version ${contract.version}.`,
+      t("contract.signedLine", {
+        name: contract.signed_full_name,
+        email: profile?.email ?? "",
+        date: new Date(contract.signed_at).toLocaleString(locale),
+        version: contract.version,
+      }),
       10,
       true,
     );
@@ -967,10 +1020,13 @@ function ContractCard({
     <section className="rounded-xl border border-border bg-card p-4">
       <div className="flex items-center justify-between gap-2">
         <div>
-          <h2 className="text-sm font-semibold text-foreground">Mon contrat signé</h2>
+          <h2 className="text-sm font-semibold text-foreground">{t("contract.title")}</h2>
           <p className="text-xs text-muted-foreground">
-            Version {contract.version} · signé le {new Date(contract.signed_at).toLocaleDateString("fr-FR")} par{" "}
-            {contract.signed_full_name}
+            {t("contract.meta", {
+              version: contract.version,
+              date: new Date(contract.signed_at).toLocaleDateString(locale),
+              name: contract.signed_full_name,
+            })}
           </p>
         </div>
         <Button variant="secondary" size="sm" onClick={downloadPdf}>
@@ -978,7 +1034,7 @@ function ContractCard({
         </Button>
       </div>
       <Button variant="ghost" size="sm" className="mt-2 px-0" onClick={() => setOpen((v) => !v)}>
-        {open ? "Masquer le texte" : "Relire le texte"}
+        {open ? t("contract.hide") : t("contract.show")}
       </Button>
       {open ? (
         <div className="mt-2 max-h-80 overflow-y-auto rounded-lg border border-border bg-background p-4">

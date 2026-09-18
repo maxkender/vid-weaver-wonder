@@ -7,6 +7,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { UiLangProvider, UiLangSwitch, useUi } from "@/components/ui-lang-switch";
 import { supabase } from "@/integrations/supabase/client";
 import { getMyProfile } from "@/lib/platform.functions";
 import { bootstrapAdmin, platformNeedsAdmin } from "@/lib/admin.functions";
@@ -30,7 +31,11 @@ export const Route = createFileRoute("/connexion")({
       { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
-  component: LoginPage,
+  component: () => (
+    <UiLangProvider>
+      <LoginPage />
+    </UiLangProvider>
+  ),
 });
 
 // L'inscription libre n'existe pas : c'est l'administrateur qui crée les accès
@@ -38,6 +43,7 @@ export const Route = createFileRoute("/connexion")({
 type Mode = "signin" | "forgot";
 
 function LoginPage() {
+  const { t } = useUi();
   const navigate = useNavigate();
   const [mode, setMode] = useState<Mode>("signin");
   const [email, setEmail] = useState("");
@@ -52,8 +58,6 @@ function LoginPage() {
       .then((r) => setNeedsAdmin(r.needsAdmin))
       .catch(() => setNeedsAdmin(false));
   }, []);
-
-
 
   const routeAfterLogin = async () => {
     try {
@@ -88,12 +92,10 @@ function LoginPage() {
           redirectTo: `${window.location.origin}/reinitialisation`,
         });
         if (error) throw error;
-        setSent(
-          "Si cette adresse existe, un lien de réinitialisation vient de partir. Les posteurs passent par l'administrateur, qui remet le mot de passe à 12345678.",
-        );
+        setSent(t("login.resetSent"));
       }
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Connexion impossible");
+      toast.error(err instanceof Error ? err.message : t("login.failed"));
     } finally {
       setBusy(false);
     }
@@ -103,12 +105,14 @@ function LoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-background px-4 py-10">
       <Toaster />
       <div className="w-full max-w-sm">
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">
-          Plateforme de diffusion
-        </h1>
+        <div className="flex items-start justify-between gap-3">
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+            {t("login.title")}
+          </h1>
+          <UiLangSwitch />
+        </div>
         <p className="mt-1 text-sm text-muted-foreground">
-          {mode === "signin" && "Connecte-toi pour récupérer la vidéo du jour."}
-          {mode === "forgot" && "Réinitialise ton mot de passe."}
+          {mode === "signin" ? t("login.subtitle.signin") : t("login.subtitle.forgot")}
         </p>
 
         {sent ? (
@@ -119,17 +123,14 @@ function LoginPage() {
 
         {needsAdmin ? (
           <div className="mt-6 space-y-3 rounded-xl border border-primary/50 bg-primary/10 p-5">
-            <p className="text-sm font-medium text-foreground">Créer le compte administrateur</p>
-            <p className="text-xs text-muted-foreground">
-              Aucun compte n'existe encore. Ce formulaire disparaît dès que l'administrateur est créé ;
-              tous les autres accès seront ensuite créés depuis le tableau de bord.
-            </p>
+            <p className="text-sm font-medium text-foreground">{t("login.admin.title")}</p>
+            <p className="text-xs text-muted-foreground">{t("login.admin.note")}</p>
             <div className="space-y-1.5">
-              <Label htmlFor="admin-nom">Nom complet</Label>
+              <Label htmlFor="admin-nom">{t("login.admin.name")}</Label>
               <Input id="admin-nom" value={adminName} onChange={(e) => setAdminName(e.target.value)} />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="admin-mail">Adresse e-mail</Label>
+              <Label htmlFor="admin-mail">{t("login.email")}</Label>
               <Input
                 id="admin-mail"
                 type="email"
@@ -138,7 +139,7 @@ function LoginPage() {
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="admin-mdp">Mot de passe</Label>
+              <Label htmlFor="admin-mdp">{t("login.password")}</Label>
               <Input
                 id="admin-mdp"
                 type="password"
@@ -159,24 +160,21 @@ function LoginPage() {
                   if (error) throw error;
                   await routeAfterLogin();
                 } catch (err) {
-                  toast.error(err instanceof Error ? err.message : "Création impossible");
+                  toast.error(err instanceof Error ? err.message : t("login.admin.failed"));
                 } finally {
                   setBusy(false);
                 }
               }}
             >
               {busy ? <Loader2 className="mr-2 size-4 animate-spin" /> : null}
-              Créer l'administrateur
+              {t("login.admin.create")}
             </Button>
           </div>
         ) : null}
 
-
-
         <form onSubmit={onSubmit} className="mt-6 space-y-4 rounded-xl border border-border bg-card p-5">
-
           <div className="space-y-1.5">
-            <Label htmlFor="email">Adresse e-mail</Label>
+            <Label htmlFor="email">{t("login.email")}</Label>
             <Input
               id="email"
               type="email"
@@ -189,7 +187,7 @@ function LoginPage() {
 
           {mode !== "forgot" ? (
             <div className="space-y-1.5">
-              <Label htmlFor="mdp">Mot de passe</Label>
+              <Label htmlFor="mdp">{t("login.password")}</Label>
               <Input
                 id="mdp"
                 type="password"
@@ -199,35 +197,30 @@ function LoginPage() {
                 minLength={8}
                 required
               />
-              <p className="text-xs text-muted-foreground">
-                C'est le mot de passe de cette plateforme, jamais celui d'un compte Gmail,
-                Instagram ou TikTok.
-              </p>
+              <p className="text-xs text-muted-foreground">{t("login.passwordHint")}</p>
             </div>
           ) : null}
 
           <Button type="submit" className="h-11 w-full" disabled={busy}>
             {busy ? <Loader2 className="mr-2 size-4 animate-spin" /> : null}
-            {mode === "signin" ? "Se connecter" : "Envoyer le lien"}
+            {mode === "signin" ? t("login.submit") : t("login.sendLink")}
           </Button>
         </form>
 
         <div className="mt-4 flex flex-wrap justify-between gap-2 text-sm">
           {mode !== "signin" ? (
             <button className="text-primary hover:underline" onClick={() => { setMode("signin"); setSent(null); }}>
-              Revenir à la connexion
+              {t("login.back")}
             </button>
           ) : (
-            <span className="text-xs text-muted-foreground">
-              Les accès sont créés par l'administrateur.
-            </span>
+            <span className="text-xs text-muted-foreground">{t("login.accessNote")}</span>
           )}
           {mode !== "forgot" ? (
             <button
               className="text-muted-foreground hover:underline"
               onClick={() => { setMode("forgot"); setSent(null); }}
             >
-              Mot de passe oublié
+              {t("login.forgot")}
             </button>
           ) : null}
         </div>
