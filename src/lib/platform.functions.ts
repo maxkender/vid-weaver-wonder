@@ -602,6 +602,7 @@ export const getVideoLink = createServerFn({ method: "POST" })
         videoId: z.string().uuid(),
         accountId: z.string().uuid(),
         track: z.boolean().optional(),
+        download: z.boolean().optional(),
       })
       .parse(d),
   )
@@ -617,7 +618,7 @@ export const getVideoLink = createServerFn({ method: "POST" })
 
     const video = await context.supabase
       .from("daily_videos")
-      .select("id, storage_path, status, publish_date")
+      .select("id, storage_path, status, publish_date, language")
       .eq("id", data.videoId)
       .maybeSingle();
     if (video.error) throw new Error(video.error.message);
@@ -631,9 +632,14 @@ export const getVideoLink = createServerFn({ method: "POST" })
     }
 
     const db = await admin();
-    const signed = await db.storage
-      .from(RENDER_BUCKET)
-      .createSignedUrl(video.data.storage_path, 60 * 60);
+    // Avec `download`, le fichier est servi en pièce jointe : c'est indispensable
+    // pour l'enregistrer depuis un téléphone. Sans, la signature reste celle de
+    // la lecture dans le lecteur intégré.
+    const signed = data.download
+      ? await db.storage.from(RENDER_BUCKET).createSignedUrl(video.data.storage_path, 60 * 60, {
+          download: `sophia-${video.data.publish_date}-${video.data.language}.mp4`,
+        })
+      : await db.storage.from(RENDER_BUCKET).createSignedUrl(video.data.storage_path, 60 * 60);
     if (signed.error) throw new Error(signed.error.message);
 
     if (data.track) {
