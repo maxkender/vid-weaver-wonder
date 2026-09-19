@@ -276,7 +276,14 @@ export async function renderJob(manifest) {
       "-movflags", "+faststart",
       "-y", "concat.mp4",
     ];
-    const transition = parts.length > 1 ? resolveTransition(manifest.transition) : null;
+    const transition =
+      partInfos.length > 1 && partInfos.every((part) =>
+        Number.isFinite(part.duration) &&
+        part.duration > 0 &&
+        (!transition || part.duration > transition.duration)
+      )
+        ? resolveTransition(manifest.transition)
+        : null;
     let usedTransition = false;
     if (transition) {
       const inputs = parts.flatMap((part) => ["-i", part.name]);
