@@ -26,6 +26,16 @@ const MAX_STRETCH = 1.2;
 const STRETCH_BEFORE_TEMPO = 1.25;
 const MAX_TEMPO = 1.12;
 const AUDIO_FADE = 0.03;
+const XFADE_TYPES = new Set(["fade", "fadeblack", "slideleft", "slideup", "wipeleft", "dissolve"]);
+
+function resolveTransition(value) {
+  if (!value || typeof value !== "object") return null;
+  const duration = Number(value.duration);
+  if (!XFADE_TYPES.has(value.type) || !Number.isFinite(duration) || duration < 0.05 || duration > 1) {
+    return null;
+  }
+  return { type: value.type, duration };
+}
 
 function run(args, cwd) {
   return new Promise((resolve, reject) => {
@@ -252,22 +262,71 @@ export async function renderJob(manifest) {
     // Sonie cible : -16 LUFS par défaut (inchangé), réglable par le manifeste.
     const requested = Number(manifest.loudnessTarget);
     const loudnessTarget = Number.isFinite(requested) && requested <= -8 && requested >= -30 ? requested : -16;
-    // TOUJOURS ré-encoder : la copie de flux laisse des trous et une dérive audio.
-    await run(
-      [
-        "-f", "concat", "-safe", "0", "-i", "list.txt",
-        "-vf", `fps=${OUTPUT_FPS},scale=${width}:${height},setsar=1,format=yuv420p`,
-        // Normalisation de sonie de la voix : toutes les langues au même niveau
-        // perçu, pour que la musique soit toujours posée pareil en dessous.
-        "-af", `loudnorm=I=${loudnessTarget}:TP=-1.5:LRA=11`,
-        "-r", String(OUTPUT_FPS),
-        "-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-pix_fmt", "yuv420p",
-        "-c:a", "aac", "-b:a", "128k", "-ar", "44100", "-ac", "2",
-        "-movflags", "+faststart",
-        "-y", "concat.mp4",
-      ],
-      dir,
-    );
+    const concatArgs = [
+      "-f", "concat", "-safe", "0", "-i", "list.txt",
+      "-vf", `fps=${OUTPUT_FPS},scale=${width}:${height},setsar=1,format=yuv420p`,
+      // Normalisation de sonie de la voix : toutes les langues au même niveau
+      // perçu, pour que la musique soit toujours posée pareil en dessous.
+      "-af", `loudnorm=I=${loudnessTarget}:TP=-1.5:LRA=11`,
+      "-r", String(OUTPUT_FPS),
+      "-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-pix_fmt", "yuv420p",
+      "-c:a", "aac", "-b:a", "128k", "-ar", "44100", "-ac", "2",
+      "-movflags", "+faststart",
+      "-y", "concat.mp4",
+    ];
+    const transition = parts.length > 1 ? resolveTransition(manifest.transition) : null;
+    let usedTransition = false;
+    if (transition) {
+      const inputs = parts.flatMap((part) => ["-i", part.name]);
+      const filters = parts.flatMap((_, i) => [
+        `[${i}:v]settb=AVTB,setpts=PTS-STARTPTS,fps=${OUTPUT_FPS},scale=${width}:${height},setsar=1,format=yuv420p[v${i}]`,
+        `[${i}:a]asetpts=PTS-STARTPTS,aresample=44100,aformat=sample_fmts=fltp:channel_layouts=stereo[a${i}]`,
+      ]);
+      let video = "v0";
+      let audio = "a0";
+      let elapsed = parts[0].duration;
+      for (let i = 1; i < parts.length; i++) {
+        const nextVideo = `vx${i}`;
+        const nextAudio = `ax${i}`;
+        const offset = elapsed - transition.duration;
+        filters.push(
+          `[${video}][v${i}]xfade=transition=${transition.type}:duration=${transition.duration}:offset=${offset.toFixed(3)}[${nextVideo}]`,
+          `[${audio}][a${i}]acrossfade=d=${transition.duration}:c1=tri:c2=tri[${nextAudio}]`,
+        );
+        video = nextVideo;
+        audio = nextAudio;
+        elapsed += parts[i].duration - transition.duration;
+      }
+      filters.push(
+        `[${video}]fps=${OUTPUT_FPS},scale=${width}:${height},setsar=1,format=yuv420p[vout]`,
+        `[${audio}]loudnorm=I=${loudnessTarget}:TP=-1.5:LRA=11[aout]`,
+      );
+      try {
+        await run(
+          [
+            ...inputs,
+            "-filter_complex", filters.join(";"),
+            "-map", "[vout]", "-map", "[aout]",
+            "-r", String(OUTPUT_FPS),
+            "-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-pix_fmt", "yuv420p",
+            "-c:a", "aac", "-b:a", "128k", "-ar", "44100", "-ac", "2",
+            "-movflags", "+faststart",
+            "-y", "concat.mp4",
+          ],
+          dir,
+        );
+        usedTransition = true;
+      } catch (error) {
+        console.warn(`Transitions ignorées, retour à la concaténation simple : ${error instanceof Error ? error.message : String(error)}`);
+      }
+    }
+    if (!usedTransition) {
+      // Chemin historique inchangé pour les manifestes sans transition valide.
+      await run(concatArgs, dir);
+    } else {
+      const measuredDuration = await probeDuration("concat.mp4", dir);
+      if (measuredDuration > 0) duration = measuredDuration;
+    }
 
     let finalName = "concat.mp4";
     if (manifest.musicUrl) {
