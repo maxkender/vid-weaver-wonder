@@ -276,16 +276,16 @@ export async function renderJob(manifest) {
       "-movflags", "+faststart",
       "-y", "concat.mp4",
     ];
-    const transition =
-      partInfos.length > 1 && partInfos.every((part) =>
-        Number.isFinite(part.duration) &&
-        part.duration > 0 &&
-        (!transition || part.duration > transition.duration)
-      )
-        ? resolveTransition(manifest.transition)
-        : null;
+    const transition = partInfos.length > 1 ? resolveTransition(manifest.transition) : null;
+    // Garde : une durée de plan absente/finie non finie, ou un plan plus court que
+    // le fondu, casserait la chaîne xfade — on garde alors la concaténation simple.
+    const transitionsUsable =
+      transition !== null &&
+      partInfos.every((part) =>
+        Number.isFinite(part.duration) && part.duration > 0 && part.duration > transition.duration
+      );
     let usedTransition = false;
-    if (transition) {
+    if (transition && transitionsUsable) {
       const inputs = parts.flatMap((part) => ["-i", part.name]);
       const filters = parts.flatMap((_, i) => [
         `[${i}:v]settb=AVTB,setpts=PTS-STARTPTS,fps=${OUTPUT_FPS},scale=${width}:${height},setsar=1,format=yuv420p[v${i}]`,
