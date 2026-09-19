@@ -251,10 +251,12 @@ export async function renderJob(manifest) {
     const opts = { width, height, squareMask, maskName, geometry, fitToWindow };
 
     const parts = [];
+    const partInfos = []; // { name, duration } — utilisé seulement par les transitions
     let duration = 0;
     for (const scene of [...manifest.scenes].sort((a, b) => a.index - b.index)) {
       const part = await renderScene(scene, dir, opts);
       parts.push(part.name);
+      partInfos.push(part);
       duration += part.duration;
     }
 
@@ -274,18 +276,28 @@ export async function renderJob(manifest) {
       "-movflags", "+faststart",
       "-y", "concat.mp4",
     ];
-    const transition = parts.length > 1 ? resolveTransition(manifest.transition) : null;
+    const transition = partInfos.length > 1 ? resolveTransition(manifest.transition) : null;
+    // Garde : une durée de plan absente/finie non finie, ou un plan plus court que
+    // le fondu, casserait la chaîne xfade — on garde alors la concaténation simple.
+    const transitionsUsable =
+      transition !== null &&
+      partInfos.every((part) =>
+        Number.isFinite(part.duration) && part.duration > 0 && part.duration > transition.duration
+      );
     let usedTransition = false;
-    if (transition) {
-      const inputs = parts.flatMap((part) => ["-i", part.name]);
-      const filters = parts.flatMap((_, i) => [
+    if (transition && !transitionsUsable) {
+      console.warn("Transitions ignorées : durée de plan absente ou inférieure au fondu, concaténation simple.");
+    }
+    if (transition && transitionsUsable) {
+      const inputs = partInfos.flatMap((part) => ["-i", part.name]);
+      const filters = partInfos.flatMap((_, i) => [
         `[${i}:v]settb=AVTB,setpts=PTS-STARTPTS,fps=${OUTPUT_FPS},scale=${width}:${height},setsar=1,format=yuv420p[v${i}]`,
         `[${i}:a]asetpts=PTS-STARTPTS,aresample=44100,aformat=sample_fmts=fltp:channel_layouts=stereo[a${i}]`,
       ]);
       let video = "v0";
       let audio = "a0";
-      let elapsed = parts[0].duration;
-      for (let i = 1; i < parts.length; i++) {
+      let elapsed = partInfos[0].duration;
+      for (let i = 1; i < partInfos.length; i++) {
         const nextVideo = `vx${i}`;
         const nextAudio = `ax${i}`;
         const offset = elapsed - transition.duration;
@@ -295,7 +307,7 @@ export async function renderJob(manifest) {
         );
         video = nextVideo;
         audio = nextAudio;
-        elapsed += parts[i].duration - transition.duration;
+        elapsed += partInfos[i].duration - transition.duration;
       }
       filters.push(
         `[${video}]fps=${OUTPUT_FPS},scale=${width}:${height},setsar=1,format=yuv420p[vout]`,
