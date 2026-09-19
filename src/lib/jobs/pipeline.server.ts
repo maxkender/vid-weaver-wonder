@@ -519,7 +519,7 @@ async function stepRender(job: RenderJob, origin: string) {
     callbackUrl: `${origin}/api/public/jobs/render-callback`,
     scenes,
     ...(music ? { musicUrl: music.url, musicVolume: 0.22, ...(music.gainDb !== null ? { musicGainDb: music.gainDb } : {}) } : {}),
-    ...(job.visual_style === "papercraft_v2" ? { squareMarginRatio: 0.10, squareCenterOffsetRatio: 0, loudnessTarget: -14, captionScale: 1.3, transition: { type: "fade", duration: 0.2 } } : {}),
+    ...(job.visual_style === "papercraft_v2" ? { squareMarginRatio: 0.10, squareCenterOffsetRatio: 0, loudnessTarget: -14, captionScale: 1.3 } : {}),
   });
 
   const res = await fetch(`${url.replace(/\/$/, "")}/render`, {
