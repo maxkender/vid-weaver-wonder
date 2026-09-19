@@ -323,9 +323,6 @@ export async function renderJob(manifest) {
     if (!usedTransition) {
       // Chemin historique inchangé pour les manifestes sans transition valide.
       await run(concatArgs, dir);
-    } else {
-      const measuredDuration = await probeDuration("concat.mp4", dir);
-      if (measuredDuration > 0) duration = measuredDuration;
     }
 
     let finalName = "concat.mp4";
@@ -357,6 +354,10 @@ export async function renderJob(manifest) {
       finalName = "final.mp4";
     }
 
+    if (usedTransition) {
+      const measuredDuration = await probeDuration(finalName, dir);
+      if (measuredDuration > 0) duration = measuredDuration;
+    }
     const bytes = await readFile(join(dir, finalName));
     return { bytes, duration };
   } finally {
