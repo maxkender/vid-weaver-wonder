@@ -304,7 +304,7 @@ export async function renderJob(manifest) {
         );
         video = nextVideo;
         audio = nextAudio;
-        elapsed += parts[i].duration - transition.duration;
+        elapsed += partInfos[i].duration - transition.duration;
       }
       filters.push(
         `[${video}]fps=${OUTPUT_FPS},scale=${width}:${height},setsar=1,format=yuv420p[vout]`,
