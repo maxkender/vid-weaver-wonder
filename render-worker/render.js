@@ -251,10 +251,12 @@ export async function renderJob(manifest) {
     const opts = { width, height, squareMask, maskName, geometry, fitToWindow };
 
     const parts = [];
+    const partInfos = []; // { name, duration } — utilisé seulement par les transitions
     let duration = 0;
     for (const scene of [...manifest.scenes].sort((a, b) => a.index - b.index)) {
       const part = await renderScene(scene, dir, opts);
       parts.push(part.name);
+      partInfos.push(part);
       duration += part.duration;
     }
 
