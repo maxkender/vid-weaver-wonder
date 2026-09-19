@@ -285,6 +285,9 @@ export async function renderJob(manifest) {
         Number.isFinite(part.duration) && part.duration > 0 && part.duration > transition.duration
       );
     let usedTransition = false;
+    if (transition && !transitionsUsable) {
+      console.warn("Transitions ignorées : durée de plan absente ou inférieure au fondu, concaténation simple.");
+    }
     if (transition && transitionsUsable) {
       const inputs = partInfos.flatMap((part) => ["-i", part.name]);
       const filters = partInfos.flatMap((_, i) => [
