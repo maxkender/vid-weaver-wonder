@@ -286,15 +286,15 @@ export async function renderJob(manifest) {
       );
     let usedTransition = false;
     if (transition && transitionsUsable) {
-      const inputs = parts.flatMap((part) => ["-i", part.name]);
-      const filters = parts.flatMap((_, i) => [
+      const inputs = partInfos.flatMap((part) => ["-i", part.name]);
+      const filters = partInfos.flatMap((_, i) => [
         `[${i}:v]settb=AVTB,setpts=PTS-STARTPTS,fps=${OUTPUT_FPS},scale=${width}:${height},setsar=1,format=yuv420p[v${i}]`,
         `[${i}:a]asetpts=PTS-STARTPTS,aresample=44100,aformat=sample_fmts=fltp:channel_layouts=stereo[a${i}]`,
       ]);
       let video = "v0";
       let audio = "a0";
-      let elapsed = parts[0].duration;
-      for (let i = 1; i < parts.length; i++) {
+      let elapsed = partInfos[0].duration;
+      for (let i = 1; i < partInfos.length; i++) {
         const nextVideo = `vx${i}`;
         const nextAudio = `ax${i}`;
         const offset = elapsed - transition.duration;
