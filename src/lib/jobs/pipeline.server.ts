@@ -24,6 +24,7 @@ import {
   DEFAULT_OPENING_MOTION,
   DEFAULT_QUALITY,
   DEFAULT_VISUAL_BRIEF,
+  V2_MOTS_BANNIS,
   V2_WRITING_BRIEF,
 } from "../style-presets";
 import type { VisualStyleId } from "../style-presets";
@@ -120,6 +121,77 @@ async function stepTopic(job: RenderJob) {
 
 // ---------------------------------------------------------------- étape 2
 
+/**
+ * Papier v2 uniquement : réécrit les phrases contenant une métaphore mécanique
+ * bannie. Un seul appel IA, jamais bloquant — en cas d'échec on garde le texte
+ * d'origine. Tourne sur le script du master AVANT le storyboard et avant la
+ * création des langues enfants, pour que les traductions partent du texte corrigé.
+ */
+async function fixMechanicalMetaphors(
+  job: RenderJob,
+  script: Script,
+  scenes: JobScene[],
+): Promise<JobScene[]> {
+  const { findMechanicalWords } = await import("../mechanical-metaphors");
+  const faulty = scenes
+    .map((s, index) => ({ index, narration: s.narration ?? "", hits: findMechanicalWords(s.narration ?? "") }))
+    .filter((s) => s.hits.length > 0);
+  if (!faulty.length) return scenes;
+
+  try {
+    const res = await chatJSON<{ phrases?: { index: number; narration: string }[] }>(
+      "google/gemini-3.7-flash",
+      [
+        "Tu réécris UNIQUEMENT les phrases qu'on te donne, dans la même langue, en gardant la même longueur (±15 %) et la même information.",
+        `INTERDICTION ABSOLUE d'utiliser ces mots ou leurs variantes : ${V2_MOTS_BANNIS.join(", ")}.`,
+        "Une tête ne contient ni frein ni volant : au lieu de comparer à une machine, dis ce que la chose FAIT, QUAND elle le fait, et ce que ça donne pour le spectateur — par exemple, au lieu de « la zone qui appuie sur le frein », écris « la pensée qui te dit que c'était une mauvaise idée, et qui arrive le lendemain matin ».",
+        "Tu ne touches à rien d'autre.",
+        'Réponds uniquement en JSON: {"phrases":[{"index":number,"narration":string}]}',
+      ].join("\n"),
+      JSON.stringify({
+        titre: script.title ?? "",
+        phrases: faulty.map((f) => ({ index: f.index, narration: f.narration })),
+      }),
+    );
+    const rewrites = Array.isArray(res.phrases) ? res.phrases : [];
+    let count = 0;
+    const next = scenes.map((s) => ({ ...s }));
+    for (const r of rewrites) {
+      const target = next[r?.index as number];
+      const text = typeof r?.narration === "string" ? r.narration.trim() : "";
+      if (!target || !text) continue;
+      target.narration = text;
+      count += 1;
+      const left = findMechanicalWords(text);
+      if (left.length) {
+        await logEvent(
+          job.id,
+          "script",
+          `Métaphore mécanique persistante : ${left.join(", ")}`,
+          "warn",
+        );
+      }
+    }
+    if (!count) return scenes;
+    // Le script sert de source aux traductions : on y répercute les phrases.
+    if (Array.isArray(script.scenes)) {
+      next.forEach((s, i) => {
+        if (script.scenes?.[i]) script.scenes[i].narration = s.narration;
+      });
+    }
+    await logEvent(job.id, "script", `${count} phrase(s) réécrite(s) : métaphore mécanique`);
+    return next;
+  } catch (e) {
+    await logEvent(
+      job.id,
+      "script",
+      `Réécriture des métaphores mécaniques impossible : ${(e as Error).message}`,
+      "warn",
+    );
+    return scenes;
+  }
+}
+
 async function stepScript(job: RenderJob) {
   const { buildScript } = await import("../script-core.server");
   const isV2 = job.visual_style === "papercraft_v2";
@@ -190,6 +262,7 @@ async function stepScript(job: RenderJob) {
   // viendra au prochain passage. Si la plateforme tue la fonction, rien n'est
   // perdu : le script et la légende sont déjà en base.
   if (isV2) {
+    scenes = await fixMechanicalMetaphors(job, script, scenes);
     const { buildSocialCopy } = await import("../social-copy");
     const social = buildSocialCopy({
       caption: (script as { caption?: string }).caption,

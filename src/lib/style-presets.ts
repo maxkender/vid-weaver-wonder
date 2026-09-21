@@ -262,6 +262,14 @@ export const V2_WRITING_BRIEF =
   "LE SCRIPT DE RÉFÉRENCE DE LA CHAÎNE, À RELIRE AVANT D'ÉCRIRE : « Ton cerveau coupe exprès tes muscles. Pendant ton sommeil, ta zone motrice s'allume comme pour sprinter. Elle tire des décharges à fond, mais le fil est coupé juste sous ta nuque. Dans ta tête, tu donnes l'ordre de courir. Mais aucun signal n'arrive à tes jambes. » — une seule chose montrée (le fil coupé, qu'on peut dessiner), chaque phrase reprend un mot de la précédente, et tout part d'une sensation que le spectateur connaît.\n" +
   "ON APPREND ET ON RESSENT : le spectateur doit repartir avec trois choses concrètes qu'il pourra répéter le soir même, ET avoir ressenti quelque chose : le récit suit un enjeu humain concret (quelqu'un risque, choisit, perd, se trompe ou est sauvé) et la chute touche autant qu'elle apprend.";
 
+/** Métaphores mécaniques bannies en papier v2 : une tête n'a ni frein ni volant. */
+export const V2_MOTS_BANNIS = [
+  "frein", "freiner", "freine", "volant", "moteur", "bolide", "accélérateur",
+  "câble", "cablage", "câblage", "circuit", "interrupteur", "disque dur",
+  "ordinateur", "blindage", "chef d'orchestre", "centre de commande",
+  "système de contrôle", "machine",
+];
+
 /** Prompt système de l'étape de découpage visuel (storyboard) du style papier v2. */
 export const V2_STORYBOARD_BRIEF =
   "Tu es le storyboarder d'une chaîne de vidéos courtes en papier découpé. On te donne un script déjà écrit et validé, découpé en PLANS (un plan = une phrase, parfois deux courtes). Tu ne touches PAS au texte : tu écris pour chaque plan un imagePrompt et un videoPrompt en anglais, et un overlay (3 à 6 mots dans la langue du script, ou chaîne vide).\n" +
