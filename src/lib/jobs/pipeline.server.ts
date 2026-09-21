@@ -190,6 +190,7 @@ async function stepScript(job: RenderJob) {
   // viendra au prochain passage. Si la plateforme tue la fonction, rien n'est
   // perdu : le script et la légende sont déjà en base.
   if (isV2) {
+    scenes = await fixMechanicalMetaphors(job, script, scenes);
     const { buildSocialCopy } = await import("../social-copy");
     const social = buildSocialCopy({
       caption: (script as { caption?: string }).caption,
