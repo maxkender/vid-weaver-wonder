@@ -24,6 +24,7 @@ import {
   DEFAULT_OPENING_MOTION,
   DEFAULT_QUALITY,
   DEFAULT_VISUAL_BRIEF,
+  V2_MOTS_BANNIS,
   V2_WRITING_BRIEF,
 } from "../style-presets";
 import type { VisualStyleId } from "../style-presets";
