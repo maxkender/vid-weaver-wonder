@@ -50,6 +50,8 @@ export type Script = {
   scenes: Scene[];
   /** Nombre de tentatives du storyboard v2 (persisté avant chaque appel IA). */
   v2StoryboardTries?: number;
+  /** Forme d'histoire imposée au script (papier v2) : voir `story-styles.ts`. */
+  v2StoryStyle?: string;
   /** Message clair quand la longueur reste hors cible après les 3 passes. */
   lengthNote?: string;
   /** Faits corrigés par la vérification plan par plan. */
