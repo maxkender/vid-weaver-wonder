@@ -25,9 +25,15 @@ import {
   DEFAULT_QUALITY,
   DEFAULT_VISUAL_BRIEF,
   V2_MOTS_BANNIS,
-  V2_WRITING_BRIEF,
+  V2_WRITING_BRIEF_COMMON,
 } from "../style-presets";
 import type { VisualStyleId } from "../style-presets";
+import {
+  findWeakOpening,
+  pickStoryStyle,
+  storyStyleBrief,
+  type StoryStyle,
+} from "../story-styles";
 import {
   claimJob,
   getJob,
@@ -192,6 +198,105 @@ async function fixMechanicalMetaphors(
   }
 }
 
+/**
+ * Papier v2 : les formes d'histoire déjà utilisées par les derniers masters.
+ * Sert à interdire la même architecture deux vidéos de suite. Une erreur de
+ * lecture n'empêche jamais une production : on repart d'une liste vide.
+ */
+async function recentStoryStyles(limit = 2): Promise<string[]> {
+  try {
+    const { admin } = await import("./store.server");
+    const db = await admin();
+    const { data } = await db
+      .from("render_jobs")
+      .select("script, created_at")
+      .is("master_id", null)
+      .not("script", "is", null)
+      .order("created_at", { ascending: false })
+      .limit(limit);
+    return ((data ?? []) as { script: { v2StoryStyle?: string } | null }[])
+      .map((r) => r.script?.v2StoryStyle)
+      .filter((s): s is string => Boolean(s));
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Papier v2 : réécrit le plan 1 quand il ouvre sur un mot vide (« Il existe »,
+ * « On pense que », une date). Le premier mot doit être le sujet de l'histoire.
+ * Un seul appel IA, jamais bloquant, sur le modèle de `fixMechanicalMetaphors`.
+ */
+async function fixWeakOpening(
+  job: RenderJob,
+  script: Script,
+  scenes: JobScene[],
+  style: StoryStyle,
+): Promise<JobScene[]> {
+  const first = scenes[0]?.narration ?? "";
+  const weak = findWeakOpening(first);
+  if (!weak) return scenes;
+
+  try {
+    const res = await chatJSON<{ narration?: string; hook?: string }>(
+      "google/gemini-3.7-flash",
+      [
+        "Tu réécris UNIQUEMENT la première phrase d'un script de vidéo courte, dans la même langue, en gardant exactement la même information et la même longueur (±15 %).",
+        `DÉFAUT À CORRIGER : l'accroche commence par « ${weak} ». Le PREMIER MOT doit être le sujet de l'histoire — un nom concret ou un nom propre.`,
+        "Exemple : « Il existe une année que les historiens appellent la pire année pour être en vie. » → « Le soleil s'est éteint pendant dix-huit mois. »",
+        `FORME DE L'HISTOIRE : ${style.label}. ${style.accroche}`,
+        style.tutoiement
+          ? "Le tutoiement est autorisé."
+          : "INTERDIT : « tu », « ton », « ta », « tes », « toi ». Troisième personne uniquement.",
+        "Tu gardes DEUX phrases courtes, 20 à 30 mots au total.",
+        'Réponds uniquement en JSON: {"narration":string,"hook":string} — hook identique à narration.',
+      ].join("\n"),
+      JSON.stringify({ titre: script.title ?? "", accroche: first }),
+    );
+    const text = typeof res.narration === "string" ? res.narration.trim() : "";
+    if (!text) return scenes;
+    const left = findWeakOpening(text);
+    if (left) {
+      await logEvent(job.id, "script", `Ouverture faible persistante : « ${left} »`, "warn");
+      return scenes;
+    }
+    const next = scenes.map((s) => ({ ...s }));
+    next[0]!.narration = text;
+    script.hook = text;
+    if (script.scenes?.[0]) script.scenes[0].narration = text;
+    await logEvent(job.id, "script", `Accroche réécrite : ouvrait sur « ${weak} »`);
+    return next;
+  } catch (e) {
+    await logEvent(
+      job.id,
+      "script",
+      `Réécriture de l'accroche impossible : ${(e as Error).message}`,
+      "warn",
+    );
+    return scenes;
+  }
+}
+
+/** Papier v2 : signale un « tu » dans une forme qui l'interdit (jamais bloquant). */
+async function warnUnexpectedTutoiement(
+  job: RenderJob,
+  scenes: JobScene[],
+  style: StoryStyle,
+): Promise<void> {
+  if (style.tutoiement) return;
+  const hits = scenes
+    .map((s, i) => ({ i, bad: /\b(tu|ton|ta|tes|toi)\b/i.test(s.narration ?? "") }))
+    .filter((s) => s.bad)
+    .map((s) => s.i + 1);
+  if (!hits.length) return;
+  await logEvent(
+    job.id,
+    "script",
+    `Tutoiement inattendu (forme « ${style.label} ») aux plans ${hits.join(", ")}`,
+    "warn",
+  );
+}
+
 async function stepScript(job: RenderJob) {
   const { buildScript } = await import("../script-core.server");
   const isV2 = job.visual_style === "papercraft_v2";
@@ -237,6 +342,15 @@ async function stepScript(job: RenderJob) {
     job.language,
     ...(Array.isArray(job.languages) ? job.languages : []),
   ].filter((l, i, a) => l && a.indexOf(l) === i);
+  // Papier v2 : une FORME D'HISTOIRE par sujet, jamais la même que les deux
+  // dernières. C'est elle qui porte la règle d'accroche, la personne (le « tu »
+  // n'est ouvert qu'à la forme « corps du spectateur »), le déroulé et la chute.
+  const storyStyle = isV2
+    ? pickStoryStyle(job.topic ?? "", job.topic_category, await recentStoryStyles())
+    : null;
+  if (storyStyle) {
+    await logEvent(job.id, "script", `Forme d'histoire : ${storyStyle.label}`);
+  }
   const script = await buildScript({
     topic: job.topic ?? "",
     kind: "culture",
@@ -247,7 +361,9 @@ async function stepScript(job: RenderJob) {
     // Papier v2 : jamais de plan CTA (choix client), quel que soit le réglage du job.
     includeCta: isV2 ? false : job.include_cta !== false,
     productionLanguages,
-    extraBrief: isV2 ? V2_WRITING_BRIEF : undefined,
+    extraBrief: storyStyle
+      ? `${storyStyleBrief(storyStyle)}\n${V2_WRITING_BRIEF_COMMON}`
+      : undefined,
   });
   let scenes: JobScene[] = (script.scenes ?? []).map((s, i) => ({
     index: i,
@@ -262,7 +378,14 @@ async function stepScript(job: RenderJob) {
   // viendra au prochain passage. Si la plateforme tue la fonction, rien n'est
   // perdu : le script et la légende sont déjà en base.
   if (isV2) {
+    // La forme choisie est mémorisée sur le script : c'est elle que lit la
+    // rotation des prochains jobs, et elle apparaît dans le studio.
+    if (storyStyle) script.v2StoryStyle = storyStyle.id;
     scenes = await fixMechanicalMetaphors(job, script, scenes);
+    if (storyStyle) {
+      scenes = await fixWeakOpening(job, script, scenes, storyStyle);
+      await warnUnexpectedTutoiement(job, scenes, storyStyle);
+    }
     const { buildSocialCopy } = await import("../social-copy");
     const social = buildSocialCopy({
       caption: (script as { caption?: string }).caption,
