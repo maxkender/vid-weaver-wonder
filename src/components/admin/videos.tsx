@@ -205,7 +205,7 @@ export function AdminVideos() {
                 {state.label}
               </span>
               {future ? (
-                <span className="rounded-full bg-sky-500/15 px-2 py-0.5 text-xs text-sky-400">
+                <span className="rounded-full border border-border px-2 py-0.5 text-xs text-foreground">
                   prévue le {frDate(date)}
                 </span>
               ) : null}

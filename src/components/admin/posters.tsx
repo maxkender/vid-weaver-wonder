@@ -413,7 +413,7 @@ export function AdminPosters() {
                       </p>
                       <p className="text-xs text-muted-foreground">{a.gmail_address ?? "—"}</p>
                       {a.handle !== expectedHandle || a.gmail_address !== expectedGmail ? (
-                        <p className="mt-0.5 text-xs text-amber-500">
+                        <p className="mt-0.5 text-xs text-destructive">
                           Diverge de la convention ({expectedHandle} · {expectedGmail})
                         </p>
                       ) : null}

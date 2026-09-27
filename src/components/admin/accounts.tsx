@@ -125,7 +125,7 @@ export function AdminAccounts() {
                     aria-label="Pseudo du compte"
                   />
                   {a.handle !== a.expected_handle ? (
-                    <p className="mt-0.5 text-xs text-amber-500">
+                    <p className="mt-0.5 text-xs text-destructive">
                       diverge de {a.expected_handle}
                     </p>
                   ) : null}
@@ -140,7 +140,7 @@ export function AdminAccounts() {
                     aria-label="Adresse Gmail du compte"
                   />
                   {a.gmail_address !== a.expected_gmail ? (
-                    <p className="mt-0.5 text-xs text-amber-500">
+                    <p className="mt-0.5 text-xs text-destructive">
                       diverge de {a.expected_gmail}
                     </p>
                   ) : null}
