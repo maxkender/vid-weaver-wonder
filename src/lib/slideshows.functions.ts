@@ -131,3 +131,66 @@ export const deleteSlideshowJob = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return { ok: true };
   });
+
+/**
+ * BANC D'ESSAI : UNIQUEMENT l'étape d'écriture (même appel que l'étape 1 de
+ * `runSlideshowTick`). N'écrit rien en base, ne génère aucune image.
+ */
+export const previewSlideshowWriting = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z
+      .object({
+        topic: z.string().min(3).max(500),
+        format: z.string().default("quiz"),
+        slideCount: z.number().int().min(3).max(20).default(11),
+        language: z.enum(MASTER_LANGUAGE_IDS).default("fr"),
+        brief: z.string().max(20000).optional(),
+      })
+      .parse(d),
+  )
+  .handler(async ({ context, data }) => {
+    await requireAdmin(context);
+    const { chatJSON } = await import("./ai-gateway.server");
+    const { slideshowFormatById, slideshowWritingBrief } = await import("./slideshow-formats");
+    const { languageName } = await import("./languages");
+    const format = slideshowFormatById(data.format);
+    if (!format) throw new Error(`Format de slideshow inconnu : ${data.format}`);
+    const n =
+      data.slideCount >= format.slides.min && data.slideCount <= format.slides.max
+        ? data.slideCount
+        : format.slides.min;
+    const client = await db();
+    const { data: row } = await client
+      .from("topic_queue")
+      .select("angle")
+      .eq("topic", data.topic.trim())
+      .limit(1)
+      .maybeSingle();
+    const angle = (row as { angle?: string | null } | null)?.angle ?? null;
+    const langLine =
+      data.language === "fr" ? "français de France" : languageName(data.language);
+    const userPrompt = `Sujet : ${data.topic.trim()}${angle ? `\nAngle : ${angle}` : ""}\nLangue du texte : ${langLine}.`;
+    const written = await chatJSON<{
+      title: string;
+      caption: string;
+      hashtags: string[];
+      slides: { index: number; kind: string; text: string; imagePrompt: string }[];
+    }>(
+      "google/gemini-3.7-flash",
+      data.brief?.trim() ? data.brief : slideshowWritingBrief(format, n),
+      userPrompt,
+      1.0,
+    );
+    return {
+      title: String(written.title ?? ""),
+      caption: String(written.caption ?? ""),
+      hashtags: Array.isArray(written.hashtags) ? written.hashtags.map(String) : [],
+      slides: (written.slides ?? []).slice(0, n).map((s, i) => ({
+        index: i,
+        kind: String(s.kind ?? ""),
+        text: String(s.text ?? "").trim(),
+        imagePrompt: String(s.imagePrompt ?? "").trim(),
+      })),
+    };
+  });
