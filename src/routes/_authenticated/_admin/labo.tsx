@@ -598,7 +598,7 @@ function SlideshowPanel() {
     try {
       const prompt = [s.imagePrompt, imgStyle.trim()].filter(Boolean).join("\n\n").slice(0, 2000);
       const r = await gen({ data: { imagePrompt: prompt, visual: "documentaire", square: true } });
-      const blob = await composeSlide(r.dataUrl, s.text);
+      const blob = await composeSlide(r.dataUrl, s.text, DEFAULT_SLIDE_STYLE);
       patchSlide(s.index, { image: r.dataUrl, composed: URL.createObjectURL(blob), busy: false });
     } catch (e) {
       toast.error(errMsg(e));
