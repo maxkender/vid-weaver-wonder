@@ -10,3 +10,4 @@
 <!-- LOVABLE:END -->
 - Réglages (/reglages?tab=admin|studio) regroupe Administration et Paramètres ; /admin et /parametres redirigent. Why: navigation à quatre entrées demandée par le client.
 - Thème clair unique (blanc/noir, jetons dans src/styles.css, pas de dark mode). Why: lisibilité exigée par le client.
+- Les réglages de slideshow sont centralisés dans slideshow_settings et partagés par aperçu, export et génération d'images. Why: éviter les différences de style entre production et publication.

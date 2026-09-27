@@ -39,6 +39,13 @@ function isBlockingError(message: string) {
 export const IMAGE_STYLE =
   "Square 1:1 format. Polished editorial photography. One single huge subject, centered. Simple uncluttered background. Soft directional light. Absolutely no text, no letters, no numbers, no logos anywhere. The upper third of the image is intentionally calm and empty to leave room for overlaid text.";
 
+async function currentImageStyle(): Promise<string> {
+  const db = await admin();
+  const { data, error } = await db.from("slideshow_settings").select("image_style").eq("id", 1).maybeSingle();
+  if (error) throw new Error(error.message);
+  return data?.image_style ?? IMAGE_STYLE;
+}
+
 export type SlideshowSlide = {
   index: number;
   kind: SlideKind;
@@ -276,12 +283,13 @@ async function stepWriting(job: SlideshowJob) {
 
 async function stepImages(job: SlideshowJob, t0: number) {
   const slides = [...job.slides];
+  const imageStyle = await currentImageStyle();
   for (let i = 0; i < slides.length; i++) {
     const slide = slides[i]!;
     if (slide.imagePath) continue; // reprise : jamais repayer une image
     if (outOfTime(t0)) return;
     const kind = normalizeSlideKind(slide.kind, i, slides.length);
-    const dataUrl = await generateImageDataUrl(slideImagePrompt(slide.imagePrompt, kind, IMAGE_STYLE));
+    const dataUrl = await generateImageDataUrl(slideImagePrompt(slide.imagePrompt, kind, imageStyle));
     const path = await uploadDataUrl(`slideshows/${job.id}/slide-${slide.index}.png`, dataUrl);
     slides[i] = { ...slide, kind, imagePath: path };
     const done = slides.filter((s) => s.imagePath).length;
@@ -398,7 +406,7 @@ export async function regenerateOneSlideImage(jobId: string, index: number): Pro
   const slide = slides[pos]!;
   if (!slide.imagePrompt?.trim()) throw new Error("Prompt d'image vide.");
   const kind = normalizeSlideKind(slide.kind, pos, slides.length);
-  const dataUrl = await generateImageDataUrl(slideImagePrompt(slide.imagePrompt, kind, IMAGE_STYLE));
+  const dataUrl = await generateImageDataUrl(slideImagePrompt(slide.imagePrompt, kind, await currentImageStyle()));
   const path = await uploadDataUrl(`slideshows/${jobId}/slide-${slide.index}.png`, dataUrl);
   // Relit avant d'écrire pour ne pas écraser une modification concurrente.
   const { data: fresh } = await db.from("slideshow_jobs").select("slides").eq("id", jobId).single();

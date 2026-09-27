@@ -4,12 +4,13 @@ import { PageHeader } from "@/components/admin-nav";
 import { Toaster } from "@/components/ui/sonner";
 import { AdminPanel } from "@/components/settings/admin-panel";
 import { ParamsPanel } from "@/components/settings/params-panel";
+import { SlideshowPanel } from "@/components/settings/slideshow-panel";
 
-type Tab = "admin" | "studio";
+type Tab = "admin" | "studio" | "slideshows";
 
 export const Route = createFileRoute("/_authenticated/_admin/reglages")({
   validateSearch: (s: Record<string, unknown>): { tab: Tab } => ({
-    tab: s["tab"] === "studio" ? "studio" : "admin",
+    tab: s["tab"] === "studio" || s["tab"] === "slideshows" ? s["tab"] : "admin",
   }),
   head: () => ({
     meta: [
@@ -27,6 +28,7 @@ export const Route = createFileRoute("/_authenticated/_admin/reglages")({
 const TABS: { id: Tab; label: string }[] = [
   { id: "admin", label: "Administration" },
   { id: "studio", label: "Paramètres" },
+  { id: "slideshows", label: "Slideshows" },
 ];
 
 function ReglagesPage() {
@@ -52,7 +54,7 @@ function ReglagesPage() {
           </button>
         ))}
       </div>
-      {tab === "admin" ? <AdminPanel /> : <ParamsPanel />}
+      {tab === "admin" ? <AdminPanel /> : tab === "studio" ? <ParamsPanel /> : <SlideshowPanel />}
     </div>
   );
 }
