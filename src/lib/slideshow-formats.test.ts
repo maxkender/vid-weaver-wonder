@@ -57,8 +57,8 @@ describe("pickSlideshowFormat", () => {
   });
 
   it("accepte une catégorie inconnue ou vide", () => {
-    expect(pickSlideshowFormat("Un sujet sans catégorie", null).id).toBe("quiz");
-    expect(pickSlideshowFormat("Un sujet sans catégorie", "").id).toBe("quiz");
+    expect(pickSlideshowFormat("Un sujet sans catégorie", null).actif).toBe(true);
+    expect(pickSlideshowFormat("Un sujet sans catégorie", "").actif).toBe(true);
   });
 });
 

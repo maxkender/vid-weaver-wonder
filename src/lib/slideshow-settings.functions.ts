@@ -34,10 +34,10 @@ const settingsSchema = z.object({
 export function parseSlideshowSettings(row: Record<string, unknown> | null): SlideshowSettings {
   if (!row) return DEFAULT_SLIDESHOW_SETTINGS;
   return settingsSchema.parse({ ...DEFAULT_SLIDESHOW_SETTINGS, ...row,
-    taille_ratio: Number(row.taille_ratio ?? DEFAULT_SLIDE_STYLE.taille_ratio),
-    largeur_max_ratio: Number(row.largeur_max_ratio ?? DEFAULT_SLIDE_STYLE.largeur_max_ratio),
-    interligne: Number(row.interligne ?? DEFAULT_SLIDE_STYLE.interligne),
-    fond_opacite: Number(row.fond_opacite ?? DEFAULT_SLIDE_STYLE.fond_opacite),
+    taille_ratio: Number(row["taille_ratio"] ?? DEFAULT_SLIDE_STYLE.taille_ratio),
+    largeur_max_ratio: Number(row["largeur_max_ratio"] ?? DEFAULT_SLIDE_STYLE.largeur_max_ratio),
+    interligne: Number(row["interligne"] ?? DEFAULT_SLIDE_STYLE.interligne),
+    fond_opacite: Number(row["fond_opacite"] ?? DEFAULT_SLIDE_STYLE.fond_opacite),
   });
 }
 
@@ -82,7 +82,7 @@ export const getSlideshowPreviewSource = createServerFn({ method: "POST" })
       const { data: signed } = await db.storage.from("renders").createSignedUrl(first.imagePath, 3600);
       if (signed?.signedUrl) {
         const textGroup = (job.textes ?? {}) as Record<string, { slides?: { index: number; text: string }[] }>;
-        return { imageUrl: signed.signedUrl, short: textGroup.fr?.slides?.find((s) => s.index === first.index)?.text ?? "Sophia", long: longest };
+        return { imageUrl: signed.signedUrl, short: textGroup["fr"]?.slides?.find((s) => s.index === first.index)?.text ?? "Sophia", long: longest };
       }
     }
     return { imageUrl: null as string | null, short: "Sophia", long: longest };
