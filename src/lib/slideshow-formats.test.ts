@@ -11,8 +11,8 @@ import {
 } from "./slideshow-formats";
 
 describe("catalogue des formats", () => {
-  it("n'active que le quiz pour l'instant", () => {
-    expect(activeSlideshowFormats().map((f) => f.id)).toEqual(["quiz"]);
+  it("active les six formats", () => {
+    expect(activeSlideshowFormats()).toHaveLength(6);
   });
 
   it("déclare les six formats", () => {
@@ -52,9 +52,8 @@ describe("pickSlideshowFormat", () => {
     expect(a.id).toBe(b.id);
   });
 
-  it("retombe sur le format actif même s'il est récent", () => {
-    // Un seul format actif : la rotation ne peut pas l'écarter sans tout bloquer.
-    expect(pickSlideshowFormat("Point Nemo", "geo", ["quiz"]).id).toBe("quiz");
+  it("retombe sur un format actif même si les formats sont récents", () => {
+    expect(pickSlideshowFormat("Point Nemo", "geo", activeSlideshowFormats().map((f) => f.id)).actif).toBe(true);
   });
 
   it("accepte une catégorie inconnue ou vide", () => {
