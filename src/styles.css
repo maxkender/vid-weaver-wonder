@@ -2,15 +2,23 @@
 @source "../src";
 @import "tw-animate-css";
 
-@custom-variant dark (&:is(.dark *));
 
 @theme inline {
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
+  --radius-sm: calc(var(--radius) - 2px);
+  --radius-md: var(--radius);
   --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
-  --radius-2xl: calc(var(--radius) + 8px);
-  --radius-3xl: calc(var(--radius) + 12px);
+  --radius-xl: var(--radius);
+  --radius-2xl: var(--radius);
+  --radius-3xl: var(--radius);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  /* Échelle de texte : rien sous 13px, corps à 15px. */
+  --text-xs: 0.8125rem;
+  --text-xs--line-height: 1.45;
+  --text-sm: 0.875rem;
+  --text-sm--line-height: 1.5;
+  --text-base: 0.9375rem;
+  --text-base--line-height: 1.5;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -49,45 +57,41 @@
 }
 
 :root {
-  --radius: 0.625rem;
-  --background: oklch(0.16 0.008 265);
-  --foreground: oklch(0.95 0.004 265);
-  --card: oklch(0.2 0.008 265);
-  --card-foreground: oklch(0.95 0.004 265);
-  --popover: oklch(0.2 0.008 265);
-  --popover-foreground: oklch(0.95 0.004 265);
-  --primary: oklch(0.58 0.13 262);
-  --primary-foreground: oklch(0.98 0.003 265);
-  --secondary: oklch(0.24 0.008 265);
-  --secondary-foreground: oklch(0.95 0.004 265);
-  --muted: oklch(0.24 0.008 265);
-  --muted-foreground: oklch(0.68 0.008 265);
-  --accent: oklch(0.58 0.13 262);
-  --accent-foreground: oklch(0.98 0.003 265);
-  --destructive: oklch(0.56 0.16 25);
-  --destructive-foreground: oklch(0.98 0.003 265);
-  --success: oklch(0.6 0.11 155);
-  --border: oklch(1 0 0 / 0.09);
-  --input: oklch(1 0 0 / 0.1);
-  --ring: oklch(0.58 0.13 262);
-  --chart-1: oklch(0.58 0.13 262);
-  --chart-2: oklch(0.6 0.11 155);
-  --chart-3: oklch(0.68 0.008 265);
-  --chart-4: oklch(0.56 0.16 25);
-  --chart-5: oklch(0.5 0.06 265);
-  --sidebar: oklch(0.18 0.008 265);
-  --sidebar-foreground: oklch(0.95 0.004 265);
-  --sidebar-primary: oklch(0.58 0.13 262);
-  --sidebar-primary-foreground: oklch(0.98 0.003 265);
-  --sidebar-accent: oklch(0.24 0.008 265);
-  --sidebar-accent-foreground: oklch(0.95 0.004 265);
-  --sidebar-border: oklch(1 0 0 / 0.09);
-  --sidebar-ring: oklch(0.58 0.13 262);
-}
-
-.dark {
-  --background: oklch(0.16 0.008 265);
-  --foreground: oklch(0.95 0.004 265);
+  --radius: 0.5rem;
+  --background: #ffffff;
+  --foreground: #0a0a0a;
+  --card: #ffffff;
+  --card-foreground: #0a0a0a;
+  --popover: #ffffff;
+  --popover-foreground: #0a0a0a;
+  --primary: #0a0a0a;
+  --primary-foreground: #ffffff;
+  --secondary: #ffffff;
+  --secondary-foreground: #0a0a0a;
+  --muted: #f5f5f5;
+  --muted-foreground: #6b7280;
+  --accent: #f5f5f5;
+  --accent-foreground: #0a0a0a;
+  --destructive: #dc2626;
+  --destructive-foreground: #ffffff;
+  --success: #059669;
+  --success-foreground: #ffffff;
+  --border: #e5e7eb;
+  --input: #e5e7eb;
+  --ring: #0a0a0a;
+  --chart-1: #0a0a0a;
+  --chart-2: #059669;
+  --chart-3: #6b7280;
+  --chart-4: #dc2626;
+  --chart-5: #d1d5db;
+  --sidebar: #ffffff;
+  --sidebar-foreground: #0a0a0a;
+  --sidebar-primary: #0a0a0a;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #f5f5f5;
+  --sidebar-accent-foreground: #0a0a0a;
+  --sidebar-border: #e5e7eb;
+  --sidebar-ring: #0a0a0a;
 }
 
 @layer base {
@@ -99,6 +103,8 @@
     background: var(--background);
     color: var(--color-foreground);
     font-family: var(--font-sans);
+    font-size: 15px;
+    line-height: 1.5;
     -webkit-font-smoothing: antialiased;
   }
 
@@ -106,8 +112,9 @@
   h2,
   h3 {
     font-family: var(--font-sans);
-    font-weight: 600;
+    font-weight: 700;
     letter-spacing: -0.01em;
+    color: var(--foreground);
   }
 
   select,
@@ -118,7 +125,7 @@
   }
 
   :focus-visible {
-    outline: 2px solid color-mix(in oklch, var(--ring) 80%, transparent);
+    outline: 2px solid var(--ring);
     outline-offset: 2px;
   }
 
@@ -142,17 +149,22 @@
   width: 100%;
   border-radius: var(--radius-md);
   border: 1px solid var(--input);
-  background-color: color-mix(in oklch, var(--background) 70%, black 6%);
+  background-color: var(--background);
+  min-height: 40px;
   padding: 0.5rem 0.75rem;
-  font-size: 0.875rem;
+  font-size: 0.9375rem;
   color: var(--foreground);
   outline: none;
+  &:focus {
+    border-color: var(--foreground);
+  }
 }
 
 @utility label-x {
   display: block;
-  font-size: 0.75rem;
+  font-size: 0.8125rem;
   color: var(--muted-foreground);
+  margin-bottom: 0.25rem;
 }
 
 @utility btn-base {
@@ -161,9 +173,10 @@
   justify-content: center;
   gap: 0.5rem;
   border-radius: var(--radius-md);
-  padding: 0.5rem 0.875rem;
-  font-size: 0.8125rem;
-  font-weight: 500;
+  min-height: 40px;
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 600;
   transition:
     background-color 0.15s ease,
     border-color 0.15s ease,
@@ -175,7 +188,7 @@
   background-color: var(--primary);
   color: var(--primary-foreground);
   &:hover {
-    background-color: color-mix(in oklch, var(--primary) 88%, white);
+    background-color: color-mix(in oklch, var(--primary) 82%, white);
   }
   &:disabled {
     opacity: 0.5;
@@ -184,10 +197,10 @@
 
 @utility btn-ghost {
   border-color: var(--border);
-  background-color: transparent;
+  background-color: var(--background);
   color: var(--foreground);
   &:hover {
-    background-color: color-mix(in oklch, var(--foreground) 6%, transparent);
+    background-color: var(--muted);
   }
   &:disabled {
     opacity: 0.45;
@@ -195,11 +208,11 @@
 }
 
 @utility btn-danger {
-  border-color: color-mix(in oklch, var(--destructive) 55%, transparent);
+  border-color: var(--destructive);
   color: var(--destructive);
   background-color: transparent;
   &:hover {
-    background-color: color-mix(in oklch, var(--destructive) 12%, transparent);
+    background-color: color-mix(in oklch, var(--destructive) 6%, white);
   }
 }
 
@@ -211,8 +224,8 @@
   border: 1px solid var(--border);
   background-color: transparent;
   padding: 0.375rem 0.625rem;
-  font-size: 0.8125rem;
-  color: var(--muted-foreground);
+  font-size: 0.875rem;
+  color: var(--foreground);
   transition: all 0.15s ease;
   &:hover {
     color: var(--foreground);
@@ -220,9 +233,11 @@
 }
 
 @utility chip-active {
-  border-color: color-mix(in oklch, var(--primary) 60%, transparent);
-  background-color: color-mix(in oklch, var(--primary) 16%, transparent);
+  border-color: var(--foreground);
+  background-color: var(--background);
   color: var(--foreground);
+  font-weight: 600;
+  box-shadow: inset 0 0 0 1px var(--foreground);
 }
 
 @utility dot {
@@ -230,7 +245,7 @@
   height: 0.375rem;
   width: 0.375rem;
   border-radius: 9999px;
-  background-color: color-mix(in oklch, var(--foreground) 25%, transparent);
+  background-color: #d1d5db;
 }
 
 @utility dot-on {
@@ -244,4 +259,49 @@
   text-shadow:
     0 2px 0 oklch(0 0 0 / 0.6),
     0 6px 24px oklch(0 0 0 / 0.8);
+}
+
+/* Conteneur de page : 1280px max, 24px de marge. */
+@utility page {
+  width: 100%;
+  max-width: 1280px;
+  margin-inline: auto;
+  padding-inline: 24px;
+  padding-block: 24px;
+}
+
+@utility page-title {
+  font-size: 24px;
+  line-height: 1.25;
+  font-weight: 700;
+  color: var(--foreground);
+}
+
+@utility page-lede {
+  margin-top: 4px;
+  font-size: 15px;
+  color: var(--muted-foreground);
+}
+
+@utility section-title {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--foreground);
+}
+
+@utility row {
+  min-height: 48px;
+  border-bottom: 1px solid var(--border);
+  &:hover {
+    background-color: #fafafa;
+  }
+}
+
+@utility error-banner {
+  border: 1px solid var(--destructive);
+  background-color: var(--background);
+  color: var(--foreground);
+  border-radius: var(--radius);
+  padding: 0.75rem 1rem;
+  font-size: 0.875rem;
 }
