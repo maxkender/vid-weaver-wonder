@@ -8,3 +8,5 @@
 > Commits you push to the connected branch sync back to Lovable and show up in
 > the editor, so keep the branch in a working state.
 <!-- LOVABLE:END -->
+- Réglages (/reglages?tab=admin|studio) regroupe Administration et Paramètres ; /admin et /parametres redirigent. Why: navigation à quatre entrées demandée par le client.
+- Thème clair unique (blanc/noir, jetons dans src/styles.css, pas de dark mode). Why: lisibilité exigée par le client.
