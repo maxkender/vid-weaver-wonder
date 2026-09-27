@@ -191,7 +191,7 @@ function PosterSpace() {
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
-        <Loader2 className="size-6 animate-spin text-muted-foreground" />
+        <p className="text-sm text-muted-foreground">Chargement…</p>
       </div>
     );
   }
@@ -203,10 +203,10 @@ function PosterSpace() {
   return (
     <div className="min-h-screen bg-background pb-16">
       <Toaster />
-      <header className="sticky top-0 z-20 border-b border-border bg-background/95 backdrop-blur">
+      <header className="sticky top-0 z-20 border-b border-border bg-background">
         <div className="mx-auto flex max-w-3xl items-center justify-between gap-3 px-4 py-3">
           <div className="min-w-0">
-            <p className="truncate text-sm font-semibold text-foreground">{t("space.title")}</p>
+            <p className="truncate text-[17px] font-bold text-foreground">{t("space.title")}</p>
             <p className="truncate text-xs text-muted-foreground">{profile?.email}</p>
           </div>
           <div className="flex shrink-0 items-center gap-2">
@@ -219,10 +219,10 @@ function PosterSpace() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-3xl space-y-4 px-4 py-5">
+      <main className="mx-auto max-w-3xl space-y-6 px-4 py-5">
         {accounts.length === 0 ? (
           <section className="rounded-xl border border-border bg-card p-6 text-center">
-            <h1 className="text-base font-semibold text-foreground">{t("space.pending.title")}</h1>
+            <h1 className="text-[17px] font-bold text-foreground">{t("space.pending.title")}</h1>
             <p className="mt-2 text-sm text-muted-foreground">{t("space.pending.body")}</p>
           </section>
         ) : (
@@ -293,7 +293,7 @@ function StepShell({
 }) {
   return (
     <section
-      className={`rounded-xl border bg-card p-4 ${active ? "border-primary/60" : "border-border"} ${!active && !done ? "opacity-60" : ""}`}
+      className={`rounded-xl border bg-card p-4 ${active ? "border-foreground" : "border-border"} ${!active && !done ? "opacity-60" : ""}`}
     >
       <div className="flex items-center gap-2">
         <span
@@ -301,7 +301,7 @@ function StepShell({
         >
           {done ? <Check className="size-3.5" /> : n}
         </span>
-        <h2 className="text-sm font-semibold text-foreground">{title}</h2>
+        <h2 className="text-[17px] font-bold text-foreground">{title}</h2>
       </div>
       {active ? <div className="mt-4">{children}</div> : null}
     </section>
@@ -331,7 +331,7 @@ function AccountOnboarding({
       <section className="rounded-xl border border-border bg-card p-4">
         <div className="flex items-center justify-between gap-2">
           <div className="min-w-0">
-            <p className="truncate text-sm font-semibold text-foreground">@{account.handle}</p>
+            <p className="truncate text-[17px] font-bold text-foreground">@{account.handle}</p>
             <p className="truncate text-xs text-muted-foreground">
               {languageLabel(account.language)} · {account.country_code.toUpperCase()} ·{" "}
               {account.gmail_address}
@@ -348,7 +348,7 @@ function AccountOnboarding({
     <div className="space-y-3">
       <section className="rounded-xl border border-border bg-card p-4">
         <div className="flex items-center justify-between gap-3">
-          <h1 className="text-base font-semibold text-foreground">
+          <h1 className="text-[17px] font-bold text-foreground">
             {t("onb.accountTitle", { language: languageLabel(account.language) })}
           </h1>
           <span className="text-xs text-muted-foreground">{t("onb.stepOf", { n: done + 1 })}</span>
@@ -754,7 +754,7 @@ function AccountVideos({
   return (
     <section className="space-y-3">
       <div className="flex items-center justify-between gap-2 px-1">
-        <h2 className="text-sm font-semibold text-foreground">
+        <h2 className="text-[17px] font-bold text-foreground">
           @{account.handle} · {languageLabel(account.language)}
         </h2>
         {video?.posted_at ? <Badge variant="secondary">{t("video.posted")}</Badge> : null}
@@ -837,7 +837,7 @@ function TodayVideo({ video, onChange }: { video: DailyVideo; onChange: () => Pr
 
   return (
     <div className="rounded-xl border border-border bg-card p-4">
-      <h3 className="text-base font-semibold text-foreground">
+      <h3 className="text-[17px] font-bold text-foreground">
         {t("video.titleOf", { date: day(video.publish_date) })}
       </h3>
       {video.title ? <p className="mt-1 text-sm text-muted-foreground">{video.title}</p> : null}
@@ -865,7 +865,7 @@ function TodayVideo({ video, onChange }: { video: DailyVideo; onChange: () => Pr
               {t("video.caption")}
             </p>
             <Button
-              variant="ghost"
+              variant="outline"
               size="sm"
               onClick={() => copy(video.caption, t("video.captionCopied"))}
             >
@@ -883,7 +883,7 @@ function TodayVideo({ video, onChange }: { video: DailyVideo; onChange: () => Pr
               {t("video.hashtags")}
             </p>
             <Button
-              variant="ghost"
+              variant="outline"
               size="sm"
               onClick={() => copy(hashtags, t("video.hashtagsCopied"))}
             >
@@ -944,7 +944,7 @@ function History({ videos }: { videos: DailyVideo[] }) {
 
   return (
     <div className="rounded-xl border border-border bg-card p-4">
-      <h3 className="mb-3 text-sm font-semibold text-foreground">{t("history.title")}</h3>
+      <h3 className="mb-3 text-[17px] font-bold text-foreground">{t("history.title")}</h3>
       <ul className="space-y-2">
         {videos.map((v) => (
           <li
@@ -1036,7 +1036,7 @@ function ContractCard({
     <section className="rounded-xl border border-border bg-card p-4">
       <div className="flex items-center justify-between gap-2">
         <div>
-          <h2 className="text-sm font-semibold text-foreground">{t("contract.title")}</h2>
+          <h2 className="text-[17px] font-bold text-foreground">{t("contract.title")}</h2>
           <p className="text-xs text-muted-foreground">
             {t("contract.meta", {
               version: contract.version,
