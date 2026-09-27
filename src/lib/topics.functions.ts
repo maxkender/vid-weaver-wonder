@@ -67,6 +67,8 @@ export const addTopic = createServerFn({ method: "POST" })
         narrationStyle: styleEnum.default("revelation"),
         category: z.enum(TOPIC_CATEGORY_IDS).default("aleatoire"),
         status: z.enum(["propose", "valide"]).default("valide"),
+        /** Format visé (banc d'essai) ; absent = valeur par défaut de la base. */
+        format: z.enum(["video", "slideshow", "both"]).optional(),
       })
       .parse(input),
   )
@@ -88,6 +90,7 @@ export const addTopic = createServerFn({ method: "POST" })
         category: data.category,
         status: data.status,
         position,
+        ...(data.format ? { format: data.format } : {}),
       })
       .select("*")
       .single();
