@@ -20,7 +20,6 @@ import {
   createSlideshowJob,
   deleteSlideshowJob,
   getSlideshowJob,
-  listActiveSlideshowLanguages,
   listSlideshowJobs,
   pickSlideshowTopic,
   regenerateSlideshowImage,
@@ -250,12 +249,6 @@ function LaunchForm({ onCreated, settings }: { onCreated: () => Promise<unknown>
   useEffect(() => {
     setCount(normalizeSlideCount(format, settings.slide_count_defaut));
   }, [settings.slide_count_defaut, format]);
-
-  useEffect(() => {
-    listActiveSlideshowLanguages()
-      .then((r) => setLangs(r.languages))
-      .catch(() => setLangs(MASTER_LANGUAGES.map((l) => l.id)));
-  }, []);
 
   useEffect(() => { setLangs(settings.langues); }, [settings.langues]);
 

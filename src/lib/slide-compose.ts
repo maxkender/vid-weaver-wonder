@@ -67,7 +67,7 @@ export async function composeSlide(imageUrl: string, text: string, style: SlideS
       const boxWidth = style.fond_texte === "bandeau" ? width : Math.min(width, widest + fontSize * 1.2);
       const boxHeight = Math.min(height, blockHeight + fontSize);
       const x = (width - boxWidth) / 2;
-      const y = Math.max(0, Math.min(height - boxHeight, middle - boxHeight / 2));
+      const y = Math.max(height * 0.04, Math.min(height * 0.96 - boxHeight, middle - boxHeight / 2));
       ctx.save();
       ctx.globalAlpha = style.fond_opacite;
       ctx.fillStyle = style.fond_couleur;
