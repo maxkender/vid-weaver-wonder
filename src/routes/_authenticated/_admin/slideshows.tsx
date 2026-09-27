@@ -33,9 +33,9 @@ import {
 export const Route = createFileRoute("/_authenticated/_admin/slideshows")({
   head: () => ({
     meta: [
-      { title: "Slideshows — production des quiz" },
+      { title: "Slideshows — production" },
       { name: "description", content: "Lancement, relecture et correction des slideshows multilingues." },
-      { property: "og:title", content: "Slideshows — production des quiz" },
+      { property: "og:title", content: "Slideshows — production" },
       { property: "og:description", content: "Suivi des slideshows : écriture, images partagées, publication par langue." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
