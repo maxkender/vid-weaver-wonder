@@ -155,7 +155,7 @@ function PosterSpace() {
       const p = await getMyProfile();
       setProfile(p);
       if (p.role === "admin") {
-        await navigate({ to: "/admin", replace: true });
+        await navigate({ to: "/studio", replace: true });
         return;
       }
       const [s, c, tpl, v] = await Promise.all([
