@@ -19,6 +19,7 @@ import { Route as AuthenticatedAdminRouteRouteImport } from './routes/_authentic
 import { Route as AuthenticatedEspaceRouteImport } from './routes/_authenticated/espace'
 import { Route as AuthenticatedAdminAdminRouteImport } from './routes/_authenticated/_admin/admin'
 import { Route as AuthenticatedAdminParametresRouteImport } from './routes/_authenticated/_admin/parametres'
+import { Route as AuthenticatedAdminSlideshowsRouteImport } from './routes/_authenticated/_admin/slideshows'
 import { Route as AuthenticatedAdminStudioRouteImport } from './routes/_authenticated/_admin/studio'
 import { Route as AuthenticatedAdminSujetsRouteImport } from './routes/_authenticated/_admin/sujets'
 import { Route as ApiPublicVideosRouteImport } from './routes/api/public/videos'
@@ -76,6 +77,12 @@ const AuthenticatedAdminParametresRoute =
     path: '/parametres',
     getParentRoute: () => AuthenticatedAdminRouteRoute,
   } as any)
+const AuthenticatedAdminSlideshowsRoute =
+  AuthenticatedAdminSlideshowsRouteImport.update({
+    id: '/slideshows',
+    path: '/slideshows',
+    getParentRoute: () => AuthenticatedAdminRouteRoute,
+  } as any)
 const AuthenticatedAdminStudioRoute =
   AuthenticatedAdminStudioRouteImport.update({
     id: '/studio',
@@ -124,6 +131,7 @@ export interface FileRoutesByFullPath {
   '/espace': typeof AuthenticatedEspaceRoute
   '/admin': typeof AuthenticatedAdminAdminRoute
   '/parametres': typeof AuthenticatedAdminParametresRoute
+  '/slideshows': typeof AuthenticatedAdminSlideshowsRoute
   '/studio': typeof AuthenticatedAdminStudioRoute
   '/sujets': typeof AuthenticatedAdminSujetsRoute
   '/api/public/videos': typeof ApiPublicVideosRouteWithChildren
@@ -141,6 +149,7 @@ export interface FileRoutesByTo {
   '/espace': typeof AuthenticatedEspaceRoute
   '/admin': typeof AuthenticatedAdminAdminRoute
   '/parametres': typeof AuthenticatedAdminParametresRoute
+  '/slideshows': typeof AuthenticatedAdminSlideshowsRoute
   '/studio': typeof AuthenticatedAdminStudioRoute
   '/sujets': typeof AuthenticatedAdminSujetsRoute
   '/api/public/videos': typeof ApiPublicVideosRouteWithChildren
@@ -161,6 +170,7 @@ export interface FileRoutesById {
   '/_authenticated/espace': typeof AuthenticatedEspaceRoute
   '/_authenticated/_admin/admin': typeof AuthenticatedAdminAdminRoute
   '/_authenticated/_admin/parametres': typeof AuthenticatedAdminParametresRoute
+  '/_authenticated/_admin/slideshows': typeof AuthenticatedAdminSlideshowsRoute
   '/_authenticated/_admin/studio': typeof AuthenticatedAdminStudioRoute
   '/_authenticated/_admin/sujets': typeof AuthenticatedAdminSujetsRoute
   '/api/public/videos': typeof ApiPublicVideosRouteWithChildren
@@ -180,6 +190,7 @@ export interface FileRouteTypes {
     | '/espace'
     | '/admin'
     | '/parametres'
+    | '/slideshows'
     | '/studio'
     | '/sujets'
     | '/api/public/videos'
@@ -197,6 +208,7 @@ export interface FileRouteTypes {
     | '/espace'
     | '/admin'
     | '/parametres'
+    | '/slideshows'
     | '/studio'
     | '/sujets'
     | '/api/public/videos'
@@ -216,6 +228,7 @@ export interface FileRouteTypes {
     | '/_authenticated/espace'
     | '/_authenticated/_admin/admin'
     | '/_authenticated/_admin/parametres'
+    | '/_authenticated/_admin/slideshows'
     | '/_authenticated/_admin/studio'
     | '/_authenticated/_admin/sujets'
     | '/api/public/videos'
@@ -310,6 +323,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminParametresRouteImport
       parentRoute: typeof AuthenticatedAdminRouteRoute
     }
+    '/_authenticated/_admin/slideshows': {
+      id: '/_authenticated/_admin/slideshows'
+      path: '/slideshows'
+      fullPath: '/slideshows'
+      preLoaderRoute: typeof AuthenticatedAdminSlideshowsRouteImport
+      parentRoute: typeof AuthenticatedAdminRouteRoute
+    }
     '/_authenticated/_admin/studio': {
       id: '/_authenticated/_admin/studio'
       path: '/studio'
@@ -365,6 +385,7 @@ declare module '@tanstack/react-router' {
 interface AuthenticatedAdminRouteRouteChildren {
   AuthenticatedAdminAdminRoute: typeof AuthenticatedAdminAdminRoute
   AuthenticatedAdminParametresRoute: typeof AuthenticatedAdminParametresRoute
+  AuthenticatedAdminSlideshowsRoute: typeof AuthenticatedAdminSlideshowsRoute
   AuthenticatedAdminStudioRoute: typeof AuthenticatedAdminStudioRoute
   AuthenticatedAdminSujetsRoute: typeof AuthenticatedAdminSujetsRoute
 }
@@ -373,6 +394,7 @@ const AuthenticatedAdminRouteRouteChildren: AuthenticatedAdminRouteRouteChildren
   {
     AuthenticatedAdminAdminRoute: AuthenticatedAdminAdminRoute,
     AuthenticatedAdminParametresRoute: AuthenticatedAdminParametresRoute,
+    AuthenticatedAdminSlideshowsRoute: AuthenticatedAdminSlideshowsRoute,
     AuthenticatedAdminStudioRoute: AuthenticatedAdminStudioRoute,
     AuthenticatedAdminSujetsRoute: AuthenticatedAdminSujetsRoute,
   }

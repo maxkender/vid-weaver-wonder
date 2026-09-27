@@ -22,6 +22,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
 import { ContractMarkdown } from "@/components/contract-markdown";
+import { SlideshowSection } from "@/components/slideshow-export";
 import { UiLangProvider, UiLangSwitch, useUi } from "@/components/ui-lang-switch";
 import { supabase } from "@/integrations/supabase/client";
 import { languageLabel } from "@/lib/languages";
@@ -35,6 +36,7 @@ import {
   getMyProfile,
   getMySpace,
   getVideoLink,
+  listMySlideshows,
   listMyVideos,
   markPosted,
   setWarmupCheck,
@@ -145,6 +147,7 @@ function PosterSpace() {
     null,
   );
   const [videoData, setVideoData] = useState<VideosData | null>(null);
+  const [slideData, setSlideData] = useState<Awaited<ReturnType<typeof listMySlideshows>> | null>(null);
   const [loading, setLoading] = useState(true);
 
   const refresh = useCallback(async () => {
@@ -165,6 +168,10 @@ function PosterSpace() {
       setContract(c.contract);
       setTemplate(tpl.template);
       setVideoData(v);
+      // Chaîne slideshow : chargée à part, un échec ne gêne jamais la vidéo.
+      void listMySlideshows()
+        .then(setSlideData)
+        .catch(() => setSlideData(null));
     } catch (e) {
       toast.error(e instanceof Error ? e.message : t("common.loadFailed"));
     } finally {
@@ -250,6 +257,15 @@ function PosterSpace() {
                   />
                 ))}
               </>
+            ) : null}
+
+            {videoData && slideData ? (
+              <SlideshowSection
+                accounts={videoData.accounts}
+                slideshows={slideData.slideshows}
+                today={slideData.today}
+                onChange={refresh}
+              />
             ) : null}
 
             <ContractCard contract={contract} profile={profile} />
