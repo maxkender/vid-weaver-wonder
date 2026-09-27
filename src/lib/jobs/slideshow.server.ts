@@ -283,7 +283,7 @@ async function stepImages(job: SlideshowJob, t0: number) {
     const kind = normalizeSlideKind(slide.kind, i, slides.length);
     const dataUrl = await generateImageDataUrl(slideImagePrompt(slide.imagePrompt, kind, IMAGE_STYLE));
     const path = await uploadDataUrl(`slideshows/${job.id}/slide-${slide.index}.png`, dataUrl);
-    slides[i] = { ...slide, imagePath: path };
+    slides[i] = { ...slide, kind, imagePath: path };
     const done = slides.filter((s) => s.imagePath).length;
     await patch(job.id, { slides, progress: 0.2 + 0.7 * (done / slides.length) });
   }
@@ -382,4 +382,30 @@ export async function runSlideshowTick(): Promise<{
 
 function current_step(job: SlideshowJob) {
   return job.step ?? job.status;
+}
+
+/**
+ * (Ré)génère UNE image de slide, à la demande de l'administrateur.
+ * Écrase l'ancienne au même chemin. Coût : 1 image.
+ */
+export async function regenerateOneSlideImage(jobId: string, index: number): Promise<string> {
+  const db = await admin();
+  const { data, error } = await db.from("slideshow_jobs").select("slides").eq("id", jobId).single();
+  if (error || !data) throw new Error("Slideshow introuvable.");
+  const slides = [...(((data as { slides: SlideshowSlide[] }).slides ?? []) as SlideshowSlide[])];
+  const pos = slides.findIndex((s) => s.index === index);
+  if (pos < 0) throw new Error(`Slide ${index} introuvable.`);
+  const slide = slides[pos]!;
+  if (!slide.imagePrompt?.trim()) throw new Error("Prompt d'image vide.");
+  const kind = normalizeSlideKind(slide.kind, pos, slides.length);
+  const dataUrl = await generateImageDataUrl(slideImagePrompt(slide.imagePrompt, kind, IMAGE_STYLE));
+  const path = await uploadDataUrl(`slideshows/${jobId}/slide-${slide.index}.png`, dataUrl);
+  // Relit avant d'écrire pour ne pas écraser une modification concurrente.
+  const { data: fresh } = await db.from("slideshow_jobs").select("slides").eq("id", jobId).single();
+  const next = [...(((fresh as { slides: SlideshowSlide[] } | null)?.slides ?? slides) as SlideshowSlide[])];
+  const p2 = next.findIndex((s) => s.index === index);
+  if (p2 >= 0) next[p2] = { ...next[p2]!, kind, imagePath: path };
+  await patch(jobId, { slides: next });
+  await logEvent(jobId, "images", `Image de la slide ${index} régénérée à la main.`);
+  return path;
 }
