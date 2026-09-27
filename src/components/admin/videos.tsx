@@ -43,8 +43,8 @@ function frDate(iso: string) {
 function dayState(videos: Video[]) {
   const published = videos.filter((v) => v.status === "published").length;
   if (published === 0) return { label: "brouillon", tone: "bg-muted text-muted-foreground" };
-  if (published === videos.length) return { label: "publiée", tone: "bg-emerald-500/15 text-emerald-400" };
-  return { label: "partielle", tone: "bg-amber-500/15 text-amber-400" };
+  if (published === videos.length) return { label: "publiée", tone: "border border-success text-success" };
+  return { label: "partielle", tone: "border border-border text-foreground" };
 }
 
 export function AdminVideos() {
@@ -201,15 +201,15 @@ export function AdminVideos() {
           <section key={date} className="surface-card p-3">
             <div className="flex flex-wrap items-center gap-2">
               <p className="text-sm font-semibold">{frDate(date)}</p>
-              <span className={`rounded-full px-2 py-0.5 text-[11px] ${state.tone}`}>
+              <span className={`rounded-full px-2 py-0.5 text-xs ${state.tone}`}>
                 {state.label}
               </span>
               {future ? (
-                <span className="rounded-full bg-sky-500/15 px-2 py-0.5 text-[11px] text-sky-400">
+                <span className="rounded-full border border-border px-2 py-0.5 text-xs text-foreground">
                   prévue le {frDate(date)}
                 </span>
               ) : null}
-              <span className="text-[11px] text-muted-foreground">{videos.length} langue(s)</span>
+              <span className="text-xs text-muted-foreground">{videos.length} langue(s)</span>
             </div>
 
             <div className="mt-2 space-y-2">
@@ -223,11 +223,11 @@ export function AdminVideos() {
                     </span>
                     <span className="text-muted-foreground">{Math.round(v.duration_sec)} s</span>
                     <span
-                      className={`rounded-full px-2 py-0.5 text-[11px] ${
+                      className={`rounded-full px-2 py-0.5 text-xs ${
                         !v.storage_path
                           ? "bg-destructive/15 text-destructive"
                           : v.status === "published"
-                            ? "bg-emerald-500/15 text-emerald-400"
+                            ? "border border-success text-success"
                             : "bg-muted text-muted-foreground"
                       }`}
                     >
@@ -237,7 +237,7 @@ export function AdminVideos() {
                           ? "publiée"
                           : "brouillon"}
                     </span>
-                    <span className="text-[11px] text-muted-foreground">
+                    <span className="text-xs text-muted-foreground">
                       créée le {frDate(v.created_at.slice(0, 10))}
                     </span>
                   </div>
@@ -288,7 +288,7 @@ export function AdminVideos() {
                   </div>
 
                   {v.caption || v.hashtags.length ? (
-                    <div className="mt-2 space-y-1 text-[11px] text-muted-foreground">
+                    <div className="mt-2 space-y-1 text-xs text-muted-foreground">
                       {v.caption ? <p className="whitespace-pre-line">{v.caption}</p> : null}
                       {v.hashtags.length ? (
                         <p>{v.hashtags.map((h) => `#${h}`).join(" ")}</p>

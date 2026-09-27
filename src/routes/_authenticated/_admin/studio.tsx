@@ -154,7 +154,7 @@ function UsageRecap({
     usage.textCalls.script + usage.textCalls.factCheck + usage.textCalls.translation;
   if (compact) {
     return (
-      <span className="text-[11px] text-muted-foreground">
+      <span className="text-xs text-muted-foreground">
         {usage.clips.count} clips / {usage.clips.seconds} s · {usage.images} images ·{" "}
         {chars.toLocaleString("fr-FR")} car.
         {money !== null ? ` · ${formatEuros(money)}` : ""}
@@ -2962,9 +2962,12 @@ function Studio() {
       <Toaster position="top-center" />
 
       {/* BARRE SUPÉRIEURE — état du pipeline, coût, arrêt d'urgence et navigation. */}
-      <header className="sticky top-0 z-30 border-b border-border bg-background/90 backdrop-blur">
-        <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center gap-x-4 gap-y-2 px-4 py-2.5">
-          <span className="text-[15px] font-semibold tracking-tight">Studio vidéo</span>
+      <header className="border-b border-border bg-background">
+        <div className="mx-auto flex w-full max-w-[1280px] flex-wrap items-center gap-x-4 gap-y-2 px-6 py-4">
+          <div className="w-full">
+            <h1 className="page-title">Studio vidéo</h1>
+            <p className="page-lede">Écrire, produire et exporter les vidéos.</p>
+          </div>
 
           <span className="text-xs text-muted-foreground">
             {currentStep ||
@@ -3013,15 +3016,9 @@ function Studio() {
             >
               <History className="h-3.5 w-3.5" /> Historique ({history.length})
             </button>
-            <Link to="/sujets" className="btn-base btn-ghost px-2.5 py-1.5 text-xs">
-              <ListChecks className="h-3.5 w-3.5" /> Sujets
-            </Link>
-            <Link to="/parametres" className="btn-base btn-ghost px-2.5 py-1.5 text-xs">
-              <Settings className="h-3.5 w-3.5" /> Paramètres
-            </Link>
           </div>
         </div>
-        <div className="mx-auto w-full max-w-6xl px-4 pb-2 md:hidden">
+        <div className="mx-auto w-full max-w-[1280px] px-6 pb-3 md:hidden">
           <span className="text-xs text-muted-foreground">
             Coût estimé : {cost.clips} clip{cost.clips > 1 ? "s" : ""} × {cost.perClip} s + {cost.voices}{" "}
             voix off
@@ -3032,7 +3029,7 @@ function Studio() {
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-6xl px-4 py-6">
+      <main className="mx-auto w-full max-w-[1280px] px-6 py-6">
         {showHistory && (
           <div className="surface-card mb-6 space-y-2 p-4">
             {history.length === 0 && (
@@ -3139,7 +3136,7 @@ function Studio() {
                       key={l}
                       href={info.url}
                       download={`${h.title.replace(/[^\p{L}\p{N}]+/gu, "-").toLowerCase()}-${l}.mp4`}
-                      className="btn-base btn-ghost px-2 py-1 text-[11px]"
+                      className="btn-base btn-ghost px-2 py-1 text-xs"
                       title={`${formatSize(info.size)} · lien valable 7 jours`}
                     >
                       <Download className="h-3 w-3" /> {l.toUpperCase()}
@@ -3216,7 +3213,7 @@ function Studio() {
                 au script, ce qui a été écarté. Étape gratuite. */}
             {factCheck && (
               <div
-                className={`mt-3 rounded-[10px] border p-3 text-xs ${
+                className={`mt-3 rounded-[8px] border p-3 text-xs ${
                   factCheck.verdict === "revoir"
                     ? "border-destructive/40 bg-destructive/10"
                     : "border-border"
@@ -3266,7 +3263,7 @@ function Studio() {
                 <button
                   key={s.id}
                   onClick={() => setStyle(s.id)}
-                  className={`rounded-[10px] border px-3 py-2 text-left text-sm transition-colors ${
+                  className={`rounded-[8px] border px-3 py-2 text-left text-sm transition-colors ${
                     style === s.id
                       ? "border-primary/60 bg-primary/15 text-foreground"
                       : "border-border text-muted-foreground hover:text-foreground"
@@ -3439,6 +3436,11 @@ function Studio() {
               </p>
             </div>
 
+            <details className="rounded-[8px] border border-border">
+              <summary className="cursor-pointer select-none px-3 py-2.5 text-[15px] font-semibold">
+                Réglages avancés
+              </summary>
+              <div className="flex flex-col gap-4 border-t border-border p-3">
             <div>
               <p className="label-x">Format</p>
               <div className="mt-2 flex flex-wrap gap-2">
@@ -3494,7 +3496,7 @@ function Studio() {
                       }`}
                     >
                       <span className="text-xs font-medium">{languageLabel(l)}</span>
-                      <span className="max-w-[11rem] truncate text-[10px] text-muted-foreground">
+                      <span className="max-w-[11rem] truncate text-xs text-muted-foreground">
                         {label}
                       </span>
                     </button>
@@ -3541,7 +3543,7 @@ function Studio() {
                   title={
                     favoriteVoices.includes(voice) ? "Retirer des favoris" : "Ajouter aux favoris"
                   }
-                  className={`grid size-9 shrink-0 place-items-center rounded-[10px] border transition-colors ${
+                  className={`grid size-9 shrink-0 place-items-center rounded-[8px] border transition-colors ${
                     favoriteVoices.includes(voice)
                       ? "border-primary/60 bg-primary/15 text-primary"
                       : "border-border text-muted-foreground hover:text-foreground"
@@ -3573,7 +3575,7 @@ function Studio() {
                   Appliquer
                 </button>
               </div>
-              <p className="mt-1 text-[11px] text-muted-foreground">
+              <p className="mt-1 text-xs text-muted-foreground">
                 ID retenu pour {languageLabel(voiceLangTab)} :{" "}
                 <span className="font-mono">{voice}</span>
               </p>
@@ -3597,19 +3599,21 @@ function Studio() {
               styles={STYLES.map((s) => ({ id: s.id, label: s.label }))}
               activeStyle={style}
             />
+              </div>
+            </details>
           </section>
         </div>
 
         {script && (
           <section className="mt-6 space-y-4">
             <div className="surface-card p-4">
-              <h2 className="text-lg font-semibold">{script.title}</h2>
+              <h2 className="section-title">{script.title}</h2>
               <p className="mt-1 text-sm text-muted-foreground">{script.hook}</p>
 
               {/* ACCROCHE — les trois candidates, leur note sur les six
                   conditions et la raison du choix, pour pouvoir juger. */}
               {(script.hookOptions ?? []).length > 1 && (
-                <div className="mt-3 rounded-[10px] border border-border p-3">
+                <div className="mt-3 rounded-[8px] border border-border p-3">
                   <span className="label-x">Accroches proposées</span>
                   <ul className="mt-1.5 space-y-1.5 text-sm">
                     {(script.hookOptions ?? []).map((h, i) => {
@@ -3637,7 +3641,7 @@ function Studio() {
 
               {/* CONTRÔLE FINAL — « à quelle seconde je scrolle ? ». */}
               {script.audit && (script.audit.reason || script.audit.learned) && (
-                <div className="mt-3 rounded-[10px] border border-border p-3 text-sm">
+                <div className="mt-3 rounded-[8px] border border-border p-3 text-sm">
                   <span className="label-x">Relecture « spectateur qui scrolle »</span>
                   {script.audit.reason && (
                     <p className="mt-1.5">
@@ -3655,7 +3659,7 @@ function Studio() {
               )}
 
 
-              <div className="mt-4 rounded-[10px] border border-border p-3">
+              <div className="mt-4 rounded-[8px] border border-border p-3">
                 <span className="label-x">Outro Sophia (fixe sur toutes les vidéos)</span>
                 <p className="mt-1.5 text-sm">{script.cta}</p>
               </div>
@@ -3855,14 +3859,14 @@ function Studio() {
                       .replace(/[^\p{L}\p{N}]+/gu, "-")
                       .toLowerCase()}-${l}.mp4`;
                     return (
-                      <div key={l} className="rounded-[10px] border border-border p-3">
+                      <div key={l} className="rounded-[8px] border border-border p-3">
                         <div className="flex flex-wrap items-center justify-between gap-2">
                           <span className="text-xs text-muted-foreground">
                             {LANGUAGE_FLAGS[l] ?? ""} {l.toUpperCase()}
                             {info?.duration ? ` · ${Math.round(info.duration)} s` : ""}
                             {info?.size ? ` · ${formatSize(info.size)}` : ""}
                             {info ? (
-                              <span className="ml-1 text-emerald-400">· sauvegardée en ligne ✓</span>
+                              <span className="ml-1 text-success">· sauvegardée en ligne ✓</span>
                             ) : savingOnline === l ? (
                               <span className="ml-1">· sauvegarde en cours…</span>
                             ) : failed ? (
@@ -3915,7 +3919,7 @@ function Studio() {
                             controls
                             playsInline
                             preload="metadata"
-                            className="mt-3 max-h-[60vh] w-full rounded-[10px] bg-black object-contain"
+                            className="mt-3 max-h-[60vh] w-full rounded-[8px] bg-black object-contain"
                           />
                         )}
                       </div>
@@ -3929,7 +3933,7 @@ function Studio() {
                       src={finalUrl}
                       controls
                       playsInline
-                      className="mt-3 max-h-[70vh] w-full rounded-[10px] bg-black object-contain"
+                      className="mt-3 max-h-[70vh] w-full rounded-[8px] bg-black object-contain"
                     />
                   )}
               </div>
@@ -4104,7 +4108,7 @@ function Studio() {
                       />
 
                       {/* Numéro du plan et pastilles d'état, discrets. */}
-                      <span className="pointer-events-none absolute left-2 top-2 rounded-md bg-black/65 px-1.5 py-0.5 text-[11px] text-white">
+                      <span className="pointer-events-none absolute left-2 top-2 rounded-md bg-black/65 px-1.5 py-0.5 text-xs text-white">
                         {scene.index + 1}
                       </span>
                       <span className="pointer-events-none absolute right-2 top-2 flex items-center gap-1.5 rounded-md bg-black/65 px-1.5 py-1">
@@ -4226,7 +4230,7 @@ function Studio() {
                           <summary className="btn-base btn-ghost cursor-pointer list-none px-2.5 py-1.5 text-xs">
                             Actions
                           </summary>
-                          <div className="absolute right-0 z-20 mt-2 flex w-56 flex-col gap-1 rounded-[10px] border border-border bg-popover p-2 shadow-lg">
+                          <div className="absolute right-0 z-20 mt-2 flex w-56 flex-col gap-1 rounded-[8px] border border-border bg-popover p-2 shadow-lg">
                             <button
                               onClick={() => onImage(scene)}
                               disabled={st.imageLoading}

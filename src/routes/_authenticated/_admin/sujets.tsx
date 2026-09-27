@@ -4,6 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { ArrowLeft, ArrowDown, ArrowUp, Check, Loader2, Sparkles, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 
+import { PageHeader } from "@/components/admin-nav";
 import { Toaster } from "@/components/ui/sonner";
 import { TOPIC_CATEGORIES } from "@/lib/topic-categories";
 import { NARRATION_LABELS, type NarrationStyleId } from "@/lib/style-presets";
@@ -55,6 +56,7 @@ function TopicQueuePage() {
   const [draftAngle, setDraftAngle] = useState("");
   const [draftStyle, setDraftStyle] = useState<NarrationStyleId>("revelation");
   const [draftCategory, setDraftCategory] = useState("aleatoire");
+  const [filter, setFilter] = useState<"pending" | "validated" | "used" | "all">("pending");
 
   const runList = useServerFn(listTopics);
   const runAdd = useServerFn(addTopic);
@@ -140,17 +142,23 @@ function TopicQueuePage() {
   };
 
   return (
-    <main className="mx-auto w-full max-w-4xl px-4 py-6">
+    <main className="page">
       <Toaster position="top-center" />
+      <PageHeader title="File de sujets" lede="Rien ne se génère à partir d'un sujet non validé." />
 
-      <div className="mb-5 flex flex-wrap items-center gap-3 border-b border-border pb-3">
-        <Link to="/studio" className="btn-base btn-ghost px-2.5 py-1.5 text-xs">
-          <ArrowLeft className="h-3.5 w-3.5" /> Studio
-        </Link>
-        <h1 className="text-[15px] font-semibold tracking-tight">File de sujets</h1>
-        <span className="ml-auto text-xs text-muted-foreground">
-          Rien ne se génère à partir d'un sujet non validé.
-        </span>
+      <div className="mb-6 flex flex-wrap gap-2" role="tablist" aria-label="Filtrer par statut">
+        {(
+          [
+            ["pending", `À décider (${pending.length})`],
+            ["validated", `File validée (${validated.length})`],
+            ["used", `Sujets déjà utilisés (${used.length})`],
+            ["all", "Tous"],
+          ] as const
+        ).map(([id, label]) => (
+          <button key={id} onClick={() => setFilter(id)} className={`chip ${filter === id ? "chip-active" : ""}`}>
+            {label}
+          </button>
+        ))}
       </div>
 
       {/* STOCK DISPONIBLE — l'information la plus importante de la page. */}
@@ -173,7 +181,7 @@ function TopicQueuePage() {
         <button
           onClick={onPropose}
           disabled={proposing}
-          className="btn-base btn-primary ml-auto text-xs"
+          className="btn-base btn-ghost ml-auto"
         >
           {proposing ? (
             <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -186,7 +194,7 @@ function TopicQueuePage() {
 
       {/* AJOUT MANUEL */}
       <section className="surface-card mb-4 space-y-2 p-4">
-        <p className="label-x">Ajouter un sujet à la main</p>
+        <h2 className="section-title">Ajouter un sujet à la main</h2>
         <input
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
@@ -233,21 +241,22 @@ function TopicQueuePage() {
       {loading && <p className="text-xs text-muted-foreground">Chargement…</p>}
 
       {/* EN ATTENTE DE DÉCISION */}
+      {(filter === "pending" || filter === "all") && (
       <section className="surface-card mb-4 p-4">
-        <p className="label-x">À décider ({pending.length})</p>
+        <h2 className="section-title">À décider ({pending.length})</h2>
         {pending.length === 0 && (
           <p className="mt-2 text-xs text-muted-foreground">Aucune proposition en attente.</p>
         )}
-        <ul className="mt-2 space-y-2">
+        <ul className="mt-2">
           {pending.map((t) => (
             <li
               key={t.id}
-              className="flex flex-wrap items-start gap-3 rounded-[10px] border border-border p-3"
+              className="row flex flex-wrap items-center gap-3 px-1 py-2 last:border-b-0"
             >
               <div className="min-w-0 flex-1">
-                <p className="text-sm">
+                <p className="text-[15px]">
                   {t.status === "revoir" && (
-                    <span className="mr-2 rounded-[6px] bg-destructive/15 px-1.5 py-0.5 text-[11px] text-destructive">
+                    <span className="mr-2 rounded-[6px] bg-destructive/15 px-1.5 py-0.5 text-xs text-destructive">
                       à revoir
                     </span>
                   )}
@@ -258,13 +267,13 @@ function TopicQueuePage() {
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => void decide(t.id, "valide")}
-                  className="btn-base btn-ghost text-xs"
+                  className="btn-base btn-primary"
                 >
                   <Check className="h-3.5 w-3.5" /> Valider
                 </button>
                 <button
                   onClick={() => void decide(t.id, "rejete")}
-                  className="btn-base btn-ghost text-xs"
+                  className="btn-base btn-danger"
                 >
                   <X className="h-3.5 w-3.5" /> Rejeter
                 </button>
@@ -273,22 +282,24 @@ function TopicQueuePage() {
           ))}
         </ul>
       </section>
+      )}
 
       {/* FILE VALIDÉE, ORDONNABLE */}
+      {(filter === "validated" || filter === "all") && (
       <section className="surface-card mb-4 p-4">
-        <p className="label-x">File validée ({validated.length})</p>
+        <h2 className="section-title">File validée ({validated.length})</h2>
         {validated.length === 0 && (
           <p className="mt-2 text-xs text-muted-foreground">Aucun sujet validé pour l'instant.</p>
         )}
-        <ol className="mt-2 space-y-2">
+        <ol className="mt-2">
           {validated.map((t, i) => (
             <li
               key={t.id}
-              className="flex flex-wrap items-start gap-3 rounded-[10px] border border-border p-3"
+              className="row flex flex-wrap items-center gap-3 px-1 py-2 last:border-b-0"
             >
               <span className="text-xs text-muted-foreground">{i + 1}</span>
               <div className="min-w-0 flex-1">
-                <p className="text-sm">{t.topic}</p>
+                <p className="text-[15px]">{t.topic}</p>
                 {t.angle && <p className="mt-1 text-xs text-muted-foreground">{t.angle}</p>}
               </div>
               <div className="flex items-center gap-1">
@@ -320,14 +331,16 @@ function TopicQueuePage() {
           ))}
         </ol>
       </section>
+      )}
 
       {/* HISTORIQUE */}
+      {(filter === "used" || filter === "all") && (
       <section className="surface-card p-4">
-        <p className="label-x">Sujets déjà utilisés ({used.length})</p>
+        <h2 className="section-title">Sujets déjà utilisés ({used.length})</h2>
         {used.length === 0 && (
           <p className="mt-2 text-xs text-muted-foreground">Aucun sujet utilisé pour l'instant.</p>
         )}
-        <ul className="mt-2 space-y-2">
+        <ul className="mt-2">
           {used.map((t) => (
             <li key={t.id} className="flex flex-wrap items-center gap-3 text-sm">
               <span className="min-w-0 flex-1">{t.topic}</span>
@@ -350,6 +363,7 @@ function TopicQueuePage() {
           <p className="mt-3 text-xs text-muted-foreground">{rejected.length} sujet(s) rejeté(s).</p>
         )}
       </section>
+      )}
     </main>
   );
 }

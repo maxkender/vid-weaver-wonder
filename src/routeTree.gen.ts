@@ -20,6 +20,7 @@ import { Route as AuthenticatedEspaceRouteImport } from './routes/_authenticated
 import { Route as AuthenticatedAdminAdminRouteImport } from './routes/_authenticated/_admin/admin'
 import { Route as AuthenticatedAdminLaboRouteImport } from './routes/_authenticated/_admin/labo'
 import { Route as AuthenticatedAdminParametresRouteImport } from './routes/_authenticated/_admin/parametres'
+import { Route as AuthenticatedAdminReglagesRouteImport } from './routes/_authenticated/_admin/reglages'
 import { Route as AuthenticatedAdminSlideshowsRouteImport } from './routes/_authenticated/_admin/slideshows'
 import { Route as AuthenticatedAdminStudioRouteImport } from './routes/_authenticated/_admin/studio'
 import { Route as AuthenticatedAdminSujetsRouteImport } from './routes/_authenticated/_admin/sujets'
@@ -83,6 +84,12 @@ const AuthenticatedAdminParametresRoute =
     path: '/parametres',
     getParentRoute: () => AuthenticatedAdminRouteRoute,
   } as any)
+const AuthenticatedAdminReglagesRoute =
+  AuthenticatedAdminReglagesRouteImport.update({
+    id: '/reglages',
+    path: '/reglages',
+    getParentRoute: () => AuthenticatedAdminRouteRoute,
+  } as any)
 const AuthenticatedAdminSlideshowsRoute =
   AuthenticatedAdminSlideshowsRouteImport.update({
     id: '/slideshows',
@@ -138,6 +145,7 @@ export interface FileRoutesByFullPath {
   '/admin': typeof AuthenticatedAdminAdminRoute
   '/labo': typeof AuthenticatedAdminLaboRoute
   '/parametres': typeof AuthenticatedAdminParametresRoute
+  '/reglages': typeof AuthenticatedAdminReglagesRoute
   '/slideshows': typeof AuthenticatedAdminSlideshowsRoute
   '/studio': typeof AuthenticatedAdminStudioRoute
   '/sujets': typeof AuthenticatedAdminSujetsRoute
@@ -157,6 +165,7 @@ export interface FileRoutesByTo {
   '/admin': typeof AuthenticatedAdminAdminRoute
   '/labo': typeof AuthenticatedAdminLaboRoute
   '/parametres': typeof AuthenticatedAdminParametresRoute
+  '/reglages': typeof AuthenticatedAdminReglagesRoute
   '/slideshows': typeof AuthenticatedAdminSlideshowsRoute
   '/studio': typeof AuthenticatedAdminStudioRoute
   '/sujets': typeof AuthenticatedAdminSujetsRoute
@@ -179,6 +188,7 @@ export interface FileRoutesById {
   '/_authenticated/_admin/admin': typeof AuthenticatedAdminAdminRoute
   '/_authenticated/_admin/labo': typeof AuthenticatedAdminLaboRoute
   '/_authenticated/_admin/parametres': typeof AuthenticatedAdminParametresRoute
+  '/_authenticated/_admin/reglages': typeof AuthenticatedAdminReglagesRoute
   '/_authenticated/_admin/slideshows': typeof AuthenticatedAdminSlideshowsRoute
   '/_authenticated/_admin/studio': typeof AuthenticatedAdminStudioRoute
   '/_authenticated/_admin/sujets': typeof AuthenticatedAdminSujetsRoute
@@ -200,6 +210,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/labo'
     | '/parametres'
+    | '/reglages'
     | '/slideshows'
     | '/studio'
     | '/sujets'
@@ -219,6 +230,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/labo'
     | '/parametres'
+    | '/reglages'
     | '/slideshows'
     | '/studio'
     | '/sujets'
@@ -240,6 +252,7 @@ export interface FileRouteTypes {
     | '/_authenticated/_admin/admin'
     | '/_authenticated/_admin/labo'
     | '/_authenticated/_admin/parametres'
+    | '/_authenticated/_admin/reglages'
     | '/_authenticated/_admin/slideshows'
     | '/_authenticated/_admin/studio'
     | '/_authenticated/_admin/sujets'
@@ -342,6 +355,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminParametresRouteImport
       parentRoute: typeof AuthenticatedAdminRouteRoute
     }
+    '/_authenticated/_admin/reglages': {
+      id: '/_authenticated/_admin/reglages'
+      path: '/reglages'
+      fullPath: '/reglages'
+      preLoaderRoute: typeof AuthenticatedAdminReglagesRouteImport
+      parentRoute: typeof AuthenticatedAdminRouteRoute
+    }
     '/_authenticated/_admin/slideshows': {
       id: '/_authenticated/_admin/slideshows'
       path: '/slideshows'
@@ -405,6 +425,7 @@ interface AuthenticatedAdminRouteRouteChildren {
   AuthenticatedAdminAdminRoute: typeof AuthenticatedAdminAdminRoute
   AuthenticatedAdminLaboRoute: typeof AuthenticatedAdminLaboRoute
   AuthenticatedAdminParametresRoute: typeof AuthenticatedAdminParametresRoute
+  AuthenticatedAdminReglagesRoute: typeof AuthenticatedAdminReglagesRoute
   AuthenticatedAdminSlideshowsRoute: typeof AuthenticatedAdminSlideshowsRoute
   AuthenticatedAdminStudioRoute: typeof AuthenticatedAdminStudioRoute
   AuthenticatedAdminSujetsRoute: typeof AuthenticatedAdminSujetsRoute
@@ -415,6 +436,7 @@ const AuthenticatedAdminRouteRouteChildren: AuthenticatedAdminRouteRouteChildren
     AuthenticatedAdminAdminRoute: AuthenticatedAdminAdminRoute,
     AuthenticatedAdminLaboRoute: AuthenticatedAdminLaboRoute,
     AuthenticatedAdminParametresRoute: AuthenticatedAdminParametresRoute,
+    AuthenticatedAdminReglagesRoute: AuthenticatedAdminReglagesRoute,
     AuthenticatedAdminSlideshowsRoute: AuthenticatedAdminSlideshowsRoute,
     AuthenticatedAdminStudioRoute: AuthenticatedAdminStudioRoute,
     AuthenticatedAdminSujetsRoute: AuthenticatedAdminSujetsRoute,

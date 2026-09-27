@@ -34,7 +34,7 @@ export const Route = createFileRoute("/")({
     const { data, error } = await supabase.auth.getUser();
     if (error || !data.user) throw redirect({ to: "/connexion" });
     const profile = await getMyProfile();
-    throw redirect({ to: profile.role === "admin" ? "/admin" : "/espace" });
+    throw redirect({ to: profile.role === "admin" ? "/studio" : "/espace" });
   },
   component: () => (
     <div className="flex min-h-screen items-center justify-center">

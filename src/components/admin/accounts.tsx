@@ -96,7 +96,7 @@ export function AdminAccounts() {
 
       <div className="surface-card overflow-x-auto p-0">
         <table className="w-full min-w-[900px] text-sm">
-          <thead className="text-left text-[11px] uppercase tracking-wide text-muted-foreground">
+          <thead className="text-left text-xs uppercase tracking-wide text-muted-foreground">
             <tr className="border-b border-border">
               <th className="px-3 py-2">Plateforme</th>
               <th className="px-3 py-2">Nom d'utilisateur</th>
@@ -125,7 +125,7 @@ export function AdminAccounts() {
                     aria-label="Pseudo du compte"
                   />
                   {a.handle !== a.expected_handle ? (
-                    <p className="mt-0.5 text-[10px] text-amber-500">
+                    <p className="mt-0.5 text-xs text-destructive">
                       diverge de {a.expected_handle}
                     </p>
                   ) : null}
@@ -136,11 +136,11 @@ export function AdminAccounts() {
                         void patch(a.id, { gmail: e.target.value.trim() });
                       }
                     }}
-                    className="field mt-1 w-56 font-mono text-[11px]"
+                    className="field mt-1 w-56 font-mono text-xs"
                     aria-label="Adresse Gmail du compte"
                   />
                   {a.gmail_address !== a.expected_gmail ? (
-                    <p className="mt-0.5 text-[10px] text-amber-500">
+                    <p className="mt-0.5 text-xs text-destructive">
                       diverge de {a.expected_gmail}
                     </p>
                   ) : null}

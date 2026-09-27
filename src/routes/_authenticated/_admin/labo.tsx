@@ -66,12 +66,12 @@ export const Route = createFileRoute("/_authenticated/_admin/labo")({
 
 const errMsg = (e: unknown) => (e instanceof Error ? e.message : String(e));
 const countWords = (t: string) => t.trim().split(/\s+/).filter(Boolean).length;
-const selectCls = "h-9 rounded-md border border-input bg-background px-2 text-sm";
+const selectCls = "h-10 rounded-md border border-input bg-background px-2 text-sm";
 
 function Panel({ title, children }: { title: string; children: ReactNode }) {
   return (
     <section className="space-y-3 rounded-lg border border-border bg-card p-4">
-      <h2 className="text-base font-semibold">{title}</h2>
+      <h2 className="section-title">{title}</h2>
       {children}
     </section>
   );
@@ -149,11 +149,11 @@ function Alert({ children }: { children: ReactNode }) {
 
 function LaboPage() {
   return (
-    <div className="mx-auto max-w-5xl space-y-6 p-4">
+    <div className="page space-y-6">
       <Toaster />
       <header>
-        <h1 className="text-xl font-semibold">Banc d'essai</h1>
-        <p className="text-sm text-muted-foreground">
+        <h1 className="page-title">Banc d'essai</h1>
+        <p className="page-lede">
           Chaque panneau teste une seule étape. Les prompts modifiés ici ne changent jamais les Paramètres, et rien n'est
           écrit en production.
         </p>

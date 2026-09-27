@@ -62,7 +62,7 @@ function LoginPage() {
   const routeAfterLogin = async () => {
     try {
       const profile = await getMyProfile();
-      await navigate({ to: profile.role === "admin" ? "/admin" : "/espace", replace: true });
+      await navigate({ to: profile.role === "admin" ? "/studio" : "/espace", replace: true });
     } catch {
       await navigate({ to: "/espace", replace: true });
     }
