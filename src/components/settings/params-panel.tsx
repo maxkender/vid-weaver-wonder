@@ -1,6 +1,5 @@
-import { Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { ArrowLeft, RotateCcw, Save } from "lucide-react";
+import { RotateCcw, Save } from "lucide-react";
 import { toast } from "sonner";
 
 import sophiaLogo from "@/assets/sophia-logo.png.asset.json";
