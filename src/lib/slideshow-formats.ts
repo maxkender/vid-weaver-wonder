@@ -50,7 +50,7 @@ export const SLIDESHOW_FORMATS: SlideshowFormat[] = [
     id: "quiz",
     label: "Le quiz",
     actif: true,
-    slides: { min: 9, max: 13 },
+    slides: { min: 10, max: 14 },
     forme:
       "Une série de questions de culture générale, de la plus facile à la plus dure, où le spectateur répond dans sa tête avant de swiper.",
     premiereSlide:
@@ -198,6 +198,7 @@ export function slideshowWritingBrief(format: SlideshowFormat, slideCount: numbe
     "",
     `SLIDE 1 — ${format.premiereSlide}`,
     `ARCHITECTURE — ${format.architecture}`,
+    `DÉCOMPTE EXACT DES SLIDES : la slide 0 est l'accroche, la dernière slide est réservée à la chute et ne contient RIEN d'autre, et tout ce qu'il y a entre les deux est un nombre PAIR de slides qui alternent question puis réponse. Avec ${slideCount} slides tu écris donc exactement ${(slideCount - 2) / 2} questions. Ne fusionne JAMAIS une réponse et la chute sur la même slide.`,
     `DERNIÈRE SLIDE — ${format.chute}`,
     "",
     `LONGUEUR, RÈGLE ÉLIMINATOIRE : ${MAX_MOTS_PAR_SLIDE} MOTS MAXIMUM par slide, et viser dix. Le texte est incrusté sur une image et lu en une seconde et demie sur un téléphone. Compte les mots de chaque slide avant de répondre. Une slide trop longue est refusée par le programme et te revient à réécrire.`,

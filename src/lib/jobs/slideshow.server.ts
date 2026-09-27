@@ -19,6 +19,8 @@ import {
   type SlideKind,
 } from "@/lib/slideshow-formats";
 
+import { normalizeSlideCount, normalizeSlideKind, slideImagePrompt } from "@/lib/slide-kind";
+
 import { admin, uploadDataUrl } from "./store.server";
 
 /** Même budget que la chaîne vidéo : on rend la main avant expiration. */
@@ -34,7 +36,7 @@ function isBlockingError(message: string) {
   );
 }
 
-const IMAGE_STYLE =
+export const IMAGE_STYLE =
   "Square 1:1 format. Polished editorial photography. One single huge subject, centered. Simple uncluttered background. Soft directional light. Absolutely no text, no letters, no numbers, no logos anywhere. The upper third of the image is intentionally calm and empty to leave room for overlaid text.";
 
 export type SlideshowSlide = {
@@ -149,10 +151,15 @@ async function topicAngle(topic: string): Promise<string | null> {
 async function stepWriting(job: SlideshowJob) {
   const format = slideshowFormatById(job.format);
   if (!format) throw new Error(`Format de slideshow inconnu : ${job.format}`);
-  const n =
-    job.slide_count >= format.slides.min && job.slide_count <= format.slides.max
-      ? job.slide_count
-      : format.slides.min;
+  const n = normalizeSlideCount(format, job.slide_count);
+  if (n !== job.slide_count) {
+    await logEvent(
+      job.id,
+      "ecriture",
+      `Nombre de slides ${job.slide_count} invalide pour « ${format.label} » (bornes ${format.slides.min}-${format.slides.max}${format.id === "quiz" ? ", pair" : ""}) : ramené à ${n}.`,
+      "warn",
+    );
+  }
   const topic = (job.topic ?? "").trim();
   if (!topic) throw new Error("Aucun sujet pour ce slideshow.");
   const angle = await topicAngle(topic);
@@ -169,7 +176,7 @@ async function stepWriting(job: SlideshowJob) {
     .slice(0, n)
     .map((s, i) => ({
       index: i,
-      kind: s.kind,
+      kind: normalizeSlideKind(s.kind, i, Math.min(n, (written.slides ?? []).length)),
       text: String(s.text ?? "").trim(),
       imagePrompt: String(s.imagePrompt ?? "").trim(),
     }));
@@ -273,9 +280,10 @@ async function stepImages(job: SlideshowJob, t0: number) {
     const slide = slides[i]!;
     if (slide.imagePath) continue; // reprise : jamais repayer une image
     if (outOfTime(t0)) return;
-    const dataUrl = await generateImageDataUrl(`${slide.imagePrompt}\n\n${IMAGE_STYLE}`);
+    const kind = normalizeSlideKind(slide.kind, i, slides.length);
+    const dataUrl = await generateImageDataUrl(slideImagePrompt(slide.imagePrompt, kind, IMAGE_STYLE));
     const path = await uploadDataUrl(`slideshows/${job.id}/slide-${slide.index}.png`, dataUrl);
-    slides[i] = { ...slide, imagePath: path };
+    slides[i] = { ...slide, kind, imagePath: path };
     const done = slides.filter((s) => s.imagePath).length;
     await patch(job.id, { slides, progress: 0.2 + 0.7 * (done / slides.length) });
   }
@@ -309,7 +317,7 @@ async function stepPublication(job: SlideshowJob) {
       hashtags: t?.hashtags ?? [],
       slides: job.slides.map((s) => ({
         index: s.index,
-        kind: s.kind,
+        kind: normalizeSlideKind(s.kind, s.index, job.slides.length),
         text: t?.slides.find((x) => x.index === s.index)?.text ?? "",
         imagePath: s.imagePath ?? null,
       })),
@@ -374,4 +382,30 @@ export async function runSlideshowTick(): Promise<{
 
 function current_step(job: SlideshowJob) {
   return job.step ?? job.status;
+}
+
+/**
+ * (Ré)génère UNE image de slide, à la demande de l'administrateur.
+ * Écrase l'ancienne au même chemin. Coût : 1 image.
+ */
+export async function regenerateOneSlideImage(jobId: string, index: number): Promise<string> {
+  const db = await admin();
+  const { data, error } = await db.from("slideshow_jobs").select("slides").eq("id", jobId).single();
+  if (error || !data) throw new Error("Slideshow introuvable.");
+  const slides = [...(((data as { slides: SlideshowSlide[] }).slides ?? []) as SlideshowSlide[])];
+  const pos = slides.findIndex((s) => s.index === index);
+  if (pos < 0) throw new Error(`Slide ${index} introuvable.`);
+  const slide = slides[pos]!;
+  if (!slide.imagePrompt?.trim()) throw new Error("Prompt d'image vide.");
+  const kind = normalizeSlideKind(slide.kind, pos, slides.length);
+  const dataUrl = await generateImageDataUrl(slideImagePrompt(slide.imagePrompt, kind, IMAGE_STYLE));
+  const path = await uploadDataUrl(`slideshows/${jobId}/slide-${slide.index}.png`, dataUrl);
+  // Relit avant d'écrire pour ne pas écraser une modification concurrente.
+  const { data: fresh } = await db.from("slideshow_jobs").select("slides").eq("id", jobId).single();
+  const next = [...(((fresh as { slides: SlideshowSlide[] } | null)?.slides ?? slides) as SlideshowSlide[])];
+  const p2 = next.findIndex((s) => s.index === index);
+  if (p2 >= 0) next[p2] = { ...next[p2]!, kind, imagePath: path };
+  await patch(jobId, { slides: next });
+  await logEvent(jobId, "images", `Image de la slide ${index} régénérée à la main.`);
+  return path;
 }
