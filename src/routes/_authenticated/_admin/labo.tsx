@@ -293,7 +293,7 @@ function ScriptPanel() {
   );
   const styleInitial = storyStyleBrief(style);
   const [styleBrief, setStyleBrief] = useState(styleInitial);
-  useEffect(() => setStyleBrief(styleInitial), [styleInitial]);
+  useEffect(() => { setStyleBrief(styleInitial); }, [styleInitial]);
 
   const run = async () => {
     setBusy(true);
@@ -387,7 +387,7 @@ function ImagePanel() {
   const gen = useServerFn(generateSceneImage);
   const [visual, setVisual] = useState<VisualStyleId>("papercraft_v2");
   const [settings, setSettings] = useState<ReturnType<typeof loadSettings> | null>(null);
-  useEffect(() => setSettings(loadSettings()), []);
+  useEffect(() => { setSettings(loadSettings()); }, []);
   const briefInitial = settings?.visual[visual]?.brief ?? DEFAULT_VISUAL_BRIEF[visual];
   const qualityInitial = settings?.visual[visual]?.quality ?? DEFAULT_QUALITY[visual];
   const [prompt, setPrompt] = useState("");
@@ -400,7 +400,10 @@ function ImagePanel() {
   const [current, setCurrent] = useState<ImgRun | null>(null);
   const [skipReset, setSkipReset] = useState(false);
   useEffect(() => {
-    if (skipReset) return setSkipReset(false);
+    if (skipReset) {
+      setSkipReset(false);
+      return;
+    }
     setVisualBrief(briefInitial);
     setQuality(qualityInitial);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -484,7 +487,7 @@ function VoicePanel() {
   const [speed, setSpeed] = useState(1);
   const [busy, setBusy] = useState(false);
   const [runs, setRuns] = useState<VoiceRun[]>([]);
-  useEffect(() => setSpeed(Math.min(1.15, Math.max(0.95, loadSettings().voiceSpeed))), []);
+  useEffect(() => { setSpeed(Math.min(1.15, Math.max(0.95, loadSettings().voiceSpeed))); }, []);
 
   const chars = text.trim().length;
   const loadVoices = async () => {
@@ -568,7 +571,7 @@ function SlideshowPanel() {
   const [language, setLanguage] = useState("fr");
   const briefInitial = slideshowWritingBrief(format, n);
   const [brief, setBrief] = useState(briefInitial);
-  useEffect(() => setBrief(briefInitial), [briefInitial]);
+  useEffect(() => { setBrief(briefInitial); }, [briefInitial]);
   const [imgStyle, setImgStyle] = useState("");
   const [busy, setBusy] = useState(false);
   const [out, setOut] = useState<{ title: string; caption: string; hashtags: string[] } | null>(null);
