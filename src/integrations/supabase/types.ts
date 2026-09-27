@@ -184,6 +184,56 @@ export type Database = {
           },
         ]
       }
+      daily_slideshows: {
+        Row: {
+          caption: string | null
+          created_at: string
+          format: string
+          hashtags: string[]
+          id: string
+          language: string
+          publish_date: string
+          slides: Json
+          slideshow_job_id: string | null
+          status: string
+          title: string | null
+        }
+        Insert: {
+          caption?: string | null
+          created_at?: string
+          format?: string
+          hashtags?: string[]
+          id?: string
+          language: string
+          publish_date: string
+          slides?: Json
+          slideshow_job_id?: string | null
+          status?: string
+          title?: string | null
+        }
+        Update: {
+          caption?: string | null
+          created_at?: string
+          format?: string
+          hashtags?: string[]
+          id?: string
+          language?: string
+          publish_date?: string
+          slides?: Json
+          slideshow_job_id?: string | null
+          status?: string
+          title?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "daily_slideshows_slideshow_job_id_fkey"
+            columns: ["slideshow_job_id"]
+            isOneToOne: false
+            referencedRelation: "slideshow_jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       daily_videos: {
         Row: {
           caption: string
@@ -337,6 +387,7 @@ export type Database = {
           language: string
           music_style: string
           narration_style: string
+          slideshow_format: string | null
           updated_at: string
           visual_style: string
           voice_speed: number
@@ -347,6 +398,7 @@ export type Database = {
           language: string
           music_style?: string
           narration_style?: string
+          slideshow_format?: string | null
           updated_at?: string
           visual_style?: string
           voice_speed?: number
@@ -357,6 +409,7 @@ export type Database = {
           language?: string
           music_style?: string
           narration_style?: string
+          slideshow_format?: string | null
           updated_at?: string
           visual_style?: string
           voice_speed?: number
@@ -629,11 +682,145 @@ export type Database = {
           },
         ]
       }
+      slideshow_downloads: {
+        Row: {
+          account_id: string | null
+          daily_slideshow_id: string
+          downloaded_at: string
+          id: string
+          posted_at: string | null
+          posted_url: string | null
+          poster_id: string
+        }
+        Insert: {
+          account_id?: string | null
+          daily_slideshow_id: string
+          downloaded_at?: string
+          id?: string
+          posted_at?: string | null
+          posted_url?: string | null
+          poster_id: string
+        }
+        Update: {
+          account_id?: string | null
+          daily_slideshow_id?: string
+          downloaded_at?: string
+          id?: string
+          posted_at?: string | null
+          posted_url?: string | null
+          poster_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "slideshow_downloads_daily_slideshow_id_fkey"
+            columns: ["daily_slideshow_id"]
+            isOneToOne: false
+            referencedRelation: "daily_slideshows"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      slideshow_events: {
+        Row: {
+          created_at: string
+          id: number
+          level: string
+          message: string | null
+          slideshow_job_id: string
+          step: string
+        }
+        Insert: {
+          created_at?: string
+          id?: number
+          level?: string
+          message?: string | null
+          slideshow_job_id: string
+          step: string
+        }
+        Update: {
+          created_at?: string
+          id?: number
+          level?: string
+          message?: string | null
+          slideshow_job_id?: string
+          step?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "slideshow_events_slideshow_job_id_fkey"
+            columns: ["slideshow_job_id"]
+            isOneToOne: false
+            referencedRelation: "slideshow_jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      slideshow_jobs: {
+        Row: {
+          attempts: number
+          created_at: string
+          error: string | null
+          format: string
+          id: string
+          languages: string[]
+          lease_until: string | null
+          progress: number
+          publish_date: string | null
+          slide_count: number
+          slides: Json
+          status: string
+          step: string | null
+          textes: Json
+          topic: string | null
+          topic_category: string | null
+          updated_at: string
+        }
+        Insert: {
+          attempts?: number
+          created_at?: string
+          error?: string | null
+          format?: string
+          id?: string
+          languages?: string[]
+          lease_until?: string | null
+          progress?: number
+          publish_date?: string | null
+          slide_count?: number
+          slides?: Json
+          status?: string
+          step?: string | null
+          textes?: Json
+          topic?: string | null
+          topic_category?: string | null
+          updated_at?: string
+        }
+        Update: {
+          attempts?: number
+          created_at?: string
+          error?: string | null
+          format?: string
+          id?: string
+          languages?: string[]
+          lease_until?: string | null
+          progress?: number
+          publish_date?: string | null
+          slide_count?: number
+          slides?: Json
+          status?: string
+          step?: string | null
+          textes?: Json
+          topic?: string | null
+          topic_category?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       topic_queue: {
         Row: {
           angle: string | null
           category: string
           created_at: string
+          format: string
           id: string
           narration_style: string
           position: number
@@ -646,6 +833,7 @@ export type Database = {
           angle?: string | null
           category?: string
           created_at?: string
+          format?: string
           id?: string
           narration_style?: string
           position?: number
@@ -658,6 +846,7 @@ export type Database = {
           angle?: string | null
           category?: string
           created_at?: string
+          format?: string
           id?: string
           narration_style?: string
           position?: number
