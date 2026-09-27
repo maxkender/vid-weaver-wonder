@@ -1,19 +1,6 @@
-import { Link, useNavigate } from "@tanstack/react-router";
+import { useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import {
-  BarChart3,
-  FileText,
-  Film,
-  Layers,
-  Lightbulb,
-  Loader2,
-  LogOut,
-  ScrollText,
-  Send,
-  Users,
-} from "lucide-react";
 
-import { supabase } from "@/integrations/supabase/client";
 import { getMyProfile } from "@/lib/platform.functions";
 import { AdminOverview } from "@/components/admin/overview";
 import { AdminTopics } from "@/components/admin/topics";
@@ -26,14 +13,14 @@ import { AdminJournal } from "@/components/admin/journal";
 
 
 const SECTIONS = [
-  { id: "overview", label: "Vue d'ensemble", icon: BarChart3 },
-  { id: "topics", label: "Sujets", icon: Lightbulb },
-  { id: "accounts", label: "Comptes", icon: Layers },
-  { id: "posters", label: "Posteurs", icon: Users },
-  { id: "diffusion", label: "Diffusion", icon: Send },
-  { id: "videos", label: "Vidéos", icon: Film },
-  { id: "content", label: "Réglages de contenu", icon: FileText },
-  { id: "journal", label: "Journal", icon: ScrollText },
+  { id: "overview", label: "Vue d'ensemble" },
+  { id: "topics", label: "Sujets" },
+  { id: "accounts", label: "Comptes" },
+  { id: "posters", label: "Posteurs" },
+  { id: "diffusion", label: "Diffusion" },
+  { id: "videos", label: "Vidéos" },
+  { id: "content", label: "Réglages de contenu" },
+  { id: "journal", label: "Journal" },
 ] as const;
 
 type SectionId = (typeof SECTIONS)[number]["id"];
@@ -55,84 +42,52 @@ export function AdminPanel() {
   }, [navigate]);
 
   if (!ready) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-background">
-        <Loader2 className="size-6 animate-spin text-muted-foreground" />
-      </div>
-    );
+    return <p className="text-sm text-muted-foreground">Chargement…</p>;
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="flex min-h-screen">
-        <aside className="sticky top-0 hidden h-screen w-56 shrink-0 border-r border-border p-3 lg:block">
-          <p className="px-2 text-sm font-semibold tracking-tight">Administration</p>
-          <nav className="mt-3 space-y-0.5">
-            {SECTIONS.map((s) => {
-              const Icon = s.icon;
-              return (
-                <button
-                  key={s.id}
-                  onClick={() => setSection(s.id)}
-                  className={`flex w-full items-center gap-2 rounded-[8px] px-2 py-1.5 text-left text-xs ${
-                    section === s.id
-                      ? "bg-primary/15 text-primary"
-                      : "text-muted-foreground hover:bg-muted"
-                  }`}
-                >
-                  <Icon className="h-3.5 w-3.5" />
-                  {s.label}
-                </button>
-              );
-            })}
-          </nav>
-          <div className="mt-4 space-y-0.5 border-t border-border pt-3">
-            <Link to="/studio" className="flex items-center gap-2 rounded-[8px] px-2 py-1.5 text-xs text-muted-foreground hover:bg-muted">
-              Studio de production
-            </Link>
-            <button
-              onClick={async () => {
-                await supabase.auth.signOut();
-                await navigate({ to: "/connexion", replace: true });
-              }}
-              className="flex w-full items-center gap-2 rounded-[8px] px-2 py-1.5 text-left text-xs text-muted-foreground hover:bg-muted"
-            >
-              <LogOut className="h-3.5 w-3.5" /> Déconnexion
-            </button>
-          </div>
-        </aside>
-
-        <div className="min-w-0 flex-1">
-          <header className="sticky top-0 z-20 border-b border-border bg-background/95 px-4 py-2 backdrop-blur lg:hidden">
-            <select
-              value={section}
-              onChange={(e) => setSection(e.target.value as SectionId)}
-              className="field w-full text-xs"
-              aria-label="Section"
-            >
-              {SECTIONS.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.label}
-                </option>
-              ))}
-            </select>
-          </header>
-
-          <main className="px-4 py-4">
-            <h1 className="mb-3 text-[15px] font-semibold tracking-tight">
-              {SECTIONS.find((s) => s.id === section)?.label}
-            </h1>
-            {section === "overview" ? <AdminOverview /> : null}
-            {section === "topics" ? <AdminTopics /> : null}
-            {section === "accounts" ? <AdminAccounts /> : null}
-            {section === "posters" ? <AdminPosters /> : null}
-            {section === "diffusion" ? <AdminDiffusion /> : null}
-            {section === "videos" ? <AdminVideos /> : null}
-            {section === "content" ? <AdminContent /> : null}
-            {section === "journal" ? <AdminJournal /> : null}
-          </main>
-        </div>
+    <div className="grid gap-6 lg:grid-cols-[200px_minmax(0,1fr)]">
+      <nav className="hidden lg:block">
+        {SECTIONS.map((s) => (
+          <button
+            key={s.id}
+            onClick={() => setSection(s.id)}
+            className={`flex h-10 w-full items-center border-l-2 pl-3 text-left text-[15px] ${
+              section === s.id
+                ? "border-foreground font-semibold text-foreground"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            {s.label}
+          </button>
+        ))}
+      </nav>
+      <div className="lg:hidden">
+        <label className="label-x" htmlFor="admin-section">Section</label>
+        <select
+          id="admin-section"
+          value={section}
+          onChange={(e) => setSection(e.target.value as SectionId)}
+          className="field"
+        >
+          {SECTIONS.map((s) => (
+            <option key={s.id} value={s.id}>
+              {s.label}
+            </option>
+          ))}
+        </select>
       </div>
+      <main className="min-w-0">
+        <h2 className="section-title mb-4">{SECTIONS.find((s) => s.id === section)?.label}</h2>
+        {section === "overview" ? <AdminOverview /> : null}
+        {section === "topics" ? <AdminTopics /> : null}
+        {section === "accounts" ? <AdminAccounts /> : null}
+        {section === "posters" ? <AdminPosters /> : null}
+        {section === "diffusion" ? <AdminDiffusion /> : null}
+        {section === "videos" ? <AdminVideos /> : null}
+        {section === "content" ? <AdminContent /> : null}
+        {section === "journal" ? <AdminJournal /> : null}
+      </main>
     </div>
   );
 }

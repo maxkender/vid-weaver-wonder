@@ -24,7 +24,7 @@ import {
 } from "@/lib/style-presets";
 
 
-const field = "field mt-2 resize-y";
+const field = "field mt-2 min-h-40 resize-y font-mono text-sm leading-relaxed";
 
 /**
  * Intitulé d'un champ texte + indicateur « Personnalisé » et retour au défaut.
@@ -82,14 +82,7 @@ export function ParamsPanel() {
   };
 
   return (
-    <main className="mx-auto w-full max-w-4xl px-4 py-6">
-      <div className="mb-5 flex flex-wrap items-center gap-3 border-b border-border pb-3">
-        <Link to="/studio" className="btn-base btn-ghost px-2.5 py-1.5 text-xs">
-          <ArrowLeft className="h-3.5 w-3.5" /> Retour au studio
-        </Link>
-        <h1 className="text-[15px] font-semibold tracking-tight">Paramètres</h1>
-      </div>
-
+    <div className="max-w-4xl">
       <p className="max-w-2xl text-sm text-muted-foreground">
         Chaque style de narration et chaque direction artistique a ses propres consignes,
         modifiables ici. Elles sont utilisées à la génération du script, des images et des
@@ -118,7 +111,7 @@ export function ParamsPanel() {
         <div className="mt-4 space-y-3">
           {(Object.keys(NARRATION_LABELS) as NarrationStyleId[]).map((id) => (
             <section key={id} className="surface-card p-4">
-              <h2 className="text-base font-semibold">{NARRATION_LABELS[id]}</h2>
+              <h2 className="section-title">{NARRATION_LABELS[id]}</h2>
               <FieldHeader
                 label="Consignes d'écriture"
                 path={narrationPath(id)}
@@ -164,7 +157,7 @@ export function ParamsPanel() {
         <div className="mt-4 space-y-3">
           {(Object.keys(VISUAL_LABELS) as VisualStyleId[]).map((id) => (
             <section key={id} className="surface-card p-4">
-              <h2 className="text-base font-semibold">{VISUAL_LABELS[id]}</h2>
+              <h2 className="section-title">{VISUAL_LABELS[id]}</h2>
               {(
                 [
                   ["brief", "Description du style (anglais)"],
@@ -214,7 +207,7 @@ export function ParamsPanel() {
       {tab === "visual" && (
         <section className="surface-card mt-4 space-y-4 p-4">
           <div>
-            <h2 className="text-base font-semibold">Plan 1 — l'accroche</h2>
+            <h2 className="section-title">Plan 1 — l'accroche</h2>
             <p className="text-muted-foreground mt-1 text-sm">
               Consignes appliquées au premier plan uniquement, quel que soit le style visuel.
               C'est la première seconde qui décide si le spectateur reste.
@@ -243,7 +236,7 @@ export function ParamsPanel() {
           ))}
 
           <div className="border-t border-border/60 pt-4">
-            <h2 className="text-base font-semibold">Écriture et cadrages</h2>
+            <h2 className="section-title">Écriture et cadrages</h2>
             <p className="text-muted-foreground mt-1 text-sm">
               Les consignes appliquées à toutes les vidéos : le niveau de langue (écriture ET
               traductions), les six conditions de l'accroche, la fonction de chacun des huit
@@ -522,6 +515,6 @@ export function ParamsPanel() {
           <RotateCcw className="h-3.5 w-3.5" /> Réinitialiser
         </button>
       </div>
-    </main>
+    </div>
   );
 }
