@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChevronDown, ChevronRight, ImagePlus, Loader2, Play, Plus, RefreshCw, Save, Shuffle, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
+import { PageHeader } from "@/components/admin-nav";
 import { Toaster } from "@/components/ui/sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -144,11 +145,11 @@ function SlideshowsPage() {
   const hasRunning = jobs.some((j) => RUNNING(j.status));
 
   return (
-    <div className="min-h-screen bg-background px-4 py-4">
+    <div className="page">
       <Toaster position="top-center" />
-      <h1 className="mb-3 text-[15px] font-semibold tracking-tight">Slideshows</h1>
+      <PageHeader title="Slideshows" lede="Lancer, relire et corriger les slideshows multilingues." />
       {paused ? (
-        <p className="mb-3 rounded-lg border border-destructive/40 bg-destructive/10 p-2 text-xs">
+        <p className="mb-3 error-banner mb-4">
           Chaîne slideshow en pause : {paused}
         </p>
       ) : null}
@@ -156,7 +157,7 @@ function SlideshowsPage() {
       <LaunchForm onCreated={refresh} />
 
       <div className="mb-4 flex flex-wrap items-center gap-4 rounded-lg border border-border bg-card p-3 text-xs">
-        <Button variant="secondary" size="sm" onClick={tick} disabled={busy || auto}>
+        <Button variant="outline" size="sm" onClick={tick} disabled={busy || auto}>
           {busy ? <Loader2 className="mr-1.5 size-4 animate-spin" /> : <Play className="mr-1.5 size-4" />}
           Faire tourner un tick
         </Button>
@@ -170,9 +171,9 @@ function SlideshowsPage() {
       </div>
 
       {loading ? (
-        <Loader2 className="size-5 animate-spin text-muted-foreground" />
+        <p className="text-sm text-muted-foreground">Chargement…</p>
       ) : jobs.length === 0 ? (
-        <p className="text-sm text-muted-foreground">Aucun slideshow pour l'instant.</p>
+        <p className="text-[15px] text-muted-foreground">Aucun slideshow pour l'instant.</p>
       ) : (
         <div className="space-y-2">
           {jobs.map((j) => {
@@ -186,7 +187,7 @@ function SlideshowsPage() {
                   <div className="flex min-w-0 gap-2">
                     {open ? <ChevronDown className="mt-0.5 size-4 shrink-0" /> : <ChevronRight className="mt-0.5 size-4 shrink-0" />}
                     <div className="min-w-0">
-                      <p className="truncate text-sm font-medium">{j.topic ?? "—"}</p>
+                      <p className="truncate text-[15px] font-semibold">{j.topic ?? "—"}</p>
                       <p className="text-muted-foreground">
                         {slideshowFormatById(j.format)?.label ?? j.format} · {j.languages.join(", ")} · {j.slide_count} slides ·
                         diffusion {j.publish_date ?? "jour du rendu"} · tentatives {j.attempts}
@@ -293,7 +294,7 @@ function LaunchForm({ onCreated }: { onCreated: () => Promise<unknown> }) {
           <label className="text-muted-foreground">Sujet</label>
           <div className="flex gap-1.5">
             <Input value={topic} onChange={(e) => { setTopic(e.target.value); setCategory(undefined); }} placeholder="Ex. Les grandes batailles" />
-            <Button variant="outline" size="sm" className="h-9" onClick={pick} type="button">
+            <Button variant="outline" size="sm" className="h-10" onClick={pick} type="button">
               <Shuffle className="mr-1 size-3.5" /> Prendre un sujet validé
             </Button>
           </div>
@@ -301,7 +302,7 @@ function LaunchForm({ onCreated }: { onCreated: () => Promise<unknown> }) {
         <div>
           <label className="text-muted-foreground">Format</label>
           <select
-            className="block h-9 rounded-md border border-input bg-background px-2 text-sm"
+            className="block h-10 rounded-md border border-input bg-background px-2 text-sm"
             value={formatId}
             onChange={(e) => setFormatId(e.target.value)}
           >
@@ -330,7 +331,7 @@ function LaunchForm({ onCreated }: { onCreated: () => Promise<unknown> }) {
         </div>
         <div>
           <label className="text-muted-foreground">Langues</label>
-          <div className="flex h-9 items-center gap-2">
+          <div className="flex h-10 items-center gap-3">
             {MASTER_LANGUAGES.map((l) => (
               <label key={l.id} className="flex items-center gap-1">
                 <input
@@ -576,12 +577,12 @@ function SlideRow(props: {
           </span>
           <span className="text-muted-foreground">{words} mots</span>
           {props.overlong ? (
-            <span className="rounded-full bg-destructive px-2 py-0.5 text-destructive-foreground">trop long</span>
+            <span className="rounded-full border border-destructive px-2 py-0.5 text-destructive">trop long</span>
           ) : null}
         </div>
         <div className="flex gap-1.5">
           <Textarea value={text} onChange={(e) => setText(e.target.value)} rows={2} />
-          <Button size="sm" variant="outline" onClick={() => props.onSaveText(text)} disabled={text === props.text}>
+          <Button size="sm" onClick={() => props.onSaveText(text)} disabled={text === props.text}>
             <Save className="mr-1 size-3.5" /> Enregistrer
           </Button>
         </div>
