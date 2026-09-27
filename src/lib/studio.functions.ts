@@ -65,6 +65,8 @@ export const generateScript = createServerFn({ method: "POST" })
         structureBrief: z.string().max(8000).optional(),
         /** Relecture finale du plan le plus faible (Paramètres). */
         auditBrief: z.string().max(4000).optional(),
+        /** Brief additionnel (banc d'essai) ; absent = comportement inchangé. */
+        extraBrief: z.string().max(20000).optional(),
       })
       .parse(input),
   )

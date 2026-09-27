@@ -67,6 +67,8 @@ export const addTopic = createServerFn({ method: "POST" })
         narrationStyle: styleEnum.default("revelation"),
         category: z.enum(TOPIC_CATEGORY_IDS).default("aleatoire"),
         status: z.enum(["propose", "valide"]).default("valide"),
+        /** Format visé (banc d'essai) ; absent = valeur par défaut de la base. */
+        format: z.enum(["video", "slideshow", "both"]).optional(),
       })
       .parse(input),
   )
@@ -88,6 +90,7 @@ export const addTopic = createServerFn({ method: "POST" })
         category: data.category,
         status: data.status,
         position,
+        ...(data.format ? { format: data.format } : {}),
       })
       .select("*")
       .single();
@@ -284,4 +287,74 @@ export const proposeTopicBatch = createServerFn({ method: "POST" })
     );
     if (error) throw new Error(error.message);
     return { inserted: fresh.length };
+  });
+
+/**
+ * BANC D'ESSAI : même appel que `proposeTopicBatch`, SANS AUCUNE écriture.
+ * `brief`, s'il est fourni, remplace TOPIC_INTRIGUE + TOPIC_VIRAL.
+ */
+export const previewTopics = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        count: z.number().int().min(5).max(30).default(20),
+        narrationStyle: styleEnum.default("revelation"),
+        brief: z.string().max(20000).optional(),
+      })
+      .parse(input ?? {}),
+  )
+  .handler(async ({ data, context }) => {
+    await requireAdmin(context);
+    const { chatJSON } = await import("./ai-gateway.server");
+    const { TOPIC_BRIEF, TOPIC_INTRIGUE, TOPIC_VIRAL } = await import("./prompts.server");
+    const client = await db();
+    const { data: existing } = await client
+      .from("topic_queue")
+      .select("topic")
+      .order("created_at", { ascending: false })
+      .limit(200);
+    const avoid = ((existing ?? []) as { topic: string }[]).map((r) => r.topic);
+    const brief = data.brief?.trim() ? [data.brief] : [TOPIC_INTRIGUE, TOPIC_VIRAL];
+
+    const res = await chatJSON<{
+      topics: { topic: string; angle: string; lever: string; category: string }[];
+    }>(
+      "google/gemini-3.7-flash",
+      [
+        "Tu proposes des sujets de vidéos courtes de culture générale pour TikTok, en français.",
+        TOPIC_BRIEF[data.narrationStyle],
+        ...brief,
+        `Propose exactement ${data.count} sujets DIFFÉRENTS : au moins les deux tiers dans les familles TOI, CEUX QUE TU AIMES, LE VERTIGE et HISTOIRES VRAIES, le reste réparti sur les trois autres familles validées.`,
+        "Chaque sujet est formulé comme la première phrase de la vidéo : une seule phrase de 8 à 20 mots, mots du quotidien.",
+        "RÈGLE ÉLIMINATOIRE : le spectateur doit avoir DÉJÀ EU LA QUESTION EN TÊTE et croire connaître la réponse. Pour chaque sujet, tu nommes dans « lever » la RÉPONSE COMMUNE que le spectateur a dans la tête et que la vidéo va lui retirer. Si tu ne peux pas la nommer, change de sujet.",
+        "Évite les sujets ultra rebattus traités mille fois à l'identique (pyramides, Mozart enfant prodige, Grande Muraille visible de l'espace, Einstein mauvais élève).",
+        "CHAQUE sujet doit avoir de quoi DÉROULER 60 secondes : un mécanisme en plusieurs étapes. Avant de retenir un sujet, écris mentalement ses trois étapes de déroulé ; si tu n'en trouves pas trois qui apportent chacune une information nouvelle, remplace-le.",
+        'Réponds uniquement en JSON: {"topics": [{"topic": string, "angle": string (la vraie explication en une phrase), "lever": string (la réponse commune fausse ou incomplète que la vidéo retire), "category": "psycho" | "vertige" | "science" | "episodes" | "mythes" | "pop" (psycho pour TOI et CEUX QUE TU AIMES, vertige pour LE VERTIGE, episodes pour les HISTOIRES VRAIES, pop pour la POP CULTURE, mythes pour les MYTHES, science pour le QUOTIDIEN et les DEBUNKS)}]}',
+      ].join("\n"),
+      avoid.length
+        ? `INTERDIT : ne propose ni ces sujets, ni un sujet qui parle du même événement, du même lieu, du même personnage ou de la même œuvre :\n- ${avoid
+            .slice(0, 120)
+            .join("\n- ")}`
+        : `Propose ${data.count} sujets.`,
+      1.15,
+    );
+
+    const seen = new Set(avoid.map((t) => t.toLowerCase()));
+    const topics = (res.topics ?? [])
+      .map((t) => ({
+        topic: String(t.topic ?? "").trim(),
+        angle: String(t.angle ?? "").trim(),
+        lever: String(t.lever ?? "").trim(),
+        category: ["psycho", "vertige", "science", "episodes", "mythes", "pop"].includes(t.category)
+          ? t.category
+          : "aleatoire",
+      }))
+      .filter((t) => {
+        const key = t.topic.toLowerCase();
+        if (t.topic.length < 8 || seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+    return { topics };
   });
