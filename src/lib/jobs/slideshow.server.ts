@@ -19,6 +19,8 @@ import {
   type SlideKind,
 } from "@/lib/slideshow-formats";
 
+import { normalizeSlideCount, normalizeSlideKind, slideImagePrompt } from "@/lib/slide-kind";
+
 import { admin, uploadDataUrl } from "./store.server";
 
 /** Même budget que la chaîne vidéo : on rend la main avant expiration. */
@@ -34,7 +36,7 @@ function isBlockingError(message: string) {
   );
 }
 
-const IMAGE_STYLE =
+export const IMAGE_STYLE =
   "Square 1:1 format. Polished editorial photography. One single huge subject, centered. Simple uncluttered background. Soft directional light. Absolutely no text, no letters, no numbers, no logos anywhere. The upper third of the image is intentionally calm and empty to leave room for overlaid text.";
 
 export type SlideshowSlide = {
@@ -149,10 +151,15 @@ async function topicAngle(topic: string): Promise<string | null> {
 async function stepWriting(job: SlideshowJob) {
   const format = slideshowFormatById(job.format);
   if (!format) throw new Error(`Format de slideshow inconnu : ${job.format}`);
-  const n =
-    job.slide_count >= format.slides.min && job.slide_count <= format.slides.max
-      ? job.slide_count
-      : format.slides.min;
+  const n = normalizeSlideCount(format, job.slide_count);
+  if (n !== job.slide_count) {
+    await logEvent(
+      job.id,
+      "ecriture",
+      `Nombre de slides ${job.slide_count} invalide pour « ${format.label} » (bornes ${format.slides.min}-${format.slides.max}${format.id === "quiz" ? ", pair" : ""}) : ramené à ${n}.`,
+      "warn",
+    );
+  }
   const topic = (job.topic ?? "").trim();
   if (!topic) throw new Error("Aucun sujet pour ce slideshow.");
   const angle = await topicAngle(topic);
@@ -169,7 +176,7 @@ async function stepWriting(job: SlideshowJob) {
     .slice(0, n)
     .map((s, i) => ({
       index: i,
-      kind: s.kind,
+      kind: normalizeSlideKind(s.kind, i, Math.min(n, (written.slides ?? []).length)),
       text: String(s.text ?? "").trim(),
       imagePrompt: String(s.imagePrompt ?? "").trim(),
     }));
@@ -273,7 +280,8 @@ async function stepImages(job: SlideshowJob, t0: number) {
     const slide = slides[i]!;
     if (slide.imagePath) continue; // reprise : jamais repayer une image
     if (outOfTime(t0)) return;
-    const dataUrl = await generateImageDataUrl(`${slide.imagePrompt}\n\n${IMAGE_STYLE}`);
+    const kind = normalizeSlideKind(slide.kind, i, slides.length);
+    const dataUrl = await generateImageDataUrl(slideImagePrompt(slide.imagePrompt, kind, IMAGE_STYLE));
     const path = await uploadDataUrl(`slideshows/${job.id}/slide-${slide.index}.png`, dataUrl);
     slides[i] = { ...slide, imagePath: path };
     const done = slides.filter((s) => s.imagePath).length;
@@ -309,7 +317,7 @@ async function stepPublication(job: SlideshowJob) {
       hashtags: t?.hashtags ?? [],
       slides: job.slides.map((s) => ({
         index: s.index,
-        kind: s.kind,
+        kind: normalizeSlideKind(s.kind, s.index, job.slides.length),
         text: t?.slides.find((x) => x.index === s.index)?.text ?? "",
         imagePath: s.imagePath ?? null,
       })),

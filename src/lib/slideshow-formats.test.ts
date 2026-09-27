@@ -26,11 +26,17 @@ describe("catalogue des formats", () => {
     }
   });
 
-  it("alterne question et réponse en nombre impair pour le quiz", () => {
-    // hook + N×(question, réponse) + final : min et max doivent être impairs.
+  it("compte les slides du quiz en nombre pair", () => {
+    // 1 accroche + N paires (question, réponse) + 1 barème = 2N + 2, donc pair.
     const quiz = slideshowFormatById("quiz")!;
-    expect(quiz.slides.min % 2).toBe(1);
-    expect(quiz.slides.max % 2).toBe(1);
+    expect(quiz.slides.min % 2).toBe(0);
+    expect(quiz.slides.max % 2).toBe(0);
+  });
+
+  it("laisse de la place au barème sur sa propre slide", () => {
+    const quiz = slideshowFormatById("quiz")!;
+    // Avec le minimum, il reste au moins quatre paires question/réponse.
+    expect((quiz.slides.min - 2) / 2).toBeGreaterThanOrEqual(4);
   });
 });
 
