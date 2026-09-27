@@ -16,7 +16,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { getLabDefaults } from "@/lib/labo.functions";
 import { LANGUAGES, MASTER_LANGUAGES } from "@/lib/languages";
 import { findMechanicalWords } from "@/lib/mechanical-metaphors";
-import { composeSlide } from "@/lib/slide-compose";
+import { composeSlide, DEFAULT_SLIDE_STYLE } from "@/lib/slide-compose";
 import {
   findOverlongSlides,
   SLIDESHOW_FORMATS,
