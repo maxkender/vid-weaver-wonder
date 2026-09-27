@@ -229,13 +229,13 @@ async function stepWriting(job: SlideshowJob) {
         "Traduis title, caption, hashtags (sans #, localisés) et le text de chaque slide, en gardant exactement les mêmes index.",
         'Réponds uniquement en JSON : {"<langue>":{"title":string,"caption":string,"hashtags":string[],"slides":[{"index":number,"text":string}]}}',
       ].join("\n"),
-      JSON.stringify(textes.fr),
+      JSON.stringify(textes["fr"]),
     );
     for (const lang of autres) {
       const t = translated?.[lang];
       if (!t || !Array.isArray(t.slides)) {
         await logEvent(job.id, "traduction", `Traduction manquante pour ${lang} : repli sur le français.`, "warn");
-        textes[lang] = textes.fr!;
+        textes[lang] = textes["fr"]!;
         continue;
       }
       textes[lang] = {
@@ -298,7 +298,7 @@ async function stepPublication(job: SlideshowJob) {
   const db = await admin();
   const day = job.publish_date ?? parisToday();
   const rows = job.languages.map((lang) => {
-    const t = job.textes[lang] ?? job.textes.fr;
+    const t = job.textes[lang] ?? job.textes["fr"];
     return {
       slideshow_job_id: job.id,
       publish_date: day,
@@ -357,7 +357,7 @@ export async function runSlideshowTick(): Promise<{
       else if (current.status === "publication") await stepPublication(current);
       else break;
       await reload();
-      if (current.status === "done") break;
+      if ((current.status as string) === "done") break;
     }
     await db.from("slideshow_jobs").update({ lease_until: null }).eq("id", job.id);
     return { jobId: job.id, status: current.status };
