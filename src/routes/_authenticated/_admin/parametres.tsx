@@ -71,7 +71,7 @@ function FieldHeader({
       <label className="label-x">{label}</label>
       {custom && (
         <>
-          <span className="rounded border border-border px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-muted-foreground">
+          <span className="rounded border border-border px-1.5 py-0.5 text-xs uppercase tracking-wide text-muted-foreground">
             Personnalisé
           </span>
           <button
@@ -80,7 +80,7 @@ function FieldHeader({
               persist(resetField(settings, path));
               toast.success("Champ revenu au réglage livré");
             }}
-            className="btn-base btn-ghost px-2 py-1 text-[11px]"
+            className="btn-base btn-ghost px-2 py-1 text-xs"
           >
             <RotateCcw className="h-3 w-3" /> Revenir au défaut
           </button>

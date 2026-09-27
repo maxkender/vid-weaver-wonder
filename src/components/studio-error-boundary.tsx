@@ -30,7 +30,7 @@ export class StudioErrorBoundary extends Component<Props, State> {
           <p className="mt-2 text-xs text-muted-foreground">
             Ton projet est conservé : rien n'est perdu. Recharge la page pour le retrouver.
           </p>
-          <p className="mt-2 break-words font-mono text-[11px] text-muted-foreground">
+          <p className="mt-2 break-words font-mono text-xs text-muted-foreground">
             {this.state.message}
           </p>
           <button

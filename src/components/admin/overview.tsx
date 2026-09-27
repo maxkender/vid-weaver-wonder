@@ -12,7 +12,7 @@ function Stat({ label, value, hint }: { label: string; value: string; hint?: str
     <div className="surface-card p-3">
       <p className="label-x">{label}</p>
       <p className="mt-1 text-2xl font-semibold tracking-tight">{value}</p>
-      {hint ? <p className="mt-0.5 text-[11px] text-muted-foreground">{hint}</p> : null}
+      {hint ? <p className="mt-0.5 text-xs text-muted-foreground">{hint}</p> : null}
     </div>
   );
 }
@@ -68,7 +68,7 @@ export function AdminOverview() {
     <div className="space-y-4">
       <div className={`surface-card border p-3 ${nightTone}`}>
         <p className="text-sm font-medium">{nightLabel}</p>
-        <p className="mt-0.5 text-[11px] opacity-90">
+        <p className="mt-0.5 text-xs opacity-90">
           {night.done} langue(s) terminée(s) · {night.failed} en échec · {night.running} en cours
           {night.date ? ` · journée du ${night.date}` : ""}
           {night.failedLanguages.length
@@ -76,7 +76,7 @@ export function AdminOverview() {
             : ""}
         </p>
         {night.reason ? (
-          <p className="mt-0.5 text-[11px] opacity-90">Raison : {night.reason}</p>
+          <p className="mt-0.5 text-xs opacity-90">Raison : {night.reason}</p>
         ) : null}
       </div>
 
@@ -128,7 +128,7 @@ export function AdminOverview() {
             {data.contracts.signed}
             <span className="text-sm font-normal text-muted-foreground"> / {data.contracts.expected}</span>
           </p>
-          <p className="mt-0.5 text-[11px] text-muted-foreground">
+          <p className="mt-0.5 text-xs text-muted-foreground">
             Un contrat attendu par posteur.
           </p>
         </div>
@@ -142,7 +142,7 @@ export function AdminOverview() {
               data.videosTodayByLanguage.map((v) => (
                 <li
                   key={v.language}
-                  className="rounded-[6px] border border-border px-2 py-0.5 text-[11px]"
+                  className="rounded-[6px] border border-border px-2 py-0.5 text-xs"
                 >
                   {languageLabel(v.language)} · {v.status === "published" ? "publiée" : v.status}
                 </li>
@@ -164,7 +164,7 @@ export function AdminOverview() {
             />
           ))}
         </div>
-        <div className="mt-1 flex justify-between text-[10px] text-muted-foreground">
+        <div className="mt-1 flex justify-between text-xs text-muted-foreground">
           <span>{data.series[0]?.day}</span>
           <span>{data.series[data.series.length - 1]?.day}</span>
         </div>

@@ -101,7 +101,7 @@ function DayVideos() {
                 {!v ? (
                   <span className="text-muted-foreground">—</span>
                 ) : v.storage_path ? (
-                  <span className="text-emerald-400">fichier sauvegardé ✓</span>
+                  <span className="text-success">fichier sauvegardé ✓</span>
                 ) : (
                   <span className="text-destructive">fichier manquant</span>
                 )}
@@ -208,7 +208,7 @@ export function AdminContent() {
 
       <section className="surface-card overflow-x-auto p-0">
         <table className="w-full min-w-[900px] text-sm">
-          <thead className="text-left text-[11px] uppercase tracking-wide text-muted-foreground">
+          <thead className="text-left text-xs uppercase tracking-wide text-muted-foreground">
             <tr className="border-b border-border">
               <th className="px-3 py-2">Langue</th>
               <th className="px-3 py-2">Active</th>
@@ -337,7 +337,7 @@ export function AdminContent() {
 
       <section className="surface-card p-3">
         <p className="label-x">Modèle de contrat</p>
-        <div className="mt-2 flex items-start gap-3 rounded-[10px] border border-destructive/40 bg-destructive/10 p-3">
+        <div className="mt-2 flex items-start gap-3 rounded-[8px] border border-destructive/40 bg-destructive/10 p-3">
           <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
           <p className="text-xs">
             Modèle de travail, non relu par un juriste. À faire valider par un avocat avant toute
@@ -386,7 +386,7 @@ export function AdminContent() {
           {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null} Créer une nouvelle version
         </button>
 
-        <div className="mt-3 max-h-72 overflow-y-auto rounded-[10px] border border-border p-3">
+        <div className="mt-3 max-h-72 overflow-y-auto rounded-[8px] border border-border p-3">
           <ContractMarkdown body={body} />
         </div>
       </section>

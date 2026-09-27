@@ -194,27 +194,27 @@ export function AdminPosters() {
         </div>
 
         <div className="mt-3 grid gap-2 text-xs sm:grid-cols-3">
-          <div className="rounded-[10px] border border-border p-2">
+          <div className="rounded-[8px] border border-border p-2">
             <p className="label-x">Identifiant de connexion</p>
             <p className="mt-1 font-mono text-sm">{login}</p>
           </div>
-          <div className="rounded-[10px] border border-border p-2">
+          <div className="rounded-[8px] border border-border p-2">
             <p className="label-x">Pseudo Instagram</p>
             <p className="mt-1 font-mono text-sm">{handlePreview}</p>
           </div>
-          <div className="rounded-[10px] border border-border p-2">
+          <div className="rounded-[8px] border border-border p-2">
             <p className="label-x">Adresse Gmail</p>
             <p className="mt-1 font-mono text-sm">{gmailPreview}</p>
           </div>
         </div>
-        <p className="mt-2 text-[11px] text-muted-foreground">
+        <p className="mt-2 text-xs text-muted-foreground">
           L'identifiant n'est pas une vraie boîte mail : il sert uniquement à se connecter ici. Le mot
           de passe de la plateforme est celui défini dans les conventions : il est le même pour tous
           les posteurs et reste consultable dans l'onglet Conventions.
         </p>
 
         {created ? (
-          <div className="mt-3 space-y-3 rounded-[10px] border border-primary/50 bg-primary/10 p-3 text-sm">
+          <div className="mt-3 space-y-3 rounded-[8px] border border-primary/50 bg-primary/10 p-3 text-sm">
             <div className="flex flex-wrap items-center gap-3">
               <span>
                 Accès créé : <span className="font-mono">{created.email}</span> · mot de passe{" "}
@@ -225,7 +225,7 @@ export function AdminPosters() {
                 <X className="h-3.5 w-3.5" />
               </button>
             </div>
-            <p className="text-[11px] text-muted-foreground">
+            <p className="text-xs text-muted-foreground">
               Ce mot de passe ne sera plus affiché. Compte à créer : {created.handle} ·{" "}
               {created.gmail}
             </p>
@@ -237,7 +237,7 @@ export function AdminPosters() {
                     <button
                       key={l}
                       onClick={() => setMessageLang(l)}
-                      className={`rounded-[6px] px-2 py-0.5 text-[11px] ${messageLang === l ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}
+                      className={`rounded-[6px] px-2 py-0.5 text-xs ${messageLang === l ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}
                     >
                       {l.toUpperCase()}
                     </button>
@@ -248,7 +248,7 @@ export function AdminPosters() {
                   label="Copier le message"
                 />
               </div>
-              <pre className="mt-2 max-h-56 overflow-y-auto whitespace-pre-wrap rounded-[10px] border border-border bg-background p-3 text-xs">
+              <pre className="mt-2 max-h-56 overflow-y-auto whitespace-pre-wrap rounded-[8px] border border-border bg-background p-3 text-xs">
                 {messageLang === "fr" ? created.messageFr : created.messageEn}
               </pre>
             </div>
@@ -259,7 +259,7 @@ export function AdminPosters() {
       {/* LISTE */}
       <section className="surface-card overflow-x-auto p-0">
         <table className="w-full min-w-[1000px] text-sm">
-          <thead className="text-left text-[11px] uppercase tracking-wide text-muted-foreground">
+          <thead className="text-left text-xs uppercase tracking-wide text-muted-foreground">
             <tr className="border-b border-border">
               <th className="px-3 py-2">Identifiant</th>
               <th className="px-3 py-2">Nom</th>
@@ -281,11 +281,11 @@ export function AdminPosters() {
                     {p.full_name || "—"}
                   </button>
                   {p.role === "admin" ? (
-                    <span className="ml-2 rounded-[6px] bg-muted px-1.5 py-0.5 text-[10px]">admin</span>
+                    <span className="ml-2 rounded-[6px] bg-muted px-1.5 py-0.5 text-xs">admin</span>
                   ) : null}
                 </td>
                 <td className="px-3 py-1.5 text-xs">{p.accounts}</td>
-                <td className="px-3 py-1.5 text-[11px]">
+                <td className="px-3 py-1.5 text-xs">
                   <span className={p.has_contract ? "text-foreground" : "text-muted-foreground"}>
                     {p.has_contract ? "signé" : "non signé"}
                   </span>
@@ -380,7 +380,7 @@ export function AdminPosters() {
               <div className="mt-3 flex items-center gap-2">
                 <p className="label-x">Comptes ({detail.accounts.length})</p>
                 <select
-                  className="field w-28 text-[11px]"
+                  className="field w-28 text-xs"
                   value=""
                   onChange={async (e) => {
                     if (!e.target.value) return;
@@ -406,14 +406,14 @@ export function AdminPosters() {
                   const expectedHandle = conventionHandle(conv, a.country_code);
                   const expectedGmail = conventionGmail(conv, a.country_code);
                   return (
-                    <li key={a.id} className="rounded-[10px] border border-border p-2">
+                    <li key={a.id} className="rounded-[8px] border border-border p-2">
                       <p className="text-sm">
                         <span className="capitalize">{a.platform}</span> · @{a.handle} ·{" "}
                         {a.language.toUpperCase()} / {a.country_code.toUpperCase()}
                       </p>
-                      <p className="text-[11px] text-muted-foreground">{a.gmail_address ?? "—"}</p>
+                      <p className="text-xs text-muted-foreground">{a.gmail_address ?? "—"}</p>
                       {a.handle !== expectedHandle || a.gmail_address !== expectedGmail ? (
-                        <p className="mt-0.5 text-[11px] text-amber-500">
+                        <p className="mt-0.5 text-xs text-amber-500">
                           Diverge de la convention ({expectedHandle} · {expectedGmail})
                         </p>
                       ) : null}
@@ -421,7 +421,7 @@ export function AdminPosters() {
                         {STEP_LABELS.map((s) => (
                           <span
                             key={s.key}
-                            className={`inline-flex items-center gap-1 rounded-[6px] px-1.5 py-0.5 text-[10px] ${state[s.key] ? "bg-primary/20 text-foreground" : "bg-muted text-muted-foreground"}`}
+                            className={`inline-flex items-center gap-1 rounded-[6px] px-1.5 py-0.5 text-xs ${state[s.key] ? "bg-primary/20 text-foreground" : "bg-muted text-muted-foreground"}`}
                           >
                             {s.label}
                             <button
@@ -470,7 +470,7 @@ export function AdminPosters() {
                     Version {detail.contract.version} · signé par {detail.contract.signed_full_name} le{" "}
                     {new Date(detail.contract.signed_at).toLocaleString("fr-FR")}
                   </p>
-                  <div className="mt-2 max-h-72 overflow-y-auto rounded-[10px] border border-border p-3">
+                  <div className="mt-2 max-h-72 overflow-y-auto rounded-[8px] border border-border p-3">
                     <ContractMarkdown body={detail.contract.body} />
                   </div>
                   <button

@@ -198,11 +198,11 @@ export function AdminTopics() {
         <p className="label-x">À décider ({pending.length})</p>
         <ul className="mt-2 space-y-2">
           {pending.map((t) => (
-            <li key={t.id} className="flex flex-wrap items-start gap-3 rounded-[10px] border border-border p-2">
+            <li key={t.id} className="flex flex-wrap items-start gap-3 rounded-[8px] border border-border p-2">
               <div className="min-w-0 flex-1">
                 <p className="text-sm">
                   {t.status === "revoir" ? (
-                    <span className="mr-2 rounded-[6px] bg-destructive/15 px-1.5 py-0.5 text-[11px] text-destructive">
+                    <span className="mr-2 rounded-[6px] bg-destructive/15 px-1.5 py-0.5 text-xs text-destructive">
                       à revoir
                     </span>
                   ) : null}
@@ -246,7 +246,7 @@ export function AdminTopics() {
               onDragStart={() => setDragId(t.id)}
               onDragOver={(e) => e.preventDefault()}
               onDrop={() => void dropOn(t.id)}
-              className={`flex items-start gap-3 rounded-[10px] border p-2 ${
+              className={`flex items-start gap-3 rounded-[8px] border p-2 ${
                 dragId === t.id ? "border-primary" : "border-border"
               }`}
             >
@@ -256,7 +256,7 @@ export function AdminTopics() {
                 <p className="text-sm">{t.topic}</p>
                 {t.angle ? <p className="mt-0.5 text-xs text-muted-foreground">{t.angle}</p> : null}
               </div>
-              <span className="text-[11px] text-muted-foreground">
+              <span className="text-xs text-muted-foreground">
                 {NARRATION_LABELS[t.narration_style as NarrationStyleId] ?? t.narration_style}
               </span>
               <button

@@ -242,12 +242,12 @@ function TopicQueuePage() {
           {pending.map((t) => (
             <li
               key={t.id}
-              className="flex flex-wrap items-start gap-3 rounded-[10px] border border-border p-3"
+              className="flex flex-wrap items-start gap-3 rounded-[8px] border border-border p-3"
             >
               <div className="min-w-0 flex-1">
                 <p className="text-sm">
                   {t.status === "revoir" && (
-                    <span className="mr-2 rounded-[6px] bg-destructive/15 px-1.5 py-0.5 text-[11px] text-destructive">
+                    <span className="mr-2 rounded-[6px] bg-destructive/15 px-1.5 py-0.5 text-xs text-destructive">
                       à revoir
                     </span>
                   )}
@@ -284,7 +284,7 @@ function TopicQueuePage() {
           {validated.map((t, i) => (
             <li
               key={t.id}
-              className="flex flex-wrap items-start gap-3 rounded-[10px] border border-border p-3"
+              className="flex flex-wrap items-start gap-3 rounded-[8px] border border-border p-3"
             >
               <span className="text-xs text-muted-foreground">{i + 1}</span>
               <div className="min-w-0 flex-1">

@@ -113,7 +113,7 @@ function CopyField({ label, value }: { label: string; value: string }) {
   const [done, setDone] = useState(false);
   return (
     <div className="rounded-lg border border-border bg-background p-3">
-      <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
+      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
       <div className="mt-1 flex items-center justify-between gap-2">
         <p className="min-w-0 break-all font-mono text-sm text-foreground">{value}</p>
         <Button
@@ -760,7 +760,7 @@ function AccountVideos({
         {video?.posted_at ? <Badge variant="secondary">{t("video.posted")}</Badge> : null}
       </div>
       {!warmDone ? (
-        <p className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-200">
+        <p className="rounded-xl border border-destructive bg-background p-3 text-sm text-foreground">
           {t("video.warmNote")}
         </p>
       ) : null}

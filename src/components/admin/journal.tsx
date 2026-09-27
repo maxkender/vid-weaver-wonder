@@ -59,7 +59,7 @@ export function AdminJournal() {
 
       <div className="surface-card overflow-x-auto p-0">
         <table className="w-full text-sm">
-          <thead className="text-left text-[11px] uppercase tracking-wide text-muted-foreground">
+          <thead className="text-left text-xs uppercase tracking-wide text-muted-foreground">
             <tr className="border-b border-border">
               <th className="px-3 py-2">Date</th>
               <th className="px-3 py-2">Auteur</th>
@@ -80,7 +80,7 @@ export function AdminJournal() {
                   {e.target_table}
                   {e.target_id ? ` · ${e.target_id.slice(0, 8)}` : ""}
                 </td>
-                <td className="px-3 py-1.5 text-[11px] text-muted-foreground">
+                <td className="px-3 py-1.5 text-xs text-muted-foreground">
                   {e.payload === "{}" ? "" : e.payload}
                 </td>
               </tr>

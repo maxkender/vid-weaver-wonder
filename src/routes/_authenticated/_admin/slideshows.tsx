@@ -590,7 +590,7 @@ function SlideRow(props: {
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
             rows={3}
-            className="font-mono text-[11px]"
+            className="font-mono text-xs"
             placeholder="Prompt d'image (anglais)"
           />
           <Button size="sm" variant="outline" onClick={() => props.onSavePrompt(prompt)} disabled={prompt === props.imagePrompt}>

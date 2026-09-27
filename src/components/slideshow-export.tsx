@@ -164,7 +164,7 @@ function TodaySlideshow({ show, onChange }: { show: DailySlideshow; onChange: ()
             >
               <img src={s.url} alt="" className="absolute inset-0 size-full object-cover" loading="lazy" />
               <p
-                className="absolute inset-x-2 top-[8%] text-center text-[10px] font-black uppercase leading-tight text-primary-foreground"
+                className="absolute inset-x-2 top-[8%] text-center text-xs font-black uppercase leading-tight text-primary-foreground"
                 style={{
                   fontFamily: '"Archivo Black", "Arial Black", Impact, sans-serif',
                   textShadow: "0 0 3px rgba(0,0,0,.9), 0 0 1px rgba(0,0,0,1)",

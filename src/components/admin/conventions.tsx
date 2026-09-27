@@ -58,7 +58,7 @@ export function AdminConventions() {
   return (
     <section className="surface-card p-3">
       <p className="label-x">Conventions des comptes</p>
-      <p className="mt-1 text-[11px] text-muted-foreground">
+      <p className="mt-1 text-xs text-muted-foreground">
         {"{pays}"} est remplacé par le code pays du compte. Exemples pour « es » :{" "}
         <span className="font-mono">{conventionHandle(conv, "es")}</span> ·{" "}
         <span className="font-mono">{conventionGmail(conv, "es")}</span>
@@ -98,7 +98,7 @@ export function AdminConventions() {
           onChange={(e) => set({ platform_password: e.target.value })}
           className="field mt-1 font-mono text-xs"
         />
-        <p className="mt-1 text-[11px] text-muted-foreground">
+        <p className="mt-1 text-xs text-muted-foreground">
           Identique pour tous les posteurs, attribué à la création et par le bouton de
           réinitialisation.
         </p>
@@ -134,7 +134,7 @@ export function AdminConventions() {
           />
         </div>
       </div>
-      <p className="mt-1 text-[11px] text-muted-foreground">
+      <p className="mt-1 text-xs text-muted-foreground">
         Variables disponibles : {"{prenom}"}, {"{lien}"}, {"{identifiant}"}, {"{motdepasse}"}.
       </p>
 

@@ -110,12 +110,12 @@ export function AdminDiffusion() {
           {MASTER_LANGUAGES.map((lang) => {
             const video = data.videos.find((v) => v.language === lang.id) ?? null;
             return (
-              <div key={lang.id} className="rounded-[10px] border border-border p-3">
+              <div key={lang.id} className="rounded-[8px] border border-border p-3">
                 <div className="flex items-center justify-between gap-2">
                   <p className="text-sm font-medium">{lang.label}</p>
                   {video ? (
                     <span
-                      className={`rounded-[6px] px-1.5 py-0.5 text-[11px] ${
+                      className={`rounded-[6px] px-1.5 py-0.5 text-xs ${
                         video.status === "published"
                           ? "bg-primary/15 text-primary"
                           : "bg-muted text-muted-foreground"
@@ -124,7 +124,7 @@ export function AdminDiffusion() {
                       {video.status === "published" ? "publiée" : video.status}
                     </span>
                   ) : (
-                    <span className="text-[11px] text-muted-foreground">aucune vidéo</span>
+                    <span className="text-xs text-muted-foreground">aucune vidéo</span>
                   )}
                 </div>
 
@@ -306,7 +306,7 @@ export function AdminDiffusion() {
                         },
                       } as never)
                     }
-                    className={`rounded-[6px] border px-2 py-1 text-[11px] ${
+                    className={`rounded-[6px] border px-2 py-1 text-xs ${
                       on ? "border-primary bg-primary/15 text-primary" : "border-border text-muted-foreground"
                     }`}
                   >
@@ -317,7 +317,7 @@ export function AdminDiffusion() {
             </div>
           </div>
         </div>
-        <p className="mt-2 text-[11px] text-muted-foreground">
+        <p className="mt-2 text-xs text-muted-foreground">
           Prochaine exécution : {nextRun(settings?.run_hour ?? 0)} · dernière exécution :{" "}
           {settings?.last_run_at
             ? `${new Date(settings.last_run_at).toLocaleString("fr-FR")} — ${settings.last_run_result ?? ""}`
@@ -366,7 +366,7 @@ export function AdminDiffusion() {
                   <p className="truncate text-xs font-medium">
                     {j.language.toUpperCase()} · {j.topic ?? "sans sujet"}
                   </p>
-                  <p className="truncate text-[11px] text-muted-foreground">
+                  <p className="truncate text-xs text-muted-foreground">
                     Étape « {j.step} » — {j.error ?? "erreur inconnue"}
                   </p>
                 </div>

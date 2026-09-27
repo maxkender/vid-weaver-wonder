@@ -50,7 +50,7 @@ export function MusicLibrary({
   const activeCount = tracks.filter((t) => t.styles.includes(activeStyle)).length;
 
   return (
-    <div className="rounded-[10px] border border-border p-3">
+    <div className="rounded-[8px] border border-border p-3">
       <button
         onClick={() => setOpen((v) => !v)}
         className="flex w-full items-center justify-between gap-3 text-left"
@@ -73,7 +73,7 @@ export function MusicLibrary({
           {styles.map((s) => {
             const list = tracks.filter((t) => t.styles.includes(s.id));
             return (
-              <div key={s.id} className="rounded-[10px] border border-border p-3">
+              <div key={s.id} className="rounded-[8px] border border-border p-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <span className="text-sm font-semibold">{s.label}</span>
                   <label className="btn-base btn-ghost cursor-pointer px-2.5 py-1.5 text-xs">
