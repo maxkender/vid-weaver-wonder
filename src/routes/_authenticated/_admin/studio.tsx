@@ -2962,9 +2962,12 @@ function Studio() {
       <Toaster position="top-center" />
 
       {/* BARRE SUPÉRIEURE — état du pipeline, coût, arrêt d'urgence et navigation. */}
-      <header className="sticky top-0 z-30 border-b border-border bg-background/90 backdrop-blur">
-        <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center gap-x-4 gap-y-2 px-4 py-2.5">
-          <span className="text-[15px] font-semibold tracking-tight">Studio vidéo</span>
+      <header className="border-b border-border bg-background">
+        <div className="mx-auto flex w-full max-w-[1280px] flex-wrap items-center gap-x-4 gap-y-2 px-6 py-4">
+          <div className="w-full">
+            <h1 className="page-title">Studio vidéo</h1>
+            <p className="page-lede">Écrire, produire et exporter les vidéos.</p>
+          </div>
 
           <span className="text-xs text-muted-foreground">
             {currentStep ||
@@ -3013,15 +3016,9 @@ function Studio() {
             >
               <History className="h-3.5 w-3.5" /> Historique ({history.length})
             </button>
-            <Link to="/sujets" className="btn-base btn-ghost px-2.5 py-1.5 text-xs">
-              <ListChecks className="h-3.5 w-3.5" /> Sujets
-            </Link>
-            <Link to="/parametres" className="btn-base btn-ghost px-2.5 py-1.5 text-xs">
-              <Settings className="h-3.5 w-3.5" /> Paramètres
-            </Link>
           </div>
         </div>
-        <div className="mx-auto w-full max-w-6xl px-4 pb-2 md:hidden">
+        <div className="mx-auto w-full max-w-[1280px] px-6 pb-3 md:hidden">
           <span className="text-xs text-muted-foreground">
             Coût estimé : {cost.clips} clip{cost.clips > 1 ? "s" : ""} × {cost.perClip} s + {cost.voices}{" "}
             voix off
@@ -3032,7 +3029,7 @@ function Studio() {
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-6xl px-4 py-6">
+      <main className="mx-auto w-full max-w-[1280px] px-6 py-6">
         {showHistory && (
           <div className="surface-card mb-6 space-y-2 p-4">
             {history.length === 0 && (
@@ -3439,6 +3436,11 @@ function Studio() {
               </p>
             </div>
 
+            <details className="rounded-[8px] border border-border">
+              <summary className="cursor-pointer select-none px-3 py-2.5 text-[15px] font-semibold">
+                Réglages avancés
+              </summary>
+              <div className="flex flex-col gap-4 border-t border-border p-3">
             <div>
               <p className="label-x">Format</p>
               <div className="mt-2 flex flex-wrap gap-2">
@@ -3597,13 +3599,15 @@ function Studio() {
               styles={STYLES.map((s) => ({ id: s.id, label: s.label }))}
               activeStyle={style}
             />
+              </div>
+            </details>
           </section>
         </div>
 
         {script && (
           <section className="mt-6 space-y-4">
             <div className="surface-card p-4">
-              <h2 className="text-lg font-semibold">{script.title}</h2>
+              <h2 className="section-title">{script.title}</h2>
               <p className="mt-1 text-sm text-muted-foreground">{script.hook}</p>
 
               {/* ACCROCHE — les trois candidates, leur note sur les six
