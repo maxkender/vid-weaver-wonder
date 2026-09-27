@@ -33,12 +33,12 @@ export function SlideshowPanel() {
     let created: string | null = null;
     setPreview(null);
     const background = source.imageUrl ?? makeGrayBackground();
-    void composeSlide(background, text, settings).then((blob) => {
+    const timer = window.setTimeout(() => { void composeSlide(background, text, settings).then((blob) => {
       if (cancelled) return;
       created = URL.createObjectURL(blob);
       setPreview(created);
-    }).catch(() => { if (!cancelled) setPreview(null); });
-    return () => { cancelled = true; if (created) URL.revokeObjectURL(created); };
+    }).catch(() => { if (!cancelled) setPreview(null); }); }, 100);
+    return () => { cancelled = true; window.clearTimeout(timer); if (created) URL.revokeObjectURL(created); };
   }, [settings, source, text]);
 
   const save = async () => {

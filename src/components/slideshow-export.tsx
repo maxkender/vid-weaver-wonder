@@ -87,7 +87,8 @@ function TodaySlideshow({ show, onChange }: { show: DailySlideshow; onChange: ()
       const r = await getSlideshowAssets({
         data: { slideshowId: show.id, accountId: show.account_id, track: true },
       });
-      const blobs = await Promise.all(r.slides.map((s) => composeSlide(s.url, s.text, style)));
+      const currentStyle = await getSlideshowSettings();
+      const blobs = await Promise.all(r.slides.map((s) => composeSlide(s.url, s.text, currentStyle)));
       const name = (i: number) => `${String(i + 1).padStart(2, "0")}.png`;
       const files = blobs.map((b, i) => new File([b], name(i), { type: "image/png" }));
       toast.dismiss(toastId);
