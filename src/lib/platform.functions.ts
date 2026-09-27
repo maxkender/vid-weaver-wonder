@@ -714,3 +714,211 @@ export const markPosted = createServerFn({ method: "POST" })
     });
     return { ok: true };
   });
+
+/* ------------------------------------------------------------ slideshows */
+
+export type DailySlideshow = {
+  id: string;
+  publish_date: string;
+  language: string;
+  format: string;
+  title: string;
+  caption: string;
+  hashtags: string[];
+  slide_count: number;
+  account_id: string;
+  downloaded_at: string | null;
+  posted_url: string | null;
+  posted_at: string | null;
+};
+
+/** Calque de `listMyVideos` : un slideshow par COMPTE, jamais une date future. */
+export const listMySlideshows = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await requireActiveProfile(context.userId);
+    const accounts = await context.supabase
+      .from("poster_accounts")
+      .select("id, language")
+      .eq("poster_id", context.userId)
+      .order("created_at", { ascending: true });
+    if (accounts.error) throw new Error(accounts.error.message);
+    const rows = (accounts.data ?? []) as { id: string; language: string }[];
+    const languages = Array.from(new Set(rows.map((a) => a.language)));
+
+    const since = new Date();
+    since.setDate(since.getDate() - 30);
+    const today = await diffusionToday();
+
+    const shows =
+      languages.length === 0
+        ? []
+        : ((
+            await context.supabase
+              .from("daily_slideshows")
+              .select("id, publish_date, language, format, title, caption, hashtags, slides, status")
+              .in("language", languages)
+              .eq("status", "published")
+              .gte("publish_date", isoDay(since))
+              .lte("publish_date", today)
+              .order("publish_date", { ascending: false })
+          ).data ?? []);
+
+    const downloads = await context.supabase
+      .from("slideshow_downloads")
+      .select("daily_slideshow_id, account_id, downloaded_at, posted_url, posted_at")
+      .eq("poster_id", context.userId);
+    const byKey = new Map<string, { downloaded_at: string; posted_url: string | null; posted_at: string | null }>();
+    for (const d of downloads.data ?? []) {
+      if (!d.account_id) continue;
+      byKey.set(`${d.daily_slideshow_id}:${d.account_id}`, d);
+    }
+
+    const list: DailySlideshow[] = [];
+    for (const account of rows) {
+      for (const s of shows) {
+        if (s.language !== account.language) continue;
+        if (!isReleased(s.publish_date, today)) continue;
+        const tracked = byKey.get(`${s.id}:${account.id}`);
+        list.push({
+          id: s.id,
+          publish_date: s.publish_date,
+          language: s.language,
+          format: s.format,
+          title: s.title ?? "",
+          caption: s.caption ?? "",
+          hashtags: s.hashtags ?? [],
+          slide_count: Array.isArray(s.slides) ? s.slides.length : 0,
+          account_id: account.id,
+          downloaded_at: tracked?.downloaded_at ?? null,
+          posted_url: tracked?.posted_url ?? null,
+          posted_at: tracked?.posted_at ?? null,
+        });
+      }
+    }
+    return { today, slideshows: list };
+  });
+
+/** URL signée de chaque image + son texte, et trace du téléchargement. */
+export const getSlideshowAssets = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z
+      .object({
+        slideshowId: z.string().uuid(),
+        accountId: z.string().uuid(),
+        track: z.boolean().optional(),
+      })
+      .parse(d),
+  )
+  .handler(async ({ context, data }) => {
+    await requireActiveProfile(context.userId);
+    const account = await context.supabase
+      .from("poster_accounts")
+      .select("id")
+      .eq("id", data.accountId)
+      .eq("poster_id", context.userId)
+      .maybeSingle();
+    if (!account.data) throw new Error("Ce compte n'est pas le tien.");
+
+    const show = await context.supabase
+      .from("daily_slideshows")
+      .select("id, publish_date, language, format, slides")
+      .eq("id", data.slideshowId)
+      .maybeSingle();
+    if (show.error) throw new Error(show.error.message);
+    if (!show.data) throw new Error("Slideshow introuvable.");
+    const today = await diffusionToday();
+    if (!isReleased(show.data.publish_date, today)) {
+      throw new Error("Ce slideshow sera disponible le jour de sa diffusion.");
+    }
+
+    const db = await admin();
+    const raw = (Array.isArray(show.data.slides) ? show.data.slides : []) as {
+      index: number;
+      kind: string;
+      text: string;
+      imagePath: string | null;
+    }[];
+    const slides = [];
+    for (const s of [...raw].sort((a, b) => a.index - b.index)) {
+      if (!s.imagePath) continue;
+      const signed = await db.storage.from(RENDER_BUCKET).createSignedUrl(s.imagePath, 60 * 60);
+      if (signed.error) throw new Error(signed.error.message);
+      slides.push({ index: s.index, kind: s.kind, text: s.text ?? "", url: signed.data.signedUrl });
+    }
+
+    if (data.track) {
+      const existing = await context.supabase
+        .from("slideshow_downloads")
+        .select("id")
+        .eq("daily_slideshow_id", data.slideshowId)
+        .eq("account_id", data.accountId)
+        .maybeSingle();
+      if (!existing.data) {
+        await context.supabase.from("slideshow_downloads").insert({
+          daily_slideshow_id: data.slideshowId,
+          account_id: data.accountId,
+          poster_id: context.userId,
+        });
+      }
+      await logAudit(context.userId, "slideshow.downloaded", "daily_slideshows", data.slideshowId, {
+        account_id: data.accountId,
+      });
+    }
+
+    return {
+      publish_date: show.data.publish_date,
+      language: show.data.language,
+      format: show.data.format,
+      slides,
+    };
+  });
+
+export const markSlideshowPosted = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z
+      .object({
+        slideshowId: z.string().uuid(),
+        accountId: z.string().uuid(),
+        url: z.string().url().max(500),
+      })
+      .parse(d),
+  )
+  .handler(async ({ context, data }) => {
+    await requireActiveProfile(context.userId);
+    const account = await context.supabase
+      .from("poster_accounts")
+      .select("id")
+      .eq("id", data.accountId)
+      .eq("poster_id", context.userId)
+      .maybeSingle();
+    if (!account.data) throw new Error("Ce compte n'est pas le tien.");
+
+    const existing = await context.supabase
+      .from("slideshow_downloads")
+      .select("id")
+      .eq("daily_slideshow_id", data.slideshowId)
+      .eq("account_id", data.accountId)
+      .maybeSingle();
+    const now = new Date().toISOString();
+    const { error } = existing.data
+      ? await context.supabase
+          .from("slideshow_downloads")
+          .update({ posted_url: data.url, posted_at: now })
+          .eq("id", existing.data.id)
+      : await context.supabase.from("slideshow_downloads").insert({
+          daily_slideshow_id: data.slideshowId,
+          account_id: data.accountId,
+          poster_id: context.userId,
+          posted_url: data.url,
+          posted_at: now,
+        });
+    if (error) throw new Error(error.message);
+    await logAudit(context.userId, "slideshow.posted", "daily_slideshows", data.slideshowId, {
+      url: data.url,
+      account_id: data.accountId,
+    });
+    return { ok: true };
+  });

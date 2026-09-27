@@ -6,13 +6,14 @@
  * coincé dans le studio sans lien de retour.
  */
 import { Link, useNavigate } from "@tanstack/react-router";
-import { BarChart3, Clapperboard, Lightbulb, LogOut, SlidersHorizontal } from "lucide-react";
+import { BarChart3, Clapperboard, GalleryHorizontal, Lightbulb, LogOut, SlidersHorizontal } from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/client";
 
 const LINKS = [
   { to: "/admin", label: "Administration", icon: BarChart3 },
   { to: "/studio", label: "Studio", icon: Clapperboard },
+  { to: "/slideshows", label: "Slideshows", icon: GalleryHorizontal },
   { to: "/sujets", label: "Sujets", icon: Lightbulb },
   { to: "/parametres", label: "Paramètres", icon: SlidersHorizontal },
 ] as const;
