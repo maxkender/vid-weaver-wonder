@@ -322,7 +322,7 @@ function ScriptPanel() {
         <Button variant="outline" onClick={async () => {
           try {
             const r = await nextTopic();
-            if (!r.topic) return toast.info("Aucun sujet validé dans la file");
+            if (!r.topic) { toast.info("Aucun sujet validé dans la file"); return; }
             setTopic(r.topic.topic);
             setCategory(r.topic.category);
           } catch (e) { toast.error(errMsg(e)); }
