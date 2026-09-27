@@ -16,7 +16,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { getLabDefaults } from "@/lib/labo.functions";
 import { LANGUAGES, MASTER_LANGUAGES } from "@/lib/languages";
 import { findMechanicalWords } from "@/lib/mechanical-metaphors";
-import { composeSlide } from "@/lib/slide-compose";
+import { composeSlide, DEFAULT_SLIDE_STYLE } from "@/lib/slide-compose";
 import {
   findOverlongSlides,
   SLIDESHOW_FORMATS,
@@ -598,7 +598,7 @@ function SlideshowPanel() {
     try {
       const prompt = [s.imagePrompt, imgStyle.trim()].filter(Boolean).join("\n\n").slice(0, 2000);
       const r = await gen({ data: { imagePrompt: prompt, visual: "documentaire", square: true } });
-      const blob = await composeSlide(r.dataUrl, s.text);
+      const blob = await composeSlide(r.dataUrl, s.text, DEFAULT_SLIDE_STYLE);
       patchSlide(s.index, { image: r.dataUrl, composed: URL.createObjectURL(blob), busy: false });
     } catch (e) {
       toast.error(errMsg(e));

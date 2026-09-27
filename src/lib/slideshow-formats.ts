@@ -64,7 +64,7 @@ export const SLIDESHOW_FORMATS: SlideshowFormat[] = [
   {
     id: "histoire",
     label: "La petite histoire",
-    actif: false,
+    actif: true,
     slides: { min: 7, max: 10 },
     forme: "Un récit vrai, un beat par slide, qu'on lit jusqu'au bout pour savoir la fin.",
     premiereSlide:
@@ -77,7 +77,7 @@ export const SLIDESHOW_FORMATS: SlideshowFormat[] = [
   {
     id: "debunk",
     label: "Le debunk",
-    actif: false,
+    actif: true,
     slides: { min: 6, max: 9 },
     forme: "Une croyance très répandue, démontée preuve par preuve.",
     premiereSlide:
@@ -90,7 +90,7 @@ export const SLIDESHOW_FORMATS: SlideshowFormat[] = [
   {
     id: "classement",
     label: "Le classement",
-    actif: false,
+    actif: true,
     slides: { min: 7, max: 12 },
     forme: "Un top N en compte à rebours, le plus fort en dernier.",
     premiereSlide:
@@ -103,7 +103,7 @@ export const SLIDESHOW_FORMATS: SlideshowFormat[] = [
   {
     id: "vrai_faux",
     label: "Vrai ou faux",
-    actif: false,
+    actif: true,
     slides: { min: 9, max: 13 },
     forme: "Six affirmations, une par slide, dont le spectateur doit dire si elles sont vraies.",
     premiereSlide:
@@ -116,7 +116,7 @@ export const SLIDESHOW_FORMATS: SlideshowFormat[] = [
   {
     id: "echelle",
     label: "L'échelle",
-    actif: false,
+    actif: true,
     slides: { min: 7, max: 11 },
     forme: "Du plus petit au plus grand, chaque slide écrase la précédente. Le vertige monte.",
     premiereSlide:

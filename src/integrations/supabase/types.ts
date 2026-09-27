@@ -815,6 +815,69 @@ export type Database = {
         }
         Relationships: []
       }
+      slideshow_settings: {
+        Row: {
+          couleur_texte: string
+          fond_couleur: string
+          fond_opacite: number
+          fond_texte: string
+          formats_actifs: string[]
+          graisse: number
+          id: number
+          image_style: string
+          interligne: number
+          langues: string[]
+          largeur_max_ratio: number
+          lignes_max: number
+          majuscules: boolean
+          police: string
+          position_texte: string
+          slide_count_defaut: number
+          taille_ratio: number
+          updated_at: string
+        }
+        Insert: {
+          couleur_texte?: string
+          fond_couleur?: string
+          fond_opacite?: number
+          fond_texte?: string
+          formats_actifs?: string[]
+          graisse?: number
+          id?: number
+          image_style?: string
+          interligne?: number
+          langues?: string[]
+          largeur_max_ratio?: number
+          lignes_max?: number
+          majuscules?: boolean
+          police?: string
+          position_texte?: string
+          slide_count_defaut?: number
+          taille_ratio?: number
+          updated_at?: string
+        }
+        Update: {
+          couleur_texte?: string
+          fond_couleur?: string
+          fond_opacite?: number
+          fond_texte?: string
+          formats_actifs?: string[]
+          graisse?: number
+          id?: number
+          image_style?: string
+          interligne?: number
+          langues?: string[]
+          largeur_max_ratio?: number
+          lignes_max?: number
+          majuscules?: boolean
+          police?: string
+          position_texte?: string
+          slide_count_defaut?: number
+          taille_ratio?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       topic_queue: {
         Row: {
           angle: string | null

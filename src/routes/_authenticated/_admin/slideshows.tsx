@@ -14,11 +14,12 @@ import { MASTER_LANGUAGES, languageLabel } from "@/lib/languages";
 import { findOverlongSlides, SLIDESHOW_FORMATS, slideshowFormatById } from "@/lib/slideshow-formats";
 import { normalizeSlideCount, normalizeSlideKind, slideBreakdown, slideCountStep } from "@/lib/slide-kind";
 import { composeSlide } from "@/lib/slide-compose";
+import { DEFAULT_SLIDESHOW_SETTINGS, getSlideshowSettings } from "@/lib/slideshow-settings.functions";
+import type { SlideshowSettings } from "@/lib/slideshow-settings.functions";
 import {
   createSlideshowJob,
   deleteSlideshowJob,
   getSlideshowJob,
-  listActiveSlideshowLanguages,
   listSlideshowJobs,
   pickSlideshowTopic,
   regenerateSlideshowImage,
@@ -31,9 +32,9 @@ import {
 export const Route = createFileRoute("/_authenticated/_admin/slideshows")({
   head: () => ({
     meta: [
-      { title: "Slideshows — production des quiz" },
+      { title: "Slideshows — production" },
       { name: "description", content: "Lancement, relecture et correction des slideshows multilingues." },
-      { property: "og:title", content: "Slideshows — production des quiz" },
+      { property: "og:title", content: "Slideshows — production" },
       { property: "og:description", content: "Suivi des slideshows : écriture, images partagées, publication par langue." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
@@ -72,6 +73,9 @@ function SlideshowsPage() {
   const [auto, setAuto] = useState(false);
   const [openId, setOpenId] = useState<string | null>(null);
   const [detailKey, setDetailKey] = useState(0);
+  const [settings, setSettings] = useState<SlideshowSettings>(DEFAULT_SLIDESHOW_SETTINGS);
+
+  useEffect(() => { void getSlideshowSettings().then(setSettings).catch(() => {}); }, []);
 
   const refresh = useCallback(async () => {
     try {
@@ -154,7 +158,7 @@ function SlideshowsPage() {
         </p>
       ) : null}
 
-      <LaunchForm onCreated={refresh} />
+      <LaunchForm onCreated={refresh} settings={settings} />
 
       <div className="mb-4 flex flex-wrap items-center gap-4 rounded-lg border border-border bg-card p-3 text-xs">
         <Button variant="outline" size="sm" onClick={tick} disabled={busy || auto}>
@@ -214,7 +218,7 @@ function SlideshowsPage() {
                 <div className="px-3 pb-3">
                   <Progress value={j.slide_count ? (j.images_done / j.slide_count) * 100 : 0} className="h-1.5" />
                 </div>
-                {open ? <JobDetail id={j.id} reloadKey={detailKey} onChanged={refresh} /> : null}
+                 {open ? <JobDetail id={j.id} reloadKey={detailKey} onChanged={refresh} style={settings} /> : null}
               </div>
             );
           })}
@@ -226,7 +230,7 @@ function SlideshowsPage() {
 
 // ---------- A. Formulaire de lancement ----------
 
-function LaunchForm({ onCreated }: { onCreated: () => Promise<unknown> }) {
+function LaunchForm({ onCreated, settings }: { onCreated: () => Promise<unknown>; settings: SlideshowSettings }) {
   const [topic, setTopic] = useState("");
   const [category, setCategory] = useState<string | undefined>();
   const [formatId, setFormatId] = useState("quiz");
@@ -235,12 +239,18 @@ function LaunchForm({ onCreated }: { onCreated: () => Promise<unknown> }) {
   const [langs, setLangs] = useState<string[]>([]);
   const [publishDate, setPublishDate] = useState("");
   const [busy, setBusy] = useState(false);
+  const available = SLIDESHOW_FORMATS.filter((f) => settings.formats_actifs.includes(f.id));
 
   useEffect(() => {
-    listActiveSlideshowLanguages()
-      .then((r) => setLangs(r.languages))
-      .catch(() => setLangs(MASTER_LANGUAGES.map((l) => l.id)));
-  }, []);
+    const next = available[0];
+    if (!settings.formats_actifs.includes(formatId) && next) setFormatId(next.id);
+  }, [settings.formats_actifs, formatId]);
+
+  useEffect(() => {
+    setCount(normalizeSlideCount(format, settings.slide_count_defaut));
+  }, [settings.slide_count_defaut, format]);
+
+  useEffect(() => { setLangs(settings.langues); }, [settings.langues]);
 
   useEffect(() => {
     setCount((c) => normalizeSlideCount(format, c));
@@ -306,9 +316,9 @@ function LaunchForm({ onCreated }: { onCreated: () => Promise<unknown> }) {
             value={formatId}
             onChange={(e) => setFormatId(e.target.value)}
           >
-            {SLIDESHOW_FORMATS.map((f) => (
+             {available.map((f) => (
               <option key={f.id} value={f.id}>
-                {f.label}{f.actif ? "" : " (à tester)"}
+                 {f.label}
               </option>
             ))}
           </select>
@@ -366,7 +376,7 @@ function LaunchForm({ onCreated }: { onCreated: () => Promise<unknown> }) {
 
 // ---------- B. Détail d'un job ----------
 
-function JobDetail({ id, reloadKey, onChanged }: { id: string; reloadKey: number; onChanged: () => Promise<unknown> }) {
+function JobDetail({ id, reloadKey, onChanged, style }: { id: string; reloadKey: number; onChanged: () => Promise<unknown>; style: SlideshowSettings }) {
   const [job, setJob] = useState<SlideshowJobDetail | null>(null);
   const [lang, setLang] = useState("fr");
   const [imgBusy, setImgBusy] = useState<Set<number>>(new Set());
@@ -467,6 +477,7 @@ function JobDetail({ id, reloadKey, onChanged }: { id: string; reloadKey: number
                   overlong={overlong.has(s.index)}
                   imagePrompt={s.imagePrompt}
                   imageUrl={s.imageUrl}
+                   style={style}
                   busy={imgBusy.has(s.index)}
                   onSaveText={(t) => save({ textes: { [lang]: { slides: [{ index: s.index, text: t }] } } })}
                   onSavePrompt={(p) => save({ imagePrompts: [{ index: s.index, imagePrompt: p }] })}
@@ -520,6 +531,7 @@ function SlideRow(props: {
   overlong: boolean;
   imagePrompt: string;
   imageUrl: string | null;
+  style: SlideshowSettings;
   busy: boolean;
   onSaveText: (t: string) => void;
   onSavePrompt: (p: string) => void;
@@ -534,7 +546,7 @@ function SlideRow(props: {
     if (!props.imageUrl) return;
     let url: string | null = null;
     let cancelled = false;
-    composeSlide(props.imageUrl, props.text)
+    composeSlide(props.imageUrl, props.text, props.style)
       .then((b) => {
         if (cancelled) return;
         url = URL.createObjectURL(b);
@@ -545,13 +557,13 @@ function SlideRow(props: {
       cancelled = true;
       if (url) URL.revokeObjectURL(url);
     };
-  }, [props.imageUrl, props.text]);
+  }, [props.imageUrl, props.text, props.style]);
 
   return (
     <div className="flex flex-col gap-3 rounded-md border border-border p-2 md:flex-row">
       <div className="w-full shrink-0 md:w-48">
         {props.imageUrl ? (
-          <img src={composed ?? props.imageUrl} alt={`Slide ${props.number}`} className="aspect-square w-full rounded object-cover" />
+          composed ? <img src={composed} alt={`Slide ${props.number}`} className="aspect-square w-full rounded object-cover" /> : <div className="flex aspect-square w-full items-center justify-center rounded bg-muted text-muted-foreground">Chargement…</div>
         ) : (
           <div className="flex aspect-square w-full items-center justify-center rounded bg-muted text-muted-foreground">
             pas d'image

@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { useUi } from "@/components/ui-lang-switch";
 import { languageLabel } from "@/lib/languages";
 import { composeSlide } from "@/lib/slide-compose";
+import { DEFAULT_SLIDESHOW_SETTINGS, getSlideshowSettings } from "@/lib/slideshow-settings.functions";
 import {
   getSlideshowAssets,
   markSlideshowPosted,
@@ -59,6 +60,9 @@ function TodaySlideshow({ show, onChange }: { show: DailySlideshow; onChange: ()
   const [assets, setAssets] = useState<Asset[] | null>(null);
   const [busy, setBusy] = useState(false);
   const [postUrl, setPostUrl] = useState("");
+  const [style, setStyle] = useState(DEFAULT_SLIDESHOW_SETTINGS);
+
+  useEffect(() => { void getSlideshowSettings().then(setStyle).catch(() => {}); }, []);
 
   useEffect(() => {
     let active = true;
@@ -83,7 +87,8 @@ function TodaySlideshow({ show, onChange }: { show: DailySlideshow; onChange: ()
       const r = await getSlideshowAssets({
         data: { slideshowId: show.id, accountId: show.account_id, track: true },
       });
-      const blobs = await Promise.all(r.slides.map((s) => composeSlide(s.url, s.text)));
+      const currentStyle = await getSlideshowSettings();
+      const blobs = await Promise.all(r.slides.map((s) => composeSlide(s.url, s.text, currentStyle)));
       const name = (i: number) => `${String(i + 1).padStart(2, "0")}.png`;
       const files = blobs.map((b, i) => new File([b], name(i), { type: "image/png" }));
       toast.dismiss(toastId);
@@ -162,16 +167,7 @@ function TodaySlideshow({ show, onChange }: { show: DailySlideshow; onChange: ()
               key={s.index}
               className="relative aspect-square w-40 shrink-0 snap-start overflow-hidden rounded-lg border border-border"
             >
-              <img src={s.url} alt="" className="absolute inset-0 size-full object-cover" loading="lazy" />
-              <p
-                className="absolute inset-x-2 top-[8%] text-center text-xs font-black uppercase leading-tight text-primary-foreground"
-                style={{
-                  fontFamily: '"Archivo Black", "Arial Black", Impact, sans-serif',
-                  textShadow: "0 0 3px rgba(0,0,0,.9), 0 0 1px rgba(0,0,0,1)",
-                }}
-              >
-                {s.text}
-              </p>
+              <SlideThumb url={s.url} text={s.text} style={style} />
             </div>
           ))
         )}
@@ -227,4 +223,20 @@ function TodaySlideshow({ show, onChange }: { show: DailySlideshow; onChange: ()
       </div>
     </div>
   );
+}
+
+function SlideThumb({ url, text, style }: { url: string; text: string; style: typeof DEFAULT_SLIDESHOW_SETTINGS }) {
+  const [composed, setComposed] = useState<string | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    let output: string | null = null;
+    setComposed(null);
+    void composeSlide(url, text, style).then((blob) => {
+      if (cancelled) return;
+      output = URL.createObjectURL(blob);
+      setComposed(output);
+    }).catch(() => {});
+    return () => { cancelled = true; if (output) URL.revokeObjectURL(output); };
+  }, [url, text, style]);
+  return composed ? <img src={composed} alt={text} className="absolute inset-0 size-full object-cover" /> : <div className="absolute inset-0 flex items-center justify-center bg-muted text-muted-foreground">Chargement…</div>;
 }
