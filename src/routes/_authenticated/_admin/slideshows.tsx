@@ -258,7 +258,10 @@ function LaunchForm({ onCreated }: { onCreated: () => Promise<unknown> }) {
   };
 
   const launch = async () => {
-    if (!valid) return toast.error("Nombre de slides invalide pour ce format.");
+    if (!valid) {
+      toast.error("Nombre de slides invalide pour ce format.");
+      return;
+    }
     if (!confirm(`Lancer ce slideshow ? ${count} images seront générées au fil des ticks.`)) return;
     setBusy(true);
     try {
