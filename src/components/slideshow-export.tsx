@@ -71,9 +71,9 @@ function TodaySlideshow({ show, onChange }: { show: DailySlideshow; onChange: ()
     };
   }, [show.id, show.account_id]);
 
-  const copy = async (text: string) => {
+  const copy = async (text: string, ok: string) => {
     await navigator.clipboard.writeText(text);
-    toast.success(t("common.copied", { label: "" }).trim());
+    toast.success(ok);
   };
 
   const save = async () => {
@@ -187,7 +187,7 @@ function TodaySlideshow({ show, onChange }: { show: DailySlideshow; onChange: ()
         <div className="mt-4 rounded-lg border border-border bg-background p-3">
           <div className="flex items-center justify-between gap-2">
             <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{t("video.caption")}</p>
-            <Button variant="ghost" size="sm" onClick={() => copy(show.caption)}>
+            <Button variant="ghost" size="sm" onClick={() => copy(show.caption, t("video.captionCopied"))}>
               <Copy className="mr-1.5 size-3.5" /> {t("common.copy")}
             </Button>
           </div>
@@ -199,7 +199,7 @@ function TodaySlideshow({ show, onChange }: { show: DailySlideshow; onChange: ()
         <div className="mt-2 rounded-lg border border-border bg-background p-3">
           <div className="flex items-center justify-between gap-2">
             <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{t("video.hashtags")}</p>
-            <Button variant="ghost" size="sm" onClick={() => copy(hashtags)}>
+            <Button variant="ghost" size="sm" onClick={() => copy(hashtags, t("video.hashtagsCopied"))}>
               <Copy className="mr-1.5 size-3.5" /> {t("common.copy")}
             </Button>
           </div>
